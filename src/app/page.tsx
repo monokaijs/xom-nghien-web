@@ -1,24 +1,6 @@
 import {Button} from "@/components/ui/button";
 import {Card, CardContent} from "@/components/ui/card";
-import {
-  CheckIcon,
-  Download,
-  Edit3,
-  Github,
-  Heart,
-  MousePointer,
-  Palette,
-  PlaneIcon,
-  Settings,
-  StoreIcon,
-  Users,
-  Shirt,
-  Shield,
-  Video,
-  Target,
-  Zap,
-  Sparkles
-} from "lucide-react";
+import {Heart, PlaneIcon, Shield, Shirt, StoreIcon, Users, Video} from "lucide-react";
 import Header from "@/components/Header";
 import GameServersSection from "@/components/GameServersSection";
 import ContactSection from "@/components/ContactSection";
@@ -50,17 +32,21 @@ export default function Home() {
             <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
               Server Cộng đồng Counter-strike 2 miễn phí
             </p>
-            <div className={'my-8 flex flex-row items-center justify-center gap-4'}>
+            <div className={'my-16 flex flex-row items-center justify-center gap-4'}>
               <Link href={'#rent'}>
-                <Button size="lg" className="bg-red-600/80 border border-red-500/80 hover:bg-red-600 text-white px-8 py-3 transition-colors">
+                <Button size="lg"
+                        className="bg-red-600/80 border border-red-500/80 hover:bg-red-600 text-white px-8 py-3 transition-colors">
                   <PlaneIcon className="w-5 h-5 mr-1"/>
                   Thuê máy chủ
                 </Button>
               </Link>
-              <Button size="lg" className="bg-white/10 border border-white-500/15 hover:bg-white text-white hover:text-black px-8 py-3 transition-colors">
-                <StoreIcon className="w-5 h-5 mr-1"/>
-                Skins Changer
-              </Button>
+              <Link href={'https://teamcheckmateskins.store/cs2weaponpaints/'}>
+                <Button size="lg"
+                        className="bg-white/10 border border-white-500/15 hover:bg-white text-white hover:text-black px-8 py-3 transition-colors">
+                  <StoreIcon className="w-5 h-5 mr-1"/>
+                  Skins Changer
+                </Button>
+              </Link>
             </div>
           </div>
           <GameServersSection/>
@@ -91,19 +77,19 @@ export default function Home() {
 
                 <div className="space-y-4 mb-8">
                   <div className="flex items-center gap-3">
-                    <Users className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <Users className="w-5 h-5 text-red-400 flex-shrink-0"/>
                     <span className="text-gray-300">12 Player Slots</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Shirt className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                    <Shirt className="w-5 h-5 text-slate-400 flex-shrink-0"/>
                     <span className="text-gray-400 line-through">Hỗ trợ ModSkin</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Shield className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                    <Shield className="w-5 h-5 text-slate-400 flex-shrink-0"/>
                     <span className="text-gray-400 line-through">Anti-cheat</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Video className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                    <Video className="w-5 h-5 text-slate-400 flex-shrink-0"/>
                     <span className="text-gray-400 line-through">Demo xem lại</span>
                   </div>
                 </div>
@@ -130,19 +116,19 @@ export default function Home() {
 
                 <div className="space-y-4 mb-8">
                   <div className="flex items-center gap-3">
-                    <Users className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <Users className="w-5 h-5 text-red-400 flex-shrink-0"/>
                     <span className="text-gray-300">12 Player Slots</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Shirt className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <Shirt className="w-5 h-5 text-red-400 flex-shrink-0"/>
                     <span className="text-gray-300">Hỗ trợ ModSkin</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Shield className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <Shield className="w-5 h-5 text-red-400 flex-shrink-0"/>
                     <span className="text-gray-300">Anti-cheat</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Video className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                    <Video className="w-5 h-5 text-slate-400 flex-shrink-0"/>
                     <span className="text-gray-400 line-through">Demo xem lại</span>
                   </div>
                 </div>
@@ -164,19 +150,19 @@ export default function Home() {
 
                 <div className="space-y-4 mb-8">
                   <div className="flex items-center gap-3">
-                    <Users className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <Users className="w-5 h-5 text-red-400 flex-shrink-0"/>
                     <span className="text-gray-300">12 Player Slots</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Shirt className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <Shirt className="w-5 h-5 text-red-400 flex-shrink-0"/>
                     <span className="text-gray-300">Hỗ trợ ModSkin</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Shield className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <Shield className="w-5 h-5 text-red-400 flex-shrink-0"/>
                     <span className="text-gray-300">Anti-cheat</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Video className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <Video className="w-5 h-5 text-red-400 flex-shrink-0"/>
                     <span className="text-gray-300">Demo xem lại</span>
                   </div>
                 </div>
@@ -198,7 +184,8 @@ export default function Home() {
                 So sánh chi tiết
               </Button>
               <Link href={'#contact'}>
-                <Button variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white">
+                <Button variant="outline"
+                        className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white">
                   Liên hệ tư vấn
                 </Button>
               </Link>
@@ -208,10 +195,10 @@ export default function Home() {
       </section>
 
       {/* Weapons Section */}
-      <WeaponsSection />
+      <WeaponsSection/>
 
       {/* Contact Section */}
-      <ContactSection />
+      <ContactSection/>
 
       <footer className="bg-black/40 border-t border-white/10 py-12 px-4">
         <div className="container mx-auto">
@@ -226,7 +213,8 @@ export default function Home() {
             <p className="text-red-200">© 2025 Team Checkmate.</p>
             <p className="text-red-200 flex items-center gap-1">
               Made with <Heart className="w-4 h-4 text-red-500"/> by
-              <a href="https://monokaijs.com" className="text-red-300 hover:text-red-400 transition-colors ml-1">@monokaijs</a>
+              <a href="https://monokaijs.com"
+                 className="text-red-300 hover:text-red-400 transition-colors ml-1">@monokaijs</a>
             </p>
           </div>
         </div>

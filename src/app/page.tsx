@@ -213,61 +213,12 @@ export default function Home() {
       {/* Contact Section */}
       <ContactSection />
 
-      <section className="py-20 px-4 bg-black/20">
-        <div className="container mx-auto text-center">
-          <h2 className="text-4xl font-bold text-white mb-6">
-            Stop Struggling<br/>With Boring CMSs!
-          </h2>
-          <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            Flute CMS is an engine that doesn't annoy and just does its job. You can try it absolutely free!
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-slate-700 hover:bg-red-600 text-white px-8 py-3 transition-colors">
-              <Download className="w-5 h-5 mr-2"/>
-              Download Flute CMS
-            </Button>
-            <Button size="lg" variant="outline"
-                    className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white px-8 py-3">
-              Documentation
-            </Button>
-          </div>
-        </div>
-      </section>
-
       <footer className="bg-black/40 border-t border-white/10 py-12 px-4">
         <div className="container mx-auto">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-              <div className="text-2xl font-bold text-white mb-4">FLUTE CMS</div>
-              <p className="text-red-200">Simple and powerful CMS for game servers</p>
-            </div>
-
-            <div>
-              <h4 className="text-white font-semibold mb-4">Product</h4>
-              <ul className="space-y-2">
-                <li><a href="#" className="text-red-200 hover:text-white transition-colors">Module Market</a></li>
-                <li><a href="#" className="text-red-200 hover:text-white transition-colors">Updates</a></li>
-                <li><a href="#" className="text-red-200 hover:text-white transition-colors">Download</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-white font-semibold mb-4">For Developers</h4>
-              <ul className="space-y-2">
-                <li><a href="#" className="text-red-200 hover:text-white transition-colors">Documentation</a></li>
-                <li><a href="#" className="text-red-200 hover:text-white transition-colors flex items-center gap-1">
-                  <Github className="w-4 h-4"/>
-                  GitHub
-                </a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-white font-semibold mb-4">Support</h4>
-              <ul className="space-y-2">
-                <li><a href="#" className="text-red-200 hover:text-white transition-colors">Terms of Service</a></li>
-                <li><a href="#" className="text-red-200 hover:text-white transition-colors">Privacy Policy</a></li>
-              </ul>
+              <div className="text-2xl font-bold text-white mb-4">TEAM CHECKMATE</div>
+              <p className="text-red-200">Community Powered Counter-Strike 2 Server</p>
             </div>
           </div>
 

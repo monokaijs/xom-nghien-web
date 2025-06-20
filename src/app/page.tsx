@@ -40,7 +40,7 @@ export default function Home() {
                   Thuê máy chủ
                 </Button>
               </Link>
-              <Link href={'https://teamcheckmateskins.store/cs2weaponpaints/'}>
+              <Link href={'/skin-changer'}>
                 <Button size="lg"
                         className="bg-white/10 border border-white-500/15 hover:bg-white text-white hover:text-black px-8 py-3 transition-colors">
                   <StoreIcon className="w-5 h-5 mr-1"/>

@@ -132,7 +132,7 @@ export default function WeaponsSection() {
         <div className="relative overflow-hidden">
           <div
             className="flex transition-transform duration-500 ease-in-out"
-            style={{transform: `tranneutralX(-${currentIndex * 100}%)`}}
+            style={{transform: `translateX(-${currentIndex * 100}%)`}}
           >
             {weapons.map((weapon, index) => (
               <div key={`${weapon.name}-${index}`} className="w-full flex-shrink-0 px-4">
@@ -149,14 +149,14 @@ export default function WeaponsSection() {
         {/* Navigation Arrows */}
         <button
           onClick={prevSlide}
-          className="absolute left-4 top-1/2 -tranneutral-y-1/2 w-12 h-12 bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-all duration-200 hover:scale-110"
+          className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-all duration-200 hover:scale-110"
         >
           <ChevronLeft className="w-6 h-6"/>
         </button>
 
         <button
           onClick={nextSlide}
-          className="absolute right-4 top-1/2 -tranneutral-y-1/2 w-12 h-12 bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-all duration-200 hover:scale-110"
+          className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-all duration-200 hover:scale-110"
         >
           <ChevronRight className="w-6 h-6"/>
         </button>

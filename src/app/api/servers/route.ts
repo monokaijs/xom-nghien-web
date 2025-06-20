@@ -8,7 +8,6 @@ let lastCacheUpdate = 0;
 const CACHE_DURATION = 10 * 1000; // 10 secs
 
 async function queryServer(server: GameServer): Promise<ServerStatus> {
-  console.log('server', server);
   const baseStatus: ServerStatus = {
     id: server.id,
     name: server.name,

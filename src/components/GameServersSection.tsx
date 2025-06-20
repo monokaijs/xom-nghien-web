@@ -19,7 +19,6 @@ export default function GameServersSection() {
   return <div className="text-left grid grid-cols-1 xl:grid-cols-3 gap-4">
     {GameServers.map((server, index) => {
       const sv = statuses.find(x => x.id === server.id);
-      console.log('sv', sv);
       return <GameServerCard key={index} server={sv!}/>
     })}
   </div>

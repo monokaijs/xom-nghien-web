@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import useEmblaCarousel, { EmblaOptionsType } from 'embla-carousel-react';
+import useEmblaCarousel from 'embla-carousel-react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {EmblaOptionsType} from "embla-carousel";
 
 interface CarouselProps {
   children: React.ReactNode;

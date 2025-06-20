@@ -90,13 +90,6 @@ export default function GameServerCard({server}: GameServerCardProps) {
               {server.map}
             </div>
           )}
-          {/*{server.ping && (*/}
-          {/*  <div*/}
-          {/*    className="backdrop-blur-xl px-2.5 py-1 border border-white/5 rounded-full text-white/80 flex items-center gap-1">*/}
-          {/*    <ClockIcon className="w-3 h-3"/>*/}
-          {/*    {server.ping}ms*/}
-          {/*  </div>*/}
-          {/*)}*/}
         </div>
 
         {/* Player Count */}
@@ -109,27 +102,25 @@ export default function GameServerCard({server}: GameServerCardProps) {
             {server.online ? `${server.players.current} / ${server.players.max}` : '-- / --'}
           </div>
         </div>
-
-        {/* Connect Button or Error */}
-        <div className="mt-4">
-          {server.online ? (
-            <button
-              className="bg-white hover:bg-red-500 hover:text-white transition-all duration-200 text-black flex flex-row items-center gap-1 text-sm px-3 py-2 rounded-lg font-medium"
-              onClick={() => setIsModalOpen(true)}
-            >
-              <PlayIcon className="w-4 h-4"/> Connect
-            </button>
-          ) : (
-            <div className="flex items-center gap-2 text-red-300 text-sm">
-              <WifiOffIcon className="w-4 h-4"/>
-              <span>{server.error || 'Server unavailable'}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Last Updated */}
-        <div className="mt-2 text-xs text-white/50">
-          Updated: {new Date(server.lastUpdated).toLocaleTimeString()}
+        <div className='flex flex-row justify-between items-end'>
+          <div className="mt-4">
+            {server.online ? (
+              <button
+                className="bg-white hover:bg-red-500 hover:text-white transition-all duration-200 text-black flex flex-row items-center gap-1 text-sm px-3 py-2 rounded-lg font-medium"
+                onClick={() => setIsModalOpen(true)}
+              >
+                <PlayIcon className="w-4 h-4"/> Connect
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 text-red-300 text-sm">
+                <WifiOffIcon className="w-4 h-4"/>
+                <span>{server.error || 'Server unavailable'}</span>
+              </div>
+            )}
+          </div>
+          <div className="mt-2 text-xs text-white/50">
+            Updated: {new Date(server.lastUpdated).toLocaleTimeString()}
+          </div>
         </div>
       </div>
 

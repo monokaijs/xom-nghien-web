@@ -5,9 +5,8 @@ import { ServerStatus } from '@/types/server';
 
 let serverStatusCache: ServerStatus[] = [];
 let lastCacheUpdate = 0;
-const CACHE_DURATION = 60 * 1000; // 1 minute in milliseconds
+const CACHE_DURATION = 10 * 1000; // 10 secs
 
-// Query a single server
 async function queryServer(server: GameServer): Promise<ServerStatus> {
   console.log('server', server);
   const baseStatus: ServerStatus = {

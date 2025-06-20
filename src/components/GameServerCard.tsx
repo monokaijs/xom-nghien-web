@@ -128,20 +128,20 @@ export default function GameServerCard({server}: GameServerCardProps) {
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-md bg-background border-neutral-900">
           <DialogHeader>
-            <DialogTitle className="text-white">Connect to Server</DialogTitle>
+            <DialogTitle className="text-white">Kết nối máy chủ</DialogTitle>
             <DialogDescription className="text-slate-300">
-              Enter the server password (leave blank if no password required)
+              Nhập mật khẩu Server, vui lòng để trống nếu không có mật khẩu.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <label htmlFor="password" className="text-sm font-medium text-slate-300 block mb-2">
-                Server Password
+                Mật khẩu
               </label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter password (optional)"
+                placeholder="Nhập mật khẩu (không bắt buộc)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="bg-background border-neutral-700 text-white placeholder-slate-400"
@@ -153,7 +153,7 @@ export default function GameServerCard({server}: GameServerCardProps) {
               />
             </div>
             <div className="text-xs text-slate-400">
-              Server: {server.name} ({server.ip}:{server.port})
+              Máy chủ: {server.name}
             </div>
           </div>
           <DialogFooter className="gap-2">
@@ -165,14 +165,14 @@ export default function GameServerCard({server}: GameServerCardProps) {
               }}
               className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
             >
-              Cancel
+              Huỷ
             </Button>
             <Button
               onClick={handleConnect}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               <PlayIcon className="w-4 h-4 mr-2"/>
-              Connect
+              Kết nối
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -109,7 +109,7 @@ export default function GameServerCard({server}: GameServerCardProps) {
                 className="bg-white hover:bg-red-500 hover:text-white transition-all duration-200 text-black flex flex-row items-center gap-1 text-sm px-3 py-2 rounded-lg font-medium"
                 onClick={() => setIsModalOpen(true)}
               >
-                <PlayIcon className="w-4 h-4"/> Connect
+                <PlayIcon className="w-4 h-4"/> Kết nối
               </button>
             ) : (
               <div className="flex items-center gap-2 text-red-300 text-sm">
@@ -119,7 +119,7 @@ export default function GameServerCard({server}: GameServerCardProps) {
             )}
           </div>
           <div className="mt-2 text-xs text-white/50">
-            Updated: {new Date(server.lastUpdated).toLocaleTimeString()}
+            Cập nhật: {new Date(server.lastUpdated).toLocaleTimeString()}
           </div>
         </div>
       </div>

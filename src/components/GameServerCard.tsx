@@ -1,11 +1,36 @@
+"use client";
+
 import {ClockIcon, PlayIcon, UsersIcon, WifiOffIcon} from "lucide-react";
 import {ServerStatus} from "@/types/server";
+import {useState} from "react";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {connectToServer} from "@/lib/connect";
 
 interface GameServerCardProps {
   server?: ServerStatus;
 }
 
 export default function GameServerCard({server}: GameServerCardProps) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [password, setPassword] = useState('');
+
+  const handleConnect = () => {
+    if (server) {
+      connectToServer(server.ip, server.port, password);
+      setIsModalOpen(false);
+      setPassword('');
+    }
+  };
+
   if (!server) {
     return (
       <div className="rounded-3xl p-6 bg-slate-800/50 relative z-0 overflow-hidden animate-pulse">
@@ -90,12 +115,7 @@ export default function GameServerCard({server}: GameServerCardProps) {
           {server.online ? (
             <button
               className="bg-white hover:bg-red-500 hover:text-white transition-all duration-200 text-black flex flex-row items-center gap-1 text-sm px-3 py-2 rounded-lg font-medium"
-              onClick={() => {
-                // Copy connect command to clipboard
-                const connectCommand = `connect ${server.ip}:${server.port}`;
-                navigator.clipboard.writeText(connectCommand);
-                // You could show a toast notification here
-              }}
+              onClick={() => setIsModalOpen(true)}
             >
               <PlayIcon className="w-4 h-4"/> Connect
             </button>
@@ -112,6 +132,60 @@ export default function GameServerCard({server}: GameServerCardProps) {
           Updated: {new Date(server.lastUpdated).toLocaleTimeString()}
         </div>
       </div>
+
+      {/* Password Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-md bg-background border-neutral-900">
+          <DialogHeader>
+            <DialogTitle className="text-white">Connect to Server</DialogTitle>
+            <DialogDescription className="text-slate-300">
+              Enter the server password (leave blank if no password required)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="password" className="text-sm font-medium text-slate-300 block mb-2">
+                Server Password
+              </label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter password (optional)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="bg-background border-neutral-700 text-white placeholder-slate-400"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleConnect();
+                  }
+                }}
+              />
+            </div>
+            <div className="text-xs text-slate-400">
+              Server: {server.name} ({server.ip}:{server.port})
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsModalOpen(false);
+                setPassword('');
+              }}
+              className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConnect}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              <PlayIcon className="w-4 h-4 mr-2"/>
+              Connect
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

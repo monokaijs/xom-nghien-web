@@ -67,7 +67,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id={'rent'} className="py-20 px-4">
+      <section id={'rent'} className="py-20 px-4 bg-black/20">
         <div className="container mx-auto">
           <div className="text-center mb-16">
             <span className="text-slate-400 text-sm font-medium">Counter-strike 2</span>

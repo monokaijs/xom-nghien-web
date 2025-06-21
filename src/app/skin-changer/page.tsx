@@ -11,7 +11,7 @@ import Pagination from '@/components/Pagination';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { CS2Skin, CS2Agent, UserSkinConfig } from '@/types/server';
-import { LogOut, Grid, List } from 'lucide-react';
+import { LogOut, Grid, List, Package } from 'lucide-react';
 import {cn} from "@/lib/utils";
 
 export default function SkinChangerPage() {
@@ -246,6 +246,16 @@ function SkinChangerDashboard() {
                   <span className="text-neutral-300 hidden md:block">{user.username}</span>
                 </div>
               )}
+
+              <Button
+                onClick={() => router.push('/skin-changer/loadout')}
+                variant="outline"
+                size="sm"
+                className="border-white/20 text-neutral-300 hover:bg-white/10"
+              >
+                <Package className="w-4 h-4 mr-2" />
+                My Loadout
+              </Button>
 
               <Button
                 onClick={logout}

@@ -84,7 +84,7 @@ export default function SkinGrid({
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {Array.from({length: 20}).map((_, index) => (
-          <Card key={index} className="bg-white/5 border-white/10 animate-pulse">
+          <Card key={index} className="bg-white/5 border-white/10 animate-pulse p-0">
             <CardContent className="p-0">
               <div className="aspect-[4/3] bg-neutral-700/50 rounded-t-lg"/>
               <div className="p-4 space-y-2">

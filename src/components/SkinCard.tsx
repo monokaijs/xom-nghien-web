@@ -42,7 +42,7 @@ export default function SkinCard({skin, onCustomize, team = 2}: SkinCardProps) {
 
   return (
     <Card
-      className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 bg-white/5 border-white/10 backdrop-blur-sm pb-0"
+      className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 bg-white/5 border-white/10 backdrop-blur-sm p-0"
     >
       <CardContent className="p-0">
         {/* Image Container */}

@@ -22,9 +22,14 @@ export default function Header() {
       <a href="#rent" className="text-neutral-300 hover:text-white transition-colors">Thuê máy chủ</a>
       <a href="#contact" className="text-neutral-300 hover:text-white transition-colors">Liên hệ</a>
       {isLoggedIn && (
-        <Link href="/skin-changer" className="text-neutral-300 hover:text-red-400 transition-colors">
-          Skin Changer
-        </Link>
+        <>
+          <Link href="/skin-changer" className="text-neutral-300 hover:text-red-400 transition-colors">
+            Skin Changer
+          </Link>
+          <Link href="/skin-changer/loadout" className="text-neutral-300 hover:text-red-400 transition-colors">
+            My Loadout
+          </Link>
+        </>
       )}
     </>
   );

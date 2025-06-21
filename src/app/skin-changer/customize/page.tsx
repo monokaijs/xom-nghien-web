@@ -109,6 +109,16 @@ function WeaponCustomizeContent() {
 
     setIsApplying(true);
     try {
+      // Format stickers as "id;0;0;0;0;0;0" for each sticker slot
+      const formatSticker = (sticker: CS2Sticker | null) => {
+        return sticker ? `${sticker.id};0;0;0;0;0;0` : '0;0;0;0;0;0;0';
+      };
+
+      // Format keychain as "id;0;0;0;0"
+      const formatKeychain = (keychain: CS2Keychain | null) => {
+        return keychain ? `${keychain.id};0;0;0;0` : '0;0;0;0;0';
+      };
+
       const payload = {
         type: skin ? (skin.weapon_name.includes('knife') ? 'knifes' : 'weapons') : 'agents',
         weapon_team: selectedTeam,
@@ -118,12 +128,12 @@ function WeaponCustomizeContent() {
         weapon_seed: settings.seed,
         weapon_nametag: settings.nameTag,
         weapon_stattrak: settings.statTrak ? 1 : 0,
-        weapon_sticker_0: settings.stickers[0]?.id || '0',
-        weapon_sticker_1: settings.stickers[1]?.id || '0',
-        weapon_sticker_2: settings.stickers[2]?.id || '0',
-        weapon_sticker_3: settings.stickers[3]?.id || '0',
-        weapon_sticker_4: settings.stickers[4]?.id || '0',
-        weapon_keychain: settings.keychain?.id || '0',
+        weapon_sticker_0: formatSticker(settings.stickers[0]),
+        weapon_sticker_1: formatSticker(settings.stickers[1]),
+        weapon_sticker_2: formatSticker(settings.stickers[2]),
+        weapon_sticker_3: formatSticker(settings.stickers[3]),
+        weapon_sticker_4: formatSticker(settings.stickers[4]),
+        weapon_keychain: formatKeychain(settings.keychain),
       };
 
       const response = await fetch('/api/apply-skin', {

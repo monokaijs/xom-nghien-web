@@ -201,7 +201,7 @@ export default function WeaponCustomizePage() {
             <div className="space-y-6">
               {/* Weapon Preview */}
               <WeaponPreview
-                item={item}
+                item={item!}
                 settings={settings}
                 itemName={itemName}
                 itemImage={itemImage}

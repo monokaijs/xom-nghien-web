@@ -32,7 +32,7 @@ function SkinChangerDashboard() {
     terrorist: [],
     counterTerrorist: [],
   });
-  const [loadoutItems, setLoadoutItems] = useState<any[]>([]);
+  const [loadoutData, setLoadoutData] = useState<any>({});
   const [userSkins, setUserSkins] = useState<UserSkinConfig[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<2 | 3>(2); // 2 = T, 3 = CT
@@ -48,7 +48,10 @@ function SkinChangerDashboard() {
 
   useEffect(() => {
     loadCategoryData();
-    loadUserSkins();
+    // Only load user skins for non-loadout categories (needed for customization indicators)
+    if (activeCategory !== 'loadout') {
+      loadUserSkins();
+    }
     setCurrentPage(1); // Reset pagination when category changes
     setSearchQuery(''); // Reset search when category changes
   }, [activeCategory]);
@@ -60,7 +63,7 @@ function SkinChangerDashboard() {
         const response = await fetch('/api/user-loadout');
         if (response.ok) {
           const data = await response.json();
-          setLoadoutItems(data.loadout || []);
+          setLoadoutData(data.loadout || {});
         }
       } else if (activeCategory === 'agents') {
         const response = await fetch('/api/agents');
@@ -121,7 +124,9 @@ function SkinChangerDashboard() {
   // Get current items for pagination
   const getCurrentItems = () => {
     if (activeCategory === 'loadout') {
-      const filtered = loadoutItems.filter(item =>
+      // Flatten all loadout items from all categories
+      const allLoadoutItems = Object.values(loadoutData).flat();
+      const filtered = allLoadoutItems.filter((item: any) =>
         item.weaponName.toLowerCase().includes(searchQuery.toLowerCase())
       );
 

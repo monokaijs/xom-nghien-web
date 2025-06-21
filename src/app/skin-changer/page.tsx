@@ -8,6 +8,7 @@ import CategoryNavigation, { SkinCategory } from '@/components/CategoryNavigatio
 import SearchAndFilter from '@/components/SearchAndFilter';
 import SkinGrid from '@/components/SkinGrid';
 import Pagination from '@/components/Pagination';
+import LoadoutWeaponCard from '@/components/LoadoutWeaponCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { CS2Skin, CS2Agent, UserSkinConfig } from '@/types/server';
@@ -25,12 +26,13 @@ export default function SkinChangerPage() {
 function SkinChangerDashboard() {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const [activeCategory, setActiveCategory] = useState<SkinCategory>('pistols');
+  const [activeCategory, setActiveCategory] = useState<SkinCategory>('loadout');
   const [skins, setSkins] = useState<CS2Skin[]>([]);
   const [agents, setAgents] = useState<{ terrorist: CS2Agent[]; counterTerrorist: CS2Agent[] }>({
     terrorist: [],
     counterTerrorist: [],
   });
+  const [loadoutItems, setLoadoutItems] = useState<any[]>([]);
   const [userSkins, setUserSkins] = useState<UserSkinConfig[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<2 | 3>(2); // 2 = T, 3 = CT
@@ -54,7 +56,13 @@ function SkinChangerDashboard() {
   const loadCategoryData = async () => {
     setIsLoading(true);
     try {
-      if (activeCategory === 'agents') {
+      if (activeCategory === 'loadout') {
+        const response = await fetch('/api/user-loadout');
+        if (response.ok) {
+          const data = await response.json();
+          setLoadoutItems(data.loadout || []);
+        }
+      } else if (activeCategory === 'agents') {
         const response = await fetch('/api/agents');
         if (response.ok) {
           const data = await response.json();
@@ -112,7 +120,19 @@ function SkinChangerDashboard() {
 
   // Get current items for pagination
   const getCurrentItems = () => {
-    if (activeCategory === 'agents') {
+    if (activeCategory === 'loadout') {
+      const filtered = loadoutItems.filter(item =>
+        item.weaponName.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      return {
+        items: filtered.slice(startIndex, endIndex),
+        totalItems: filtered.length,
+        totalPages: Math.ceil(filtered.length / itemsPerPage)
+      };
+    } else if (activeCategory === 'agents') {
       const currentAgents = selectedTeam === 2 ? agents.terrorist : agents.counterTerrorist;
       const filtered = currentAgents.filter(agent =>
         agent.agent_name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -146,43 +166,63 @@ function SkinChangerDashboard() {
     return (
       <div className="space-y-6">
         {/* Team Selection */}
-        <div className="flex gap-4">
-          <Button
-            onClick={() => {
-              setSelectedTeam(2);
-              setCurrentPage(1);
-            }}
-            variant={selectedTeam === 2 ? 'default' : 'ghost'}
-          >
-            Terrorist
-          </Button>
-          <Button
-            onClick={() => {
-              setSelectedTeam(3);
-              setCurrentPage(1);
-            }}
-            variant={selectedTeam === 3 ? 'default' : 'ghost'}
-          >
-            Counter-Terrorist
-          </Button>
-        </div>
+        {activeCategory !== 'loadout' && (
+          <div className="flex gap-4">
+            <Button
+              onClick={() => {
+                setSelectedTeam(2);
+                setCurrentPage(1);
+              }}
+              variant={selectedTeam === 2 ? 'default' : 'ghost'}
+            >
+              Terrorist
+            </Button>
+            <Button
+              onClick={() => {
+                setSelectedTeam(3);
+                setCurrentPage(1);
+              }}
+              variant={selectedTeam === 3 ? 'default' : 'ghost'}
+            >
+              Counter-Terrorist
+            </Button>
+          </div>
+        )}
 
         {/* Search and Filter */}
-        <SearchAndFilter
-          searchQuery={searchQuery}
-          onSearchChange={handleSearchChange}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-          onSortChange={handleSortChange}
-          totalItems={activeCategory === 'agents' ?
-            (selectedTeam === 2 ? agents.terrorist.length : agents.counterTerrorist.length) :
-            skins.length
-          }
-          filteredItems={totalItems}
-        />
+        {activeCategory !== 'loadout' && (
+          <SearchAndFilter
+            searchQuery={searchQuery}
+            onSearchChange={handleSearchChange}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={handleSortChange}
+            totalItems={activeCategory === 'agents' ?
+              (selectedTeam === 2 ? agents.terrorist.length : agents.counterTerrorist.length) :
+              skins.length
+            }
+            filteredItems={totalItems}
+          />
+        )}
 
         {/* Content Grid */}
-        {activeCategory === 'agents' ? (
+        {activeCategory === 'loadout' ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {currentItems.map((item: any, index: number) => (
+              <LoadoutWeaponCard
+                key={`${item.userConfig.weapon_defindex}-${item.userConfig.weapon_team}-${index}`}
+                item={item}
+                onCustomize={(item) => {
+                  if (item.skinData) {
+                    handleSkinCustomize(item.skinData);
+                  } else if (item.agentData) {
+                    handleAgentCustomize(item.agentData);
+                  }
+                }}
+              />
+            ))}
+          </div>
+        ) : activeCategory === 'agents' ? (
           <SkinGrid
             agents={currentItems as CS2Agent[]}
             searchQuery=""

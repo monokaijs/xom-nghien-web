@@ -1,9 +1,10 @@
 'use client';
 
 import {useState} from 'react';
-import {CS2Skin} from '@/types/server';
+import {CS2Skin, UserSkinConfig} from '@/types/server';
 import {Button} from '@/components/ui/button';
-import {Star, Target} from 'lucide-react';
+import {Badge} from '@/components/ui/badge';
+import {Star, Target, Settings} from 'lucide-react';
 import {cn} from '@/lib/utils';
 import {Card, CardContent} from './ui/card';
 
@@ -11,9 +12,10 @@ interface SkinCardProps {
   skin: CS2Skin;
   onCustomize?: (skin: CS2Skin) => void;
   team?: number; // 2 for T, 3 for CT
+  userSkins?: UserSkinConfig[];
 }
 
-export default function SkinCard({skin, onCustomize, team = 2}: SkinCardProps) {
+export default function SkinCard({skin, onCustomize, team = 2, userSkins = []}: SkinCardProps) {
   const [imageError, setImageError] = useState(false);
 
   const handleCustomize = () => {
@@ -21,6 +23,13 @@ export default function SkinCard({skin, onCustomize, team = 2}: SkinCardProps) {
       onCustomize(skin);
     }
   };
+
+  // Check if this skin is customized by the user
+  const isCustomized = userSkins.some(userSkin =>
+    userSkin.weapon_defindex === skin.weapon_defindex &&
+    userSkin.weapon_team === team &&
+    userSkin.weapon_paint_id == skin.paint
+  );
 
   const getRarityColor = () => {
     // Simple rarity detection based on paint name
@@ -42,7 +51,10 @@ export default function SkinCard({skin, onCustomize, team = 2}: SkinCardProps) {
 
   return (
     <Card
-      className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 bg-white/5 border-white/10 backdrop-blur-sm p-0"
+      className={cn(
+        "group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 bg-white/5 border-white/10 backdrop-blur-sm p-0",
+        isCustomized && "border-green-500/30 bg-green-500/5"
+      )}
     >
       <CardContent className="p-0">
         {/* Image Container */}
@@ -73,6 +85,15 @@ export default function SkinCard({skin, onCustomize, team = 2}: SkinCardProps) {
             <Star className="w-4 h-4 text-white"/>
           </div>
 
+          {/* Customized Badge */}
+          {isCustomized && (
+            <div className="absolute top-2 left-2">
+              <Badge className="bg-green-500/80 hover:bg-green-500/80 text-white border-0 text-xs">
+                <Settings className="w-3 h-3 mr-1" />
+                Customized
+              </Badge>
+            </div>
+          )}
 
         </div>
 
@@ -92,7 +113,7 @@ export default function SkinCard({skin, onCustomize, team = 2}: SkinCardProps) {
               onClick={handleCustomize}
               className="text-xs px-3 py-1 h-7 bg-white/10 hover:bg-red-500 text-white"
             >
-              Customize
+              {isCustomized ? 'Edit' : 'Customize'}
             </Button>
           </div>
         </div>

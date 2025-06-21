@@ -1,12 +1,13 @@
 'use client';
 
 import {useMemo, useState} from 'react';
-import {CS2Agent, CS2Skin} from '@/types/server';
+import {CS2Agent, CS2Skin, UserSkinConfig} from '@/types/server';
 import SkinCard from '@/components/SkinCard';
 import EmptyState from '@/components/EmptyState';
 import {Card, CardContent} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
-import {Check, Target} from 'lucide-react';
+import {Badge} from '@/components/ui/badge';
+import {Check, Target, Settings} from 'lucide-react';
 import {cn} from '@/lib/utils';
 
 interface SkinGridProps {
@@ -16,7 +17,7 @@ interface SkinGridProps {
   sortBy: 'name' | 'rarity';
   sortOrder: 'asc' | 'desc';
   selectedTeam: 2 | 3;
-  userSkins: any[];
+  userSkins: UserSkinConfig[];
   onSkinCustomize: (skin: CS2Skin) => void;
   onAgentCustomize?: (agent: CS2Agent) => void;
   isLoading?: boolean;
@@ -40,13 +41,39 @@ export default function SkinGrid({
     setImageErrors(prev => new Set(prev).add(id));
   };
 
+  // Helper function to check if a skin is customized
+  const isSkinCustomized = (skin: CS2Skin) => {
+    return userSkins.some(userSkin =>
+      userSkin.weapon_defindex === skin.weapon_defindex &&
+      userSkin.weapon_team === selectedTeam &&
+      userSkin.weapon_paint_id == skin.paint
+    );
+  };
+
+  // Helper function to check if an agent is customized
+  const isAgentCustomized = (agent: CS2Agent) => {
+    return userSkins.some(userSkin =>
+      userSkin.weapon_defindex === agent.model &&
+      userSkin.weapon_team === selectedTeam
+    );
+  };
+
   // Filter and sort skins
   const filteredAndSortedSkins = useMemo(() => {
     let filtered = skins.filter(skin =>
       skin.paint_name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    // Sort by customization status first, then by name or rarity
     filtered.sort((a, b) => {
+      const aCustomized = isSkinCustomized(a);
+      const bCustomized = isSkinCustomized(b);
+
+      // Prioritize customized items first
+      if (aCustomized && !bCustomized) return -1;
+      if (!aCustomized && bCustomized) return 1;
+
+      // If both have same customization status, sort by selected criteria
       if (sortBy === 'name') {
         const comparison = a.paint_name.localeCompare(b.paint_name);
         return sortOrder === 'asc' ? comparison : -comparison;
@@ -68,15 +95,31 @@ export default function SkinGrid({
     });
 
     return filtered;
-  }, [skins, searchQuery, sortBy, sortOrder]);
+  }, [skins, searchQuery, sortBy, sortOrder, userSkins, selectedTeam]);
 
-  // Filter agents
-  const filteredAgents = useMemo(() => {
-    return agents.filter(agent =>
+  // Filter and sort agents
+  const filteredAndSortedAgents = useMemo(() => {
+    let filtered = agents.filter(agent =>
       agent.agent_name.toLowerCase().includes(searchQuery.toLowerCase()) &&
       agent.team === selectedTeam
     );
-  }, [agents, searchQuery, selectedTeam]);
+
+    // Sort by customization status first, then by name
+    filtered.sort((a, b) => {
+      const aCustomized = isAgentCustomized(a);
+      const bCustomized = isAgentCustomized(b);
+
+      // Prioritize customized items first
+      if (aCustomized && !bCustomized) return -1;
+      if (!aCustomized && bCustomized) return 1;
+
+      // If both have same customization status, sort by name
+      const comparison = a.agent_name.localeCompare(b.agent_name);
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return filtered;
+  }, [agents, searchQuery, selectedTeam, userSkins, sortOrder]);
 
 
 
@@ -100,20 +143,24 @@ export default function SkinGrid({
 
   // Render agents grid
   if (agents.length > 0) {
-    if (filteredAgents.length === 0) {
+    if (filteredAndSortedAgents.length === 0) {
       return <EmptyState type="search" searchQuery={searchQuery}/>;
     }
 
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {filteredAgents.map((agent, index) => {
+        {filteredAndSortedAgents.map((agent, index) => {
           const agentId = `${agent.model}-${agent.team}`;
           const hasError = imageErrors.has(agentId);
+          const isCustomized = isAgentCustomized(agent);
 
           return (
             <Card
               key={agentId}
-              className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 bg-white/5 border-white/10 backdrop-blur-sm py-0"
+              className={cn(
+                "group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 bg-white/5 border-white/10 backdrop-blur-sm p-0",
+                isCustomized && "border-green-500/30 bg-green-500/5"
+              )}
             >
               <CardContent className="p-0">
                 <div className="relative aspect-[3/4] overflow-hidden">
@@ -133,6 +180,16 @@ export default function SkinGrid({
                 )}
 
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"/>
+
+                  {/* Customized Badge */}
+                  {isCustomized && (
+                    <div className="absolute top-2 left-2">
+                      <Badge className="bg-green-500/80 hover:bg-green-500/80 text-white border-0 text-xs">
+                        <Settings className="w-3 h-3 mr-1" />
+                        Customized
+                      </Badge>
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-4">
@@ -145,7 +202,7 @@ export default function SkinGrid({
                   onClick={() => onAgentCustomize?.(agent)}
                   className="text-xs px-3 py-1 h-7 w-full bg-white/10 hover:bg-red-500 text-white"
                 >
-                  Customize
+                  {isCustomized ? 'Edit' : 'Customize'}
                 </Button>
                 </div>
               </CardContent>
@@ -169,6 +226,7 @@ export default function SkinGrid({
           skin={skin}
           onCustomize={onSkinCustomize}
           team={selectedTeam}
+          userSkins={userSkins}
         />
       ))}
     </div>

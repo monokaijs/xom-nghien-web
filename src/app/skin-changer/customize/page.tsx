@@ -55,6 +55,7 @@ function WeaponCustomizeContent() {
   });
 
   const [isApplying, setIsApplying] = useState(false);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(false);
 
   useEffect(() => {
     if (weaponData) {
@@ -77,6 +78,72 @@ function WeaponCustomizeContent() {
       router.push('/skin-changer');
     }
   }, [weaponData, agentData, router]);
+
+  // Load existing customization settings
+  useEffect(() => {
+    const loadExistingCustomization = async () => {
+      if (!skin && !agent) return;
+
+      setIsLoadingExisting(true);
+      try {
+        const response = await fetch('/api/user-skins');
+        if (response.ok) {
+          const data = await response.json();
+          const userSkins = data.skins || [];
+
+          // Find existing customization for this weapon/agent
+          const existingCustomization = userSkins.find((userSkin: any) => {
+            if (skin) {
+              return userSkin.weapon_defindex === skin.weapon_defindex &&
+                     userSkin.weapon_team === selectedTeam &&
+                     userSkin.weapon_paint_id == skin.paint;
+            } else if (agent) {
+              return userSkin.weapon_defindex === agent.model &&
+                     userSkin.weapon_team === selectedTeam;
+            }
+            return false;
+          });
+
+          if (existingCustomization) {
+            // Parse stickers
+            const parseSticker = (stickerStr: string) => {
+              if (!stickerStr || stickerStr === '0;0;0;0;0;0;0') return null;
+              const parts = stickerStr.split(';');
+              return parts[0] !== '0' ? { id: parts[0], name: `Sticker ${parts[0]}`, image: '' } : null;
+            };
+
+            // Parse keychain
+            const parseKeychain = (keychainStr: string) => {
+              if (!keychainStr || keychainStr === '0;0;0;0;0') return null;
+              const parts = keychainStr.split(';');
+              return parts[0] !== '0' ? { id: parts[0], name: `Keychain ${parts[0]}`, image: '' } : null;
+            };
+
+            setSettings({
+              wear: existingCustomization.weapon_wear || 0.1,
+              seed: existingCustomization.weapon_seed || 1,
+              nameTag: existingCustomization.weapon_nametag || '',
+              statTrak: existingCustomization.weapon_stattrak === 1,
+              stickers: [
+                parseSticker(existingCustomization.weapon_sticker_0 || ''),
+                parseSticker(existingCustomization.weapon_sticker_1 || ''),
+                parseSticker(existingCustomization.weapon_sticker_2 || ''),
+                parseSticker(existingCustomization.weapon_sticker_3 || ''),
+                parseSticker(existingCustomization.weapon_sticker_4 || ''),
+              ],
+              keychain: parseKeychain(existingCustomization.weapon_keychain || ''),
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading existing customization:', error);
+      } finally {
+        setIsLoadingExisting(false);
+      }
+    };
+
+    loadExistingCustomization();
+  }, [skin, agent, selectedTeam]);
 
   const getWearCondition = (wear: number) => {
     return wearConditions.find(condition => wear >= condition.min && wear < condition.max) || wearConditions[0];
@@ -179,6 +246,19 @@ function WeaponCustomizeContent() {
           <div className="text-white text-center">
             <h1 className="text-2xl font-bold mb-4">Loading...</h1>
             <p>Please wait while we load your weapon data.</p>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  if (isLoadingExisting) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 flex items-center justify-center">
+          <div className="text-white text-center">
+            <h1 className="text-2xl font-bold mb-4">Loading Customization...</h1>
+            <p>Please wait while we load your existing settings.</p>
           </div>
         </div>
       </ProtectedRoute>

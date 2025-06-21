@@ -10,10 +10,12 @@ import {
   Bomb,
   Crosshair,
   Shield,
-  Music
+  Music,
+  Package
 } from 'lucide-react';
 
 export type SkinCategory =
+  | 'loadout'
   | 'agents'
   | 'gloves'
   | 'knives'
@@ -33,6 +35,12 @@ interface CategoryItem {
 }
 
 const categories: CategoryItem[] = [
+  {
+    id: 'loadout',
+    name: 'My Loadout',
+    icon: Package,
+    description: 'Your customized weapons and agents',
+  },
   {
     id: 'agents',
     name: 'Agents',

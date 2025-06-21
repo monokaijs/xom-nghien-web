@@ -26,9 +26,6 @@ export default function Header() {
           <Link href="/skin-changer" className="text-neutral-300 hover:text-red-400 transition-colors">
             Skin Changer
           </Link>
-          <Link href="/skin-changer/loadout" className="text-neutral-300 hover:text-red-400 transition-colors">
-            My Loadout
-          </Link>
         </>
       )}
     </>

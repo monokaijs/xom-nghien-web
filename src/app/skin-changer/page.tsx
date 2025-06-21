@@ -212,13 +212,7 @@ function SkinChangerDashboard() {
               <LoadoutWeaponCard
                 key={`${item.userConfig.weapon_defindex}-${item.userConfig.weapon_team}-${index}`}
                 item={item}
-                onCustomize={(item) => {
-                  if (item.skinData) {
-                    handleSkinCustomize(item.skinData);
-                  } else if (item.agentData) {
-                    handleAgentCustomize(item.agentData);
-                  }
-                }}
+                team={selectedTeam}
               />
             ))}
           </div>

@@ -53,7 +53,7 @@ export default function SkinGrid({
   // Helper function to check if an agent is customized
   const isAgentCustomized = (agent: CS2Agent) => {
     return userSkins.some(userSkin =>
-      userSkin.weapon_defindex === agent.model &&
+      userSkin.weapon_defindex === parseInt(agent.model) &&
       userSkin.weapon_team === selectedTeam
     );
   };

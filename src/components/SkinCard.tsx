@@ -6,7 +6,6 @@ import {Button} from '@/components/ui/button';
 import {Badge} from '@/components/ui/badge';
 import {Star, Target, Settings} from 'lucide-react';
 import {cn} from '@/lib/utils';
-import {Card, CardContent} from './ui/card';
 
 interface SkinCardProps {
   skin: CS2Skin;
@@ -50,15 +49,14 @@ export default function SkinCard({skin, onCustomize, team = 2, userSkins = []}: 
   };
 
   return (
-    <Card
+    <div
       className={cn(
-        "group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 bg-white/5 border-white/10 backdrop-blur-sm p-0",
+        "group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 bg-white/5 border border-white/10 backdrop-blur-sm rounded-xl flex flex-col",
         isCustomized && "border-green-500/30 bg-green-500/5"
       )}
     >
-      <CardContent className="p-0">
-        {/* Image Container */}
-        <div className="relative aspect-[4/3] overflow-hidden">
+      {/* Image Container */}
+      <div className="relative aspect-[4/3] overflow-hidden rounded-t-xl">
           {imageError ? (
             <div
               className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-900 text-neutral-400">
@@ -95,29 +93,28 @@ export default function SkinCard({skin, onCustomize, team = 2, userSkins = []}: 
             </div>
           )}
 
+      </div>
+
+      {/* Content */}
+      <div className="p-4 flex flex-col flex-1">
+        <h3 className="text-white font-medium text-sm mb-2 line-clamp-2 h-[2rem] leading-tight">
+          {skin.paint_name}
+        </h3>
+
+        <div className="flex items-center justify-between mt-auto">
+          <span className="text-xs text-neutral-400">
+            {skin.legacy_model ? 'Legacy' : 'Updated'}
+          </span>
+
+          <Button
+            size="sm"
+            onClick={handleCustomize}
+            className="text-xs px-3 py-1 h-7 bg-white/10 hover:bg-red-500 text-white"
+          >
+            {isCustomized ? 'Edit' : 'Customize'}
+          </Button>
         </div>
-
-        {/* Content */}
-        <div className="p-4">
-          <h3 className="text-white font-medium text-sm mb-2 line-clamp-2 h-[2rem] leading-tight">
-            {skin.paint_name}
-          </h3>
-
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-neutral-400">
-              {skin.legacy_model ? 'Legacy' : 'Updated'}
-            </span>
-
-            <Button
-              size="sm"
-              onClick={handleCustomize}
-              className="text-xs px-3 py-1 h-7 bg-white/10 hover:bg-red-500 text-white"
-            >
-              {isCustomized ? 'Edit' : 'Customize'}
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

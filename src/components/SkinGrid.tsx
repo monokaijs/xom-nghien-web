@@ -4,7 +4,6 @@ import {useMemo, useState} from 'react';
 import {CS2Agent, CS2Skin, UserSkinConfig} from '@/types/server';
 import SkinCard from '@/components/SkinCard';
 import EmptyState from '@/components/EmptyState';
-import {Card, CardContent} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
 import {Badge} from '@/components/ui/badge';
 import {Check, Target, Settings} from 'lucide-react';
@@ -127,15 +126,13 @@ export default function SkinGrid({
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {Array.from({length: 20}).map((_, index) => (
-          <Card key={index} className="bg-white/5 border-white/10 animate-pulse p-0">
-            <CardContent className="p-0">
-              <div className="aspect-[4/3] bg-neutral-700/50 rounded-t-lg"/>
-              <div className="p-4 space-y-2">
-                <div className="h-4 bg-neutral-700/50 rounded w-3/4"/>
-                <div className="h-6 bg-neutral-700/50 rounded w-1/2"/>
-              </div>
-            </CardContent>
-          </Card>
+          <div key={index} className="bg-white/5 border border-white/10 animate-pulse rounded-xl flex flex-col">
+            <div className="aspect-[4/3] bg-neutral-700/50 rounded-t-xl"/>
+            <div className="p-4 space-y-2 flex-1">
+              <div className="h-4 bg-neutral-700/50 rounded w-3/4"/>
+              <div className="h-6 bg-neutral-700/50 rounded w-1/2 mt-auto"/>
+            </div>
+          </div>
         ))}
       </div>
     );
@@ -155,15 +152,14 @@ export default function SkinGrid({
           const isCustomized = isAgentCustomized(agent);
 
           return (
-            <Card
+            <div
               key={agentId}
               className={cn(
-                "group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 bg-white/5 border-white/10 backdrop-blur-sm p-0",
+                "group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 bg-white/5 border border-white/10 backdrop-blur-sm rounded-xl flex flex-col",
                 isCustomized && "border-green-500/30 bg-green-500/5"
               )}
             >
-              <CardContent className="p-0">
-                <div className="relative aspect-[3/4] overflow-hidden">
+              <div className="relative aspect-[3/4] overflow-hidden rounded-t-xl">
                 {hasError ? (
                   <div
                     className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-900 text-neutral-400">
@@ -190,23 +186,24 @@ export default function SkinGrid({
                       </Badge>
                     </div>
                   )}
-                </div>
+              </div>
 
-                <div className="p-4">
+              <div className="p-4 flex flex-col flex-1">
                 <h3 className="text-white font-medium text-sm mb-2 h-[2rem] line-clamp-2 leading-tight">
                   {agent.agent_name}
                 </h3>
 
-                <Button
-                  size="sm"
-                  onClick={() => onAgentCustomize?.(agent)}
-                  className="text-xs px-3 py-1 h-7 w-full bg-white/10 hover:bg-red-500 text-white"
-                >
-                  {isCustomized ? 'Edit' : 'Customize'}
-                </Button>
+                <div className="mt-auto">
+                  <Button
+                    size="sm"
+                    onClick={() => onAgentCustomize?.(agent)}
+                    className="text-xs px-3 py-1 h-7 w-full bg-white/10 hover:bg-red-500 text-white"
+                  >
+                    {isCustomized ? 'Edit' : 'Customize'}
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           );
         })}
       </div>

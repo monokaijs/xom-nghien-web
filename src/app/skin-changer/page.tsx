@@ -287,16 +287,6 @@ function SkinChangerDashboard() {
               )}
 
               <Button
-                onClick={() => router.push('/skin-changer/loadout')}
-                variant="outline"
-                size="sm"
-                className="border-white/20 text-neutral-300 hover:bg-white/10"
-              >
-                <Package className="w-4 h-4 mr-2" />
-                My Loadout
-              </Button>
-
-              <Button
                 onClick={logout}
                 variant="outline"
                 size="sm"

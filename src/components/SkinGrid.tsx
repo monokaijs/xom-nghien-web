@@ -86,10 +86,10 @@ export default function SkinGrid({
         {Array.from({length: 20}).map((_, index) => (
           <Card key={index} className="bg-white/5 border-white/10 animate-pulse">
             <CardContent className="p-0">
-              <div className="aspect-[4/3] bg-gray-700/50 rounded-t-lg"/>
+              <div className="aspect-[4/3] bg-neutral-700/50 rounded-t-lg"/>
               <div className="p-4 space-y-2">
-                <div className="h-4 bg-gray-700/50 rounded w-3/4"/>
-                <div className="h-6 bg-gray-700/50 rounded w-1/2"/>
+                <div className="h-4 bg-neutral-700/50 rounded w-3/4"/>
+                <div className="h-6 bg-neutral-700/50 rounded w-1/2"/>
               </div>
             </CardContent>
           </Card>

@@ -37,7 +37,7 @@ export default function SkinCard({skin, onCustomize, team = 2}: SkinCardProps) {
     if (name.includes('blue') || name.includes('steel')) {
       return 'from-blue-500 to-blue-700'; // Restricted
     }
-    return 'from-gray-500 to-gray-700'; // Default
+    return 'from-neutral-500 to-neutral-700'; // Default
   };
 
   return (
@@ -83,7 +83,7 @@ export default function SkinCard({skin, onCustomize, team = 2}: SkinCardProps) {
           </h3>
 
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-neutral-400">
               {skin.legacy_model ? 'Legacy' : 'Updated'}
             </span>
 

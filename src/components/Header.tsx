@@ -19,10 +19,10 @@ export default function Header() {
 
   const NavigationLinks = () => (
     <>
-      <a href="#rent" className="text-gray-300 hover:text-white transition-colors">Thuê máy chủ</a>
-      <a href="#contact" className="text-gray-300 hover:text-white transition-colors">Liên hệ</a>
+      <a href="#rent" className="text-neutral-300 hover:text-white transition-colors">Thuê máy chủ</a>
+      <a href="#contact" className="text-neutral-300 hover:text-white transition-colors">Liên hệ</a>
       {isLoggedIn && (
-        <Link href="/skin-changer" className="text-gray-300 hover:text-red-400 transition-colors">
+        <Link href="/skin-changer" className="text-neutral-300 hover:text-red-400 transition-colors">
           Skin Changer
         </Link>
       )}
@@ -60,13 +60,13 @@ export default function Header() {
                   alt={user.username}
                   className="w-8 h-8 rounded-full"
                 />
-                <span className="text-gray-300 hidden lg:block">{user.username}</span>
+                <span className="text-neutral-300 hidden lg:block">{user.username}</span>
               </div>
               <Button
                 onClick={logout}
                 variant="outline"
                 size="sm"
-                className="border-white/20 text-gray-300 hover:bg-white/10"
+                className="border-white/20 text-neutral-300 hover:bg-white/10"
               >
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline ml-2">Logout</span>
@@ -86,7 +86,7 @@ export default function Header() {
           {/* Mobile Menu */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="sm" className="md:hidden text-gray-300 hover:text-white">
+              <Button variant="ghost" size="sm" className="md:hidden text-neutral-300 hover:text-white">
                 <Menu className="w-5 h-5" />
               </Button>
             </SheetTrigger>

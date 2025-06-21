@@ -54,7 +54,7 @@ export default function Pagination({
         size="sm"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="border-white/20 text-gray-300 hover:bg-white/10 disabled:opacity-50"
+        className="border-white/20 text-neutral-300 hover:bg-white/10 disabled:opacity-50"
       >
         <ChevronLeft className="w-4 h-4" />
       </Button>
@@ -63,7 +63,7 @@ export default function Pagination({
         if (page === '...') {
           return (
             <div key={`dots-${index}`} className="px-2">
-              <MoreHorizontal className="w-4 h-4 text-gray-400" />
+              <MoreHorizontal className="w-4 h-4 text-neutral-400" />
             </div>
           );
         }
@@ -78,7 +78,7 @@ export default function Pagination({
             size="sm"
             onClick={() => onPageChange(pageNumber)}
             className={cn(
-              'min-w-[2.5rem] border-white/20 text-gray-300 hover:bg-white/10',
+              'min-w-[2.5rem] border-white/20 text-neutral-300 hover:bg-white/10',
               isActive && 'bg-red-500 hover:bg-red-600 text-white border-red-500'
             )}
           >
@@ -92,7 +92,7 @@ export default function Pagination({
         size="sm"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="border-white/20 text-gray-300 hover:bg-white/10 disabled:opacity-50"
+        className="border-white/20 text-neutral-300 hover:bg-white/10 disabled:opacity-50"
       >
         <ChevronRight className="w-4 h-4" />
       </Button>

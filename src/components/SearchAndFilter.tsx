@@ -37,18 +37,18 @@ export default function SearchAndFilter({
     <div className={cn('space-y-4', className)}>
       {/* Search Bar */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 w-4 h-4" />
         <Input
           type="text"
           placeholder="Search skins..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-10 pr-10 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-red-500/50"
+          className="pl-10 pr-10 bg-white/5 border-white/10 text-white placeholder:text-neutral-400 focus:border-red-500/50"
         />
         {searchQuery && (
           <button
             onClick={clearSearch}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-400 hover:text-white transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -62,7 +62,7 @@ export default function SearchAndFilter({
             variant="outline"
             size="sm"
             onClick={() => setShowFilters(!showFilters)}
-            className="border-white/20 text-gray-300 hover:bg-white/10"
+            className="border-white/20 text-neutral-300 hover:bg-white/10"
           >
             <Filter className="w-4 h-4 mr-2" />
             Filters
@@ -75,7 +75,7 @@ export default function SearchAndFilter({
                 size="sm"
                 onClick={() => onSortChange('name', sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')}
                 className={cn(
-                  'border-white/20 text-gray-300 hover:bg-white/10',
+                  'border-white/20 text-neutral-300 hover:bg-white/10',
                   sortBy === 'name' && 'bg-red-500 hover:bg-red-600 text-white'
                 )}
               >
@@ -90,7 +90,7 @@ export default function SearchAndFilter({
                 size="sm"
                 onClick={() => onSortChange('rarity', sortBy === 'rarity' && sortOrder === 'asc' ? 'desc' : 'asc')}
                 className={cn(
-                  'border-white/20 text-gray-300 hover:bg-white/10',
+                  'border-white/20 text-neutral-300 hover:bg-white/10',
                   sortBy === 'rarity' && 'bg-red-500 hover:bg-red-600 text-white'
                 )}
               >
@@ -103,7 +103,7 @@ export default function SearchAndFilter({
           )}
         </div>
 
-        <div className="text-sm text-gray-400">
+        <div className="text-sm text-neutral-400">
           {searchQuery ? (
             <>Showing {filteredItems} of {totalItems} results</>
           ) : (

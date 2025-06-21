@@ -123,21 +123,21 @@ export default function CategoryNavigation({
               'text-left hover:bg-white/10 border',
               isActive
                 ? 'bg-red-500/20 border-red-500/30 text-red-300'
-                : 'text-gray-300 border-transparent hover:text-white'
+                : 'text-neutral-300 border-transparent hover:text-white'
             )}
           >
             <div className={cn(
               'w-8 h-8 rounded-lg flex items-center justify-center',
               isActive
                 ? 'bg-red-500/30 text-red-400'
-                : 'bg-white/10 text-gray-400'
+                : 'bg-white/10 text-neutral-400'
             )}>
               <Icon className="w-4 h-4" />
             </div>
 
             <div className="flex-1 min-w-0">
               <div className="font-medium text-sm">{category.name}</div>
-              <div className="text-xs text-gray-400 truncate">
+              <div className="text-xs text-neutral-400 truncate">
                 {category.description}
               </div>
             </div>

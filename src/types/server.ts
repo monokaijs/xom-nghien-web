@@ -60,6 +60,18 @@ export interface CS2Music {
   image?: string;
 }
 
+export interface CS2Sticker {
+  id: string;
+  name: string;
+  image: string;
+}
+
+export interface CS2Keychain {
+  id: string;
+  name: string;
+  image: string;
+}
+
 export interface UserSkinConfig {
   steamid: string;
   weapon_team: number;

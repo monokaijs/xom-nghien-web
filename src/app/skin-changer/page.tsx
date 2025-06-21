@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import CategoryNavigation, { SkinCategory } from '@/components/CategoryNavigation';
 import SearchAndFilter from '@/components/SearchAndFilter';
 import SkinGrid from '@/components/SkinGrid';
 import Pagination from '@/components/Pagination';
-import SkinCustomization from '@/components/SkinCustomization';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { CS2Skin, CS2Agent, UserSkinConfig } from '@/types/server';
@@ -24,6 +24,7 @@ export default function SkinChangerPage() {
 
 function SkinChangerDashboard() {
   const { user, logout } = useAuth();
+  const router = useRouter();
   const [activeCategory, setActiveCategory] = useState<SkinCategory>('pistols');
   const [skins, setSkins] = useState<CS2Skin[]>([]);
   const [agents, setAgents] = useState<{ terrorist: CS2Agent[]; counterTerrorist: CS2Agent[] }>({
@@ -41,10 +42,7 @@ function SkinChangerDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
 
-  // Customization modal states
-  const [customizationOpen, setCustomizationOpen] = useState(false);
-  const [selectedSkin, setSelectedSkin] = useState<CS2Skin | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState<CS2Agent | null>(null);
+
 
   useEffect(() => {
     loadCategoryData();
@@ -89,21 +87,13 @@ function SkinChangerDashboard() {
   };
 
   const handleSkinCustomize = (skin: CS2Skin) => {
-    setSelectedSkin(skin);
-    setSelectedAgent(null);
-    setCustomizationOpen(true);
+    const weaponData = encodeURIComponent(JSON.stringify(skin));
+    router.push(`/skin-changer/customize?weapon=${weaponData}&team=${selectedTeam}`);
   };
 
   const handleAgentCustomize = (agent: CS2Agent) => {
-    setSelectedAgent(agent);
-    setSelectedSkin(null);
-    setCustomizationOpen(true);
-  };
-
-  const handleCustomizationClose = () => {
-    setCustomizationOpen(false);
-    setSelectedSkin(null);
-    setSelectedAgent(null);
+    const agentData = encodeURIComponent(JSON.stringify(agent));
+    router.push(`/skin-changer/customize?agent=${agentData}&team=${selectedTeam}`);
   };
 
 
@@ -241,8 +231,8 @@ function SkinChangerDashboard() {
               <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-red-500 to-red-800">
                 Skin Changer
               </h1>
-              <span className="text-gray-400">|</span>
-              <span className="text-gray-300">Team Checkmate</span>
+              <span className="text-neutral-400">|</span>
+              <span className="text-neutral-300">Team Checkmate</span>
             </div>
 
             <div className="flex items-center gap-4">
@@ -253,7 +243,7 @@ function SkinChangerDashboard() {
                     alt={user.username}
                     className="w-8 h-8 rounded-full"
                   />
-                  <span className="text-gray-300 hidden md:block">{user.username}</span>
+                  <span className="text-neutral-300 hidden md:block">{user.username}</span>
                 </div>
               )}
 
@@ -261,7 +251,7 @@ function SkinChangerDashboard() {
                 onClick={logout}
                 variant="outline"
                 size="sm"
-                className="border-white/20 text-gray-300 hover:bg-white/10"
+                className="border-white/20 text-neutral-300 hover:bg-white/10"
               >
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout
@@ -291,7 +281,7 @@ function SkinChangerDashboard() {
                       <h2 className="text-xl font-semibold text-white mb-2 capitalize">
                         {activeCategory}
                       </h2>
-                      <p className="text-gray-400">
+                      <p className="text-neutral-400">
                         Select your preferred {activeCategory} for your loadout
                       </p>
                     </div>
@@ -299,7 +289,7 @@ function SkinChangerDashboard() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="border-white/20 text-gray-300 hover:bg-white/10"
+                        className="border-white/20 text-neutral-300 hover:bg-white/10"
                       >
                         <Grid className="w-4 h-4" />
                       </Button>
@@ -314,14 +304,7 @@ function SkinChangerDashboard() {
         </div>
       </div>
 
-      {/* Skin Customization Modal */}
-      <SkinCustomization
-        skin={selectedSkin || undefined}
-        agent={selectedAgent || undefined}
-        isOpen={customizationOpen}
-        onClose={handleCustomizationClose}
-        selectedTeam={selectedTeam}
-      />
+
     </div>
   );
 }

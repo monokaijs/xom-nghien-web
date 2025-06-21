@@ -29,7 +29,7 @@ export default function Home() {
               Checkmate
             </span>
             </h1>
-            <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+            <p className="text-xl text-neutral-300 mb-8 max-w-2xl mx-auto">
               Server Cộng đồng Counter-strike 2 miễn phí
             </p>
             <div className={'my-16 flex flex-row items-center justify-center gap-4'}>
@@ -60,7 +60,7 @@ export default function Home() {
             <h2 className="text-4xl font-bold text-white mb-4 mt-2">
               Thuê Máy chủ
             </h2>
-            <p className="text-gray-300 text-lg">
+            <p className="text-neutral-300 text-lg">
               Chọn gói phù hợp với nhu cầu của bạn
             </p>
           </div>
@@ -78,19 +78,19 @@ export default function Home() {
                 <div className="space-y-4 mb-8">
                   <div className="flex items-center gap-3">
                     <Users className="w-5 h-5 text-red-400 flex-shrink-0"/>
-                    <span className="text-gray-300">12 Player Slots</span>
+                    <span className="text-neutral-300">12 Player Slots</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Shirt className="w-5 h-5 text-slate-400 flex-shrink-0"/>
-                    <span className="text-gray-400 line-through">Hỗ trợ ModSkin</span>
+                    <span className="text-neutral-400 line-through">Hỗ trợ ModSkin</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Shield className="w-5 h-5 text-slate-400 flex-shrink-0"/>
-                    <span className="text-gray-400 line-through">Anti-cheat</span>
+                    <span className="text-neutral-400 line-through">Anti-cheat</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Video className="w-5 h-5 text-slate-400 flex-shrink-0"/>
-                    <span className="text-gray-400 line-through">Demo xem lại</span>
+                    <span className="text-neutral-400 line-through">Demo xem lại</span>
                   </div>
                 </div>
 
@@ -117,19 +117,19 @@ export default function Home() {
                 <div className="space-y-4 mb-8">
                   <div className="flex items-center gap-3">
                     <Users className="w-5 h-5 text-red-400 flex-shrink-0"/>
-                    <span className="text-gray-300">12 Player Slots</span>
+                    <span className="text-neutral-300">12 Player Slots</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Shirt className="w-5 h-5 text-red-400 flex-shrink-0"/>
-                    <span className="text-gray-300">Hỗ trợ ModSkin</span>
+                    <span className="text-neutral-300">Hỗ trợ ModSkin</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Shield className="w-5 h-5 text-red-400 flex-shrink-0"/>
-                    <span className="text-gray-300">Anti-cheat</span>
+                    <span className="text-neutral-300">Anti-cheat</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Video className="w-5 h-5 text-slate-400 flex-shrink-0"/>
-                    <span className="text-gray-400 line-through">Demo xem lại</span>
+                    <span className="text-neutral-400 line-through">Demo xem lại</span>
                   </div>
                 </div>
 
@@ -151,19 +151,19 @@ export default function Home() {
                 <div className="space-y-4 mb-8">
                   <div className="flex items-center gap-3">
                     <Users className="w-5 h-5 text-red-400 flex-shrink-0"/>
-                    <span className="text-gray-300">12 Player Slots</span>
+                    <span className="text-neutral-300">12 Player Slots</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Shirt className="w-5 h-5 text-red-400 flex-shrink-0"/>
-                    <span className="text-gray-300">Hỗ trợ ModSkin</span>
+                    <span className="text-neutral-300">Hỗ trợ ModSkin</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Shield className="w-5 h-5 text-red-400 flex-shrink-0"/>
-                    <span className="text-gray-300">Anti-cheat</span>
+                    <span className="text-neutral-300">Anti-cheat</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Video className="w-5 h-5 text-red-400 flex-shrink-0"/>
-                    <span className="text-gray-300">Demo xem lại</span>
+                    <span className="text-neutral-300">Demo xem lại</span>
                   </div>
                 </div>
 

@@ -87,7 +87,7 @@ export default function ContactSection() {
           <h2 className="text-4xl font-bold text-white mb-4 mt-2">
             Liên Hệ<br/>Với Chúng Tôi
           </h2>
-          <p className="text-gray-300 text-lg">
+          <p className="text-neutral-300 text-lg">
             Chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7
           </p>
         </div>
@@ -107,7 +107,7 @@ export default function ContactSection() {
                   </div>
                   <div className="flex-1">
                     <h4 className="text-lg font-semibold text-white mb-1">Email</h4>
-                    <p className="text-gray-300">{config?.email || 'teamthecheckmate@gmail.com'}</p>
+                    <p className="text-neutral-300">{config?.email || 'teamthecheckmate@gmail.com'}</p>
                     <p className="text-slate-400 text-sm mt-1">{config?.responseTime}</p>
                   </div>
                 </div>
@@ -125,7 +125,7 @@ export default function ContactSection() {
                     </div>
                     <div className="flex-1">
                       <h4 className="text-lg font-semibold text-white mb-1">Điện thoại</h4>
-                      <p className="text-gray-300">{config.phone}</p>
+                      <p className="text-neutral-300">{config.phone}</p>
                       <p className="text-slate-400 text-sm mt-1">Gọi trực tiếp</p>
                     </div>
                   </div>
@@ -142,7 +142,7 @@ export default function ContactSection() {
                   </div>
                   <div className="flex-1">
                     <h4 className="text-lg font-semibold text-white mb-1">Giờ hỗ trợ</h4>
-                    <p className="text-gray-300">{config?.supportHours}</p>
+                    <p className="text-neutral-300">{config?.supportHours}</p>
                     <p className="text-slate-400 text-sm mt-1">Luôn sẵn sàng hỗ trợ</p>
                   </div>
                 </div>
@@ -183,7 +183,7 @@ export default function ContactSection() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
+                      <label htmlFor="name" className="block text-sm font-medium text-neutral-300 mb-2">
                         Họ tên *
                       </label>
                       <input
@@ -193,12 +193,12 @@ export default function ContactSection() {
                         value={formData.name}
                         onChange={handleInputChange}
                         required
-                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                         placeholder="Nhập họ tên của bạn"
                       />
                     </div>
                     <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                      <label htmlFor="email" className="block text-sm font-medium text-neutral-300 mb-2">
                         Email *
                       </label>
                       <input
@@ -208,14 +208,14 @@ export default function ContactSection() {
                         value={formData.email}
                         onChange={handleInputChange}
                         required
-                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                         placeholder="email@example.com"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor="subject" className="block text-sm font-medium text-gray-300 mb-2">
+                    <label htmlFor="subject" className="block text-sm font-medium text-neutral-300 mb-2">
                       Chủ đề *
                     </label>
                     <input
@@ -225,13 +225,13 @@ export default function ContactSection() {
                       value={formData.subject}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                       placeholder="Vấn đề bạn cần hỗ trợ"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="message" className="block text-sm font-medium text-gray-300 mb-2">
+                    <label htmlFor="message" className="block text-sm font-medium text-neutral-300 mb-2">
                       Tin nhắn *
                     </label>
                     <textarea
@@ -241,7 +241,7 @@ export default function ContactSection() {
                       onChange={handleInputChange}
                       required
                       rows={5}
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
                       placeholder="Mô tả chi tiết vấn đề của bạn..."
                     />
                   </div>

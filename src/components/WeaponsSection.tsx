@@ -68,7 +68,7 @@ function WeaponSlide({weapon, index, isActive}: WeaponSlideProps) {
             {weapon.name}
           </h3>
 
-          <p className="text-gray-300 text-lg max-w-md">
+          <p className="text-neutral-300 text-lg max-w-md">
             Weapon skin miễn phí có sẵn trong server
           </p>
         </div>
@@ -121,7 +121,7 @@ export default function WeaponsSection() {
         <h2 className="text-4xl font-bold text-white mb-4 mt-2">
           Vũ Khí<br/><span className={'bg-clip-text bg-gradient-to-br from-red-500 to-red-800 text-transparent'}>Trong Server</span>
         </h2>
-        <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+        <p className="text-neutral-300 text-lg max-w-2xl mx-auto">
           Khám phá bộ sưu tập vũ khí đẹp mắt có sẵn trong server của chúng tôi
         </p>
       </div>

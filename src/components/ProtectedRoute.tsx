@@ -18,7 +18,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
           <CardContent className="p-8 text-center">
             <Loader2 className="w-8 h-8 animate-spin text-red-500 mx-auto mb-4" />
-            <p className="text-gray-300">Loading...</p>
+            <p className="text-neutral-300">Loading...</p>
           </CardContent>
         </Card>
       </div>
@@ -38,7 +38,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
               Authentication Required
             </h1>
             
-            <p className="text-gray-300 mb-6">
+            <p className="text-neutral-300 mb-6">
               You need to sign in with Steam to access the skin changer feature.
             </p>
             
@@ -50,7 +50,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
               Sign in with Steam
             </Button>
             
-            <p className="text-sm text-gray-400 mt-4">
+            <p className="text-sm text-neutral-400 mt-4">
               We use Steam OpenID for secure authentication. Your Steam credentials are never stored on our servers.
             </p>
           </CardContent>

@@ -193,12 +193,12 @@ export default function SkinCustomization({
                     {settings.statTrak && skin ? 'StatTrak™ ' : ''}{itemName}
                   </h3>
                   {settings.nameTag && (
-                    <div className="flex items-center gap-2 text-sm text-gray-300">
+                    <div className="flex items-center gap-2 text-sm text-neutral-300">
                       <Sparkles className="w-4 h-4 text-yellow-400" />
                       "{settings.nameTag}"
                     </div>
                   )}
-                  <div className="text-sm text-gray-400">
+                  <div className="text-sm text-neutral-400">
                     Team: {selectedTeam === 2 ? 'Terrorist' : 'Counter-Terrorist'}
                   </div>
                 </div>
@@ -218,7 +218,7 @@ export default function SkinCustomization({
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <Label className="text-gray-300">Float Value</Label>
+                        <Label className="text-neutral-300">Float Value</Label>
                         <span className="text-white font-mono text-sm">
                           {settings.wear.toFixed(4)}
                         </span>
@@ -246,7 +246,7 @@ export default function SkinCustomization({
                             'border border-white/10 hover:border-white/20',
                             currentCondition.name === condition.name
                               ? 'bg-white/20 text-white'
-                              : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                              : 'bg-white/5 text-neutral-300 hover:bg-white/10'
                           )}
                         >
                           {condition.name}
@@ -264,7 +264,7 @@ export default function SkinCustomization({
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <Label className="text-gray-300">Seed</Label>
+                        <Label className="text-neutral-300">Seed</Label>
                         <span className="text-white font-mono text-sm">
                           {settings.seed}
                         </span>
@@ -284,7 +284,7 @@ export default function SkinCustomization({
                         <button
                           key={seed}
                           onClick={() => setSettings(prev => ({ ...prev, seed }))}
-                          className="p-2 rounded text-xs font-medium bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20 transition-all"
+                          className="p-2 rounded text-xs font-medium bg-white/5 border border-white/10 text-neutral-300 hover:bg-white/10 hover:border-white/20 transition-all"
                         >
                           {seed}
                         </button>
@@ -300,15 +300,15 @@ export default function SkinCustomization({
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      <Label className="text-gray-300">Custom Name</Label>
+                      <Label className="text-neutral-300">Custom Name</Label>
                       <Input
                         value={settings.nameTag}
                         onChange={(e) => handleNameTagChange(e.target.value)}
                         placeholder="Enter custom name..."
                         maxLength={20}
-                        className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                        className="bg-white/5 border-white/10 text-white placeholder:text-neutral-400"
                       />
-                      <div className="text-xs text-gray-400">
+                      <div className="text-xs text-neutral-400">
                         {settings.nameTag.length}/20 characters
                       </div>
                     </div>
@@ -323,8 +323,8 @@ export default function SkinCustomization({
                   <CardContent>
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-gray-300">Enable StatTrak™</Label>
-                        <p className="text-sm text-gray-400">Track your kills with this weapon</p>
+                        <Label className="text-neutral-300">Enable StatTrak™</Label>
+                        <p className="text-sm text-neutral-400">Track your kills with this weapon</p>
                       </div>
                       <Switch
                         checked={settings.statTrak}
@@ -355,14 +355,14 @@ export default function SkinCustomization({
               <Button
                 onClick={resetSettings}
                 variant="outline"
-                className="border-white/20 text-gray-300 hover:bg-white/10"
+                className="border-white/20 text-neutral-300 hover:bg-white/10"
               >
                 Reset
               </Button>
               <Button
                 onClick={onClose}
                 variant="outline"
-                className="border-white/20 text-gray-300 hover:bg-white/10"
+                className="border-white/20 text-neutral-300 hover:bg-white/10"
               >
                 Cancel
               </Button>

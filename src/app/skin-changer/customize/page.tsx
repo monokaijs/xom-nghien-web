@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -33,7 +33,7 @@ const wearConditions = [
   { min: 0.45, max: 1.0, name: 'Battle-Scarred', color: 'bg-red-500' },
 ];
 
-export default function WeaponCustomizePage() {
+function WeaponCustomizeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user } = useAuth();
@@ -316,5 +316,22 @@ export default function WeaponCustomizePage() {
         </div>
       </div>
     </ProtectedRoute>
+  );
+}
+
+export default function WeaponCustomizePage() {
+  return (
+    <Suspense fallback={
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 flex items-center justify-center">
+          <div className="text-white text-center">
+            <h1 className="text-2xl font-bold mb-4">Loading...</h1>
+            <p>Please wait while we load your weapon data.</p>
+          </div>
+        </div>
+      </ProtectedRoute>
+    }>
+      <WeaponCustomizeContent />
+    </Suspense>
   );
 }

@@ -12,6 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import SteamIcon from "@/components/SteamIcon";
 
 export default function Header() {
   const { user, isLoggedIn, login, logout } = useAuth();
@@ -44,7 +45,7 @@ export default function Header() {
         <div className="flex items-center space-x-2 md:space-x-4">
           {/* Discord Button - Hidden on small screens, shown on medium+ */}
           <Link href={'https://discord.gg/bDGqfUee3Q'} target={'_blank'} className="hidden sm:block">
-            <Button className="bg-[#5865F2] hover:bg-[#5865F2]/80 text-white transition-colors">
+            <Button className="bg-[#5865F2] hover:bg-[#5865F2]/80 text-white transition-colors h-8">
               <DiscordIcon className='w-6 h-6 md:w-8 md:h-8' fill={'white'}/>
               <span className="hidden md:inline ml-2">Discord</span>
             </Button>
@@ -73,12 +74,12 @@ export default function Header() {
             </div>
           ) : (
             <Button
+              className="bg-red-600 hover:bg-red-500 text-white transition-colors h-8"
               onClick={login}
               size="sm"
-              className="bg-[#171a21] hover:bg-[#2a475e] text-white border border-[#4c6b22] transition-colors"
             >
-              <User className="w-4 h-4" />
-              <span className="hidden sm:inline ml-2">Steam Login</span>
+              <SteamIcon className='w-6 h-6 md:w-8 md:h-8' fill={'white'}/>
+              <span className="hidden md:inline ml-2">Steam Login</span>
             </Button>
           )}
 

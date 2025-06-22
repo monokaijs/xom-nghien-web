@@ -56,6 +56,8 @@ function WeaponCustomizeContent() {
 
   const [isApplying, setIsApplying] = useState(false);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
+  const [stickersData, setStickersData] = useState<CS2Sticker[]>([]);
+  const [keychainsData, setKeychainsData] = useState<CS2Keychain[]>([]);
 
   useEffect(() => {
     if (weaponData) {
@@ -79,10 +81,35 @@ function WeaponCustomizeContent() {
     }
   }, [weaponData, agentData, router]);
 
+  // Load stickers and keychains data
+  useEffect(() => {
+    const loadStickersAndKeychains = async () => {
+      try {
+        // Load stickers
+        const stickersResponse = await fetch('/api/stickers');
+        if (stickersResponse.ok) {
+          const stickersData = await stickersResponse.json();
+          setStickersData(stickersData.stickers || []);
+        }
+
+        // Load keychains
+        const keychainsResponse = await fetch('/api/keychains');
+        if (keychainsResponse.ok) {
+          const keychainsData = await keychainsResponse.json();
+          setKeychainsData(keychainsData.keychains || []);
+        }
+      } catch (error) {
+        console.error('Error loading stickers and keychains:', error);
+      }
+    };
+
+    loadStickersAndKeychains();
+  }, []);
+
   // Load existing customization settings
   useEffect(() => {
     const loadExistingCustomization = async () => {
-      if (!skin && !agent) return;
+      if (!skin && !agent || stickersData.length === 0 || keychainsData.length === 0) return;
 
       setIsLoadingExisting(true);
       try {
@@ -98,25 +125,27 @@ function WeaponCustomizeContent() {
                      userSkin.weapon_team === selectedTeam &&
                      userSkin.weapon_paint_id == skin.paint;
             } else if (agent) {
-              return userSkin.weapon_defindex === agent.model &&
+              return userSkin.weapon_defindex === parseInt(agent.model) &&
                      userSkin.weapon_team === selectedTeam;
             }
             return false;
           });
 
           if (existingCustomization) {
-            // Parse stickers
+            // Parse stickers with actual data
             const parseSticker = (stickerStr: string) => {
               if (!stickerStr || stickerStr === '0;0;0;0;0;0;0') return null;
               const parts = stickerStr.split(';');
-              return parts[0] !== '0' ? { id: parts[0], name: `Sticker ${parts[0]}`, image: '' } : null;
+              if (parts[0] === '0') return null;
+              return stickersData.find(s => s.id === parts[0]) || null;
             };
 
-            // Parse keychain
+            // Parse keychain with actual data
             const parseKeychain = (keychainStr: string) => {
               if (!keychainStr || keychainStr === '0;0;0;0;0') return null;
               const parts = keychainStr.split(';');
-              return parts[0] !== '0' ? { id: parts[0], name: `Keychain ${parts[0]}`, image: '' } : null;
+              if (parts[0] === '0') return null;
+              return keychainsData.find(k => k.id === parts[0]) || null;
             };
 
             setSettings({
@@ -143,7 +172,7 @@ function WeaponCustomizeContent() {
     };
 
     loadExistingCustomization();
-  }, [skin, agent, selectedTeam]);
+  }, [skin, agent, selectedTeam, stickersData, keychainsData]);
 
   const getWearCondition = (wear: number) => {
     return wearConditions.find(condition => wear >= condition.min && wear < condition.max) || wearConditions[0];
@@ -252,7 +281,7 @@ function WeaponCustomizeContent() {
     );
   }
 
-  if (isLoadingExisting) {
+  if (isLoadingExisting || stickersData.length === 0 || keychainsData.length === 0) {
     return (
       <ProtectedRoute>
         <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 flex items-center justify-center">

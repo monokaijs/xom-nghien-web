@@ -104,7 +104,16 @@ function WeaponCustomizeContent() {
   // Load existing customization settings
   useEffect(() => {
     const loadExistingCustomization = async () => {
-      if (!skin && !agent || stickersData.length === 0 || keychainsData.length === 0) return;
+      if (!skin && !agent) return;
+
+      // For gloves, we don't need stickers and keychains data
+      const needsStickersAndKeychains = skin && !(
+        (typeof skin.weapon_defindex === 'string' && skin.weapon_defindex === 'gloves_default') ||
+        (typeof skin.weapon_defindex === 'number' && skin.weapon_defindex >= 5027 && skin.weapon_defindex <= 5035) ||
+        skin.paint_name.toLowerCase().includes('gloves')
+      );
+
+      if (needsStickersAndKeychains && (stickersData.length === 0 || keychainsData.length === 0)) return;
 
       setIsLoadingExisting(true);
       try {
@@ -210,8 +219,27 @@ function WeaponCustomizeContent() {
         return keychain ? `${keychain.id};0;0;0;0` : '0;0;0;0;0';
       };
 
+      // Determine the type of item
+      let itemType = 'weapons';
+      if (skin) {
+        // Check if it's a glove by weapon_defindex or paint_name
+        const isGlove = (typeof skin.weapon_defindex === 'string' && skin.weapon_defindex === 'gloves_default') ||
+                       (typeof skin.weapon_defindex === 'number' && skin.weapon_defindex >= 5027 && skin.weapon_defindex <= 5035) ||
+                       skin.paint_name.toLowerCase().includes('gloves');
+
+        if (isGlove) {
+          itemType = 'gloves';
+        } else if (skin.weapon_name && skin.weapon_name.includes('knife')) {
+          itemType = 'knifes';
+        } else {
+          itemType = 'weapons';
+        }
+      } else if (agent) {
+        itemType = 'agents';
+      }
+
       const payload = {
-        type: skin ? (skin.weapon_name.includes('knife') ? 'knifes' : 'weapons') : 'agents',
+        type: itemType,
         weapon_team: selectedTeam,
         weapon_defindex: skin ? skin.weapon_defindex : agent?.model,
         weapon_paint_id: skin ? skin.paint : agent?.model,
@@ -219,12 +247,15 @@ function WeaponCustomizeContent() {
         weapon_seed: settings.seed,
         weapon_nametag: settings.nameTag,
         weapon_stattrak: settings.statTrak ? 1 : 0,
-        weapon_sticker_0: formatSticker(settings.stickers[0]),
-        weapon_sticker_1: formatSticker(settings.stickers[1]),
-        weapon_sticker_2: formatSticker(settings.stickers[2]),
-        weapon_sticker_3: formatSticker(settings.stickers[3]),
-        weapon_sticker_4: formatSticker(settings.stickers[4]),
-        weapon_keychain: formatKeychain(settings.keychain),
+        // Only include stickers and keychains for non-glove items
+        ...(itemType !== 'gloves' && {
+          weapon_sticker_0: formatSticker(settings.stickers[0]),
+          weapon_sticker_1: formatSticker(settings.stickers[1]),
+          weapon_sticker_2: formatSticker(settings.stickers[2]),
+          weapon_sticker_3: formatSticker(settings.stickers[3]),
+          weapon_sticker_4: formatSticker(settings.stickers[4]),
+          weapon_keychain: formatKeychain(settings.keychain),
+        })
       };
 
       const response = await fetch('/api/apply-skin', {
@@ -276,7 +307,14 @@ function WeaponCustomizeContent() {
     );
   }
 
-  if (isLoadingExisting || stickersData.length === 0 || keychainsData.length === 0) {
+  // Check if we need to wait for stickers and keychains data
+  const needsStickersAndKeychains = skin && !(
+    (typeof skin.weapon_defindex === 'string' && skin.weapon_defindex === 'gloves_default') ||
+    (typeof skin.weapon_defindex === 'number' && skin.weapon_defindex >= 5027 && skin.weapon_defindex <= 5035) ||
+    skin.paint_name.toLowerCase().includes('gloves')
+  );
+
+  if (isLoadingExisting || (needsStickersAndKeychains && (stickersData.length === 0 || keychainsData.length === 0))) {
     return (
       <ProtectedRoute>
         <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 flex items-center justify-center">
@@ -292,6 +330,13 @@ function WeaponCustomizeContent() {
   const item = skin || agent;
   const itemName = skin ? skin.paint_name : agent?.agent_name || '';
   const itemImage = skin ? skin.image : agent?.image || '';
+
+  // Check if current item is a glove
+  const isGlove = skin && (
+    (typeof skin.weapon_defindex === 'string' && skin.weapon_defindex === 'gloves_default') ||
+    (typeof skin.weapon_defindex === 'number' && skin.weapon_defindex >= 5027 && skin.weapon_defindex <= 5035) ||
+    skin.paint_name.toLowerCase().includes('gloves')
+  );
 
   return (
     <ProtectedRoute>
@@ -391,20 +436,31 @@ function WeaponCustomizeContent() {
 
             {/* Right Column - Stickers and Keychains */}
             <div className="space-y-6">
-              {/* Sticker Selection */}
-              {skin && (
+              {/* Sticker Selection - Only for non-glove items */}
+              {skin && !isGlove && (
                 <StickerSelector
                   selectedStickers={settings.stickers}
                   onStickerSelect={handleStickerSelect}
                 />
               )}
 
-              {/* Keychain Selection */}
-              {skin && (
+              {/* Keychain Selection - Only for non-glove items */}
+              {skin && !isGlove && (
                 <KeychainSelector
                   selectedKeychain={settings.keychain}
                   onKeychainSelect={handleKeychainSelect}
                 />
+              )}
+
+              {/* Info message for gloves */}
+              {isGlove && (
+                <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+                  <CardContent className="p-6 text-center">
+                    <p className="text-neutral-400">
+                      Gloves don't support stickers or keychains.
+                    </p>
+                  </CardContent>
+                </Card>
               )}
 
               {/* Action Buttons */}

@@ -14,6 +14,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { CS2Skin, CS2Agent, UserSkinConfig } from '@/types/server';
 import { LogOut, Grid, List, Package } from 'lucide-react';
 import {cn} from "@/lib/utils";
+import { fetchSkinsData, fetchAgentsData, fetchGlovesData, categorizeWeapons } from '@/lib/github-data';
 
 export default function SkinChangerPage() {
   return (
@@ -66,17 +67,24 @@ function SkinChangerDashboard() {
           setLoadoutData(data.loadout || {});
         }
       } else if (activeCategory === 'agents') {
-        const response = await fetch('/api/agents');
-        if (response.ok) {
-          const data = await response.json();
-          setAgents(data);
-        }
+        // Fetch agents directly from GitHub
+        const agentsData = await fetchAgentsData();
+        const terroristAgents = agentsData.filter(agent => agent.team === 2);
+        const counterTerroristAgents = agentsData.filter(agent => agent.team === 3);
+
+        setAgents({
+          terrorist: terroristAgents,
+          counterTerrorist: counterTerroristAgents,
+        });
+      } else if (activeCategory === 'gloves') {
+        // Fetch gloves directly from GitHub
+        const glovesData = await fetchGlovesData();
+        setSkins(glovesData as any); // Cast to CS2Skin[] for compatibility
       } else {
-        const response = await fetch(`/api/skins?category=${activeCategory}`);
-        if (response.ok) {
-          const data = await response.json();
-          setSkins(data.skins || []);
-        }
+        // Fetch skins directly from GitHub
+        const skinsData = await fetchSkinsData();
+        const categorized = categorizeWeapons(skinsData);
+        setSkins(categorized[activeCategory as keyof typeof categorized] || []);
       }
     } catch (error) {
       console.error('Error loading category data:', error);

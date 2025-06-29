@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CS2Skin } from '@/types/server';
 
-const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/main/src/data';
+const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/data';
 
 // Cache for skin data
 let skinsCache: CS2Skin[] = [];
@@ -45,7 +45,7 @@ function categorizeWeapons(skins: CS2Skin[]) {
     'weapon_cz75a': 'pistols',
     'weapon_revolver': 'pistols',
     'weapon_tec9': 'pistols',
-    
+
     // Rifles
     'weapon_ak47': 'rifles',
     'weapon_m4a1': 'rifles',
@@ -54,7 +54,7 @@ function categorizeWeapons(skins: CS2Skin[]) {
     'weapon_sg556': 'rifles',
     'weapon_famas': 'rifles',
     'weapon_galilar': 'rifles',
-    
+
     // SMGs
     'weapon_mp7': 'smg',
     'weapon_mp9': 'smg',
@@ -63,19 +63,19 @@ function categorizeWeapons(skins: CS2Skin[]) {
     'weapon_ump45': 'smg',
     'weapon_p90': 'smg',
     'weapon_mp5sd': 'smg',
-    
+
     // Shotguns
     'weapon_nova': 'shotguns',
     'weapon_xm1014': 'shotguns',
     'weapon_sawedoff': 'shotguns',
     'weapon_mag7': 'shotguns',
-    
+
     // Snipers
     'weapon_awp': 'snipers',
     'weapon_ssg08': 'snipers',
     'weapon_scar20': 'snipers',
     'weapon_g3sg1': 'snipers',
-    
+
     // Machine Guns
     'weapon_m249': 'machineguns',
     'weapon_negev': 'machineguns',
@@ -100,18 +100,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const forceRefresh = searchParams.get('refresh') === 'true';
-    
+
     const now = Date.now();
-    
+
     // Check if we need to refresh the cache
     if (forceRefresh || now - lastCacheUpdate > CACHE_DURATION || skinsCache.length === 0) {
       console.log('Refreshing skins cache...');
       skinsCache = await fetchSkinsData();
       lastCacheUpdate = now;
     }
-    
+
     let responseData;
-    
+
     if (category) {
       const categorized = categorizeWeapons(skinsCache);
       responseData = {
@@ -127,10 +127,10 @@ export async function GET(request: NextRequest) {
         lastUpdated: new Date(lastCacheUpdate).toISOString(),
       };
     }
-    
+
     const response = NextResponse.json(responseData);
     response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
-    
+
     return response;
   } catch (error) {
     console.error('Error in skins API:', error);

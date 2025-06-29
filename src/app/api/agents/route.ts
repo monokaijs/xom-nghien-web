@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CS2Agent } from '@/types/server';
 
-const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/main/src/data';
+const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/data';
 
 // Cache for agents data
 let agentsCache: CS2Agent[] = [];
@@ -26,18 +26,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const team = searchParams.get('team'); // 2 for T, 3 for CT
     const forceRefresh = searchParams.get('refresh') === 'true';
-    
+
     const now = Date.now();
-    
+
     // Check if we need to refresh the cache
     if (forceRefresh || now - lastCacheUpdate > CACHE_DURATION || agentsCache.length === 0) {
       console.log('Refreshing agents cache...');
       agentsCache = await fetchAgentsData();
       lastCacheUpdate = now;
     }
-    
+
     let responseData;
-    
+
     if (team) {
       const teamNumber = parseInt(team);
       const filteredAgents = agentsCache.filter(agent => agent.team === teamNumber);
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     } else {
       const terroristAgents = agentsCache.filter(agent => agent.team === 2);
       const counterTerroristAgents = agentsCache.filter(agent => agent.team === 3);
-      
+
       responseData = {
         terrorist: terroristAgents,
         counterTerrorist: counterTerroristAgents,
@@ -57,10 +57,10 @@ export async function GET(request: NextRequest) {
         lastUpdated: new Date(lastCacheUpdate).toISOString(),
       };
     }
-    
+
     const response = NextResponse.json(responseData);
     response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
-    
+
     return response;
   } catch (error) {
     console.error('Error in agents API:', error);

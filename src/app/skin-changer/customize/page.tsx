@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Save } from 'lucide-react';
 import { CS2Skin, CS2Agent, CS2Sticker, CS2Keychain } from '@/types/server';
+import { fetchStickersData, fetchKeychainsData } from '@/lib/github-data';
 import StickerSelector from '@/components/StickerSelector';
 import KeychainSelector from '@/components/KeychainSelector';
 import WeaponPreview from '@/components/WeaponPreview';
@@ -85,19 +86,13 @@ function WeaponCustomizeContent() {
   useEffect(() => {
     const loadStickersAndKeychains = async () => {
       try {
-        // Load stickers
-        const stickersResponse = await fetch('/api/stickers');
-        if (stickersResponse.ok) {
-          const stickersData = await stickersResponse.json();
-          setStickersData(stickersData.stickers || []);
-        }
+        // Load stickers directly from GitHub
+        const stickersData = await fetchStickersData();
+        setStickersData(stickersData);
 
-        // Load keychains
-        const keychainsResponse = await fetch('/api/keychains');
-        if (keychainsResponse.ok) {
-          const keychainsData = await keychainsResponse.json();
-          setKeychainsData(keychainsData.keychains || []);
-        }
+        // Load keychains directly from GitHub
+        const keychainsData = await fetchKeychainsData();
+        setKeychainsData(keychainsData);
       } catch (error) {
         console.error('Error loading stickers and keychains:', error);
       }

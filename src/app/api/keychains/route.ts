@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CS2Keychain } from '@/types/server';
 
-const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/main/src/data';
+const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/data';
 
 // Cache for keychains data
 let keychainsCache: CS2Keychain[] = [];
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     // Set cache headers
     response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
-    
+
     return response;
   } catch (error) {
     console.error('Error in keychains API:', error);

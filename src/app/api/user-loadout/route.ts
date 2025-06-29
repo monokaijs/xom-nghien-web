@@ -3,7 +3,7 @@ import { getSession } from '@/lib/session';
 import { executeQuery } from '@/lib/database';
 import { UserSkinConfig, CS2Skin, CS2Agent, CS2Glove, CS2Music, CS2Sticker, CS2Keychain } from '@/types/server';
 
-const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/main/src/data';
+const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/data';
 
 // Cache for external data
 let skinsCache: CS2Skin[] = [];
@@ -57,7 +57,7 @@ function categorizeWeapons() {
     'weapon_cz75a': 'pistols',
     'weapon_revolver': 'pistols',
     'weapon_tec9': 'pistols',
-    
+
     // Rifles
     'weapon_ak47': 'rifles',
     'weapon_m4a1': 'rifles',
@@ -66,7 +66,7 @@ function categorizeWeapons() {
     'weapon_sg556': 'rifles',
     'weapon_famas': 'rifles',
     'weapon_galilar': 'rifles',
-    
+
     // SMGs
     'weapon_mp7': 'smg',
     'weapon_mp9': 'smg',
@@ -75,19 +75,19 @@ function categorizeWeapons() {
     'weapon_ump45': 'smg',
     'weapon_p90': 'smg',
     'weapon_mp5sd': 'smg',
-    
+
     // Shotguns
     'weapon_nova': 'shotguns',
     'weapon_xm1014': 'shotguns',
     'weapon_sawedoff': 'shotguns',
     'weapon_mag7': 'shotguns',
-    
+
     // Snipers
     'weapon_awp': 'snipers',
     'weapon_ssg08': 'snipers',
     'weapon_scar20': 'snipers',
     'weapon_g3sg1': 'snipers',
-    
+
     // Machine Guns
     'weapon_m249': 'machineguns',
     'weapon_negev': 'machineguns',
@@ -157,15 +157,15 @@ export async function GET(request: NextRequest) {
         }
       } else {
         // Weapon or glove
-        const skinData = skinsCache.find(s => 
-          s.weapon_defindex === userSkin.weapon_defindex && 
+        const skinData = skinsCache.find(s =>
+          s.weapon_defindex === userSkin.weapon_defindex &&
           s.paint === userSkin.weapon_paint_id.toString()
         );
-        
+
         if (skinData) {
           loadoutItem.skinData = skinData;
           loadoutItem.weaponName = skinData.paint_name;
-          
+
           // Categorize weapon
           if (skinData.weapon_name.includes('knife')) {
             loadoutItem.category = 'knives';
@@ -175,11 +175,11 @@ export async function GET(request: NextRequest) {
         }
 
         // Handle gloves separately if needed
-        const gloveData = glovesCache.find(g => 
-          g.weapon_defindex === userSkin.weapon_defindex && 
+        const gloveData = glovesCache.find(g =>
+          g.weapon_defindex === userSkin.weapon_defindex &&
           g.paint === userSkin.weapon_paint_id.toString()
         );
-        
+
         if (gloveData) {
           loadoutItem.gloveData = gloveData;
           loadoutItem.category = 'gloves';

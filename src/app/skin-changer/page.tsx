@@ -11,12 +11,13 @@ import Pagination from '@/components/Pagination';
 import LoadoutWeaponCard from '@/components/LoadoutWeaponCard';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent} from '@/components/ui/card';
-import {CS2Agent, CS2Glove, CS2Skin, UserSkinConfig} from '@/types/server';
+import {CS2Agent, CS2Glove, CS2Music, CS2Skin, UserSkinConfig} from '@/types/server';
 import {Grid, LogOut} from 'lucide-react';
 import {
   extractUniqueWeapons,
   fetchAgentsData,
   fetchGlovesData,
+  fetchMusicData,
   fetchSkinsData,
   getGlovesForWeapon,
   getSkinsForWeapon,
@@ -24,6 +25,7 @@ import {
 } from '@/lib/github-data';
 import WeaponSelector from '@/components/WeaponSelector';
 import WeaponSkinsGrid from '@/components/WeaponSkinsGrid';
+import MusicGrid from '@/components/MusicGrid';
 
 export default function SkinChangerPage() {
   return (
@@ -45,6 +47,7 @@ function SkinChangerDashboard() {
   const [weapons, setWeapons] = useState<WeaponType[]>([]);
   const [selectedWeapon, setSelectedWeapon] = useState<WeaponType | null>(null);
   const [weaponSkins, setWeaponSkins] = useState<(CS2Skin | CS2Glove)[]>([]);
+  const [musicKits, setMusicKits] = useState<CS2Music[]>([]);
   const [loadoutData, setLoadoutData] = useState<any>({});
   const [userSkins, setUserSkins] = useState<UserSkinConfig[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -88,6 +91,10 @@ function SkinChangerDashboard() {
           terrorist: terroristAgents,
           counterTerrorist: counterTerroristAgents,
         });
+      } else if (activeCategory === 'music') {
+        // Fetch music kits directly from GitHub
+        const musicData = await fetchMusicData();
+        setMusicKits(musicData);
       } else if (activeCategory === 'gloves') {
         // Fetch gloves directly from GitHub and extract unique weapons
         const glovesData = await fetchGlovesData();
@@ -145,7 +152,7 @@ function SkinChangerDashboard() {
         setWeaponSkins(weaponGloves);
       } else {
         const skinsData = await fetchSkinsData();
-        const weaponSkinsData = getSkinsForWeapon(skinsData, weapon.weapon_defindex);
+        const weaponSkinsData = getSkinsForWeapon(skinsData, parseInt(weapon.weapon_defindex as string));
         setWeaponSkins(weaponSkinsData);
       }
     } catch (error) {
@@ -163,6 +170,11 @@ function SkinChangerDashboard() {
   const handleBackToWeapons = () => {
     setSelectedWeapon(null);
     setWeaponSkins([]);
+  };
+
+  const handleMusicSelect = (music: CS2Music) => {
+    const musicData = encodeURIComponent(JSON.stringify(music));
+    router.push(`/skin-changer/customize?music=${musicData}&team=${selectedTeam}`);
   };
 
 
@@ -287,6 +299,12 @@ function SkinChangerDashboard() {
             onAgentCustomize={handleAgentCustomize}
             isLoading={isLoading}
           />
+        ) : activeCategory === 'music' ? (
+          <MusicGrid
+            musicKits={musicKits}
+            onMusicSelect={handleMusicSelect}
+            isLoading={isLoading}
+          />
         ) : selectedWeapon ? (
           <WeaponSkinsGrid
             weapon={selectedWeapon}
@@ -373,6 +391,7 @@ function SkinChangerDashboard() {
                 setCurrentPage(1);
                 setSelectedWeapon(null);
                 setWeaponSkins([]);
+                setMusicKits([]);
               }}
             />
           </div>
@@ -390,6 +409,8 @@ function SkinChangerDashboard() {
                       <p className="text-neutral-400">
                         {selectedWeapon
                           ? `Choose a skin for your ${selectedWeapon.display_name}`
+                          : activeCategory === 'music'
+                          ? 'Choose your MVP music kit'
                           : `Select your preferred ${activeCategory} for your loadout`
                         }
                       </p>

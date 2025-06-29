@@ -394,7 +394,7 @@ export function getCacheInfo() {
 
 // Weapon type interface
 export interface WeaponType {
-  weapon_defindex: number;
+  weapon_defindex: number | string;
   weapon_name: string;
   display_name: string;
   default_skin: CS2Skin | CS2Glove;
@@ -403,18 +403,23 @@ export interface WeaponType {
 
 // Extract unique weapons from skins data
 export function extractUniqueWeapons(skins: CS2Skin[], gloves: CS2Glove[] = []): WeaponType[] {
-  const weaponMap = new Map<number, WeaponType>();
+  const weaponMap = new Map<string, WeaponType>();
 
   // Process skins
   skins.forEach(skin => {
     if (skin.paint_name.includes('Default')) {
       let displayName = skin.paint_name.split('|')[0].trim();
 
+      // Handle knife names - remove the ★ symbol if present
+      if (displayName.startsWith('★ ')) {
+        displayName = displayName.substring(2).trim();
+      }
+
       const category = getWeaponCategory(skin.weapon_name);
 
-      weaponMap.set(skin.weapon_defindex, {
+      weaponMap.set(skin.weapon_defindex.toString(), {
         weapon_defindex: skin.weapon_defindex,
-        weapon_name: skin.weapon_name ?? skin.paint_name,
+        weapon_name: skin.weapon_name,
         display_name: displayName,
         default_skin: skin,
         category
@@ -422,24 +427,45 @@ export function extractUniqueWeapons(skins: CS2Skin[], gloves: CS2Glove[] = []):
     }
   });
 
-  // Process gloves
-  gloves.forEach(glove => {
-    if (glove.paint_name.includes('Default')) {
-      let displayName = glove.paint_name.split('|')[0].trim();
+  // Process gloves - extract unique glove types
+  const gloveTypes = new Map<string, CS2Glove>();
 
-      // Handle glove names - remove the ★ symbol if present
+  gloves.forEach(glove => {
+    const defindexKey = glove.weapon_defindex.toString();
+
+    // For default gloves, use them directly
+    if (glove.paint_name.includes('Default')) {
+      gloveTypes.set(defindexKey, glove);
+    } else {
+      // For other glove types, find the first skin of each type to represent the glove type
+      if (!gloveTypes.has(defindexKey)) {
+        gloveTypes.set(defindexKey, glove);
+      }
+    }
+  });
+
+  // Add glove types to weapon map
+  gloveTypes.forEach(glove => {
+    let displayName;
+
+    if (glove.paint_name.includes('Default')) {
+      // For default gloves: "Default Gloves | Terrorist Default" -> "Default Gloves"
+      displayName = glove.paint_name.split('|')[0].trim();
+    } else {
+      // For other gloves: "★ Broken Fang Gloves | Jade" -> "Broken Fang Gloves"
+      displayName = glove.paint_name.split('|')[0].trim();
       if (displayName.startsWith('★ ')) {
         displayName = displayName.substring(2).trim();
       }
-
-      weaponMap.set(glove.weapon_defindex, {
-        weapon_defindex: glove.weapon_defindex,
-        weapon_name: glove.weapon_name,
-        display_name: displayName,
-        default_skin: glove,
-        category: 'gloves'
-      });
     }
+
+    weaponMap.set(glove.weapon_defindex.toString(), {
+      weapon_defindex: glove.weapon_defindex,
+      weapon_name: glove.weapon_name || 'gloves',
+      display_name: displayName,
+      default_skin: glove,
+      category: 'gloves'
+    });
   });
 
   return Array.from(weaponMap.values()).sort((a, b) => a.display_name.localeCompare(b.display_name));
@@ -508,6 +534,6 @@ export function getSkinsForWeapon(skins: CS2Skin[], weaponDefindex: number): CS2
 }
 
 // Get gloves for specific weapon
-export function getGlovesForWeapon(gloves: CS2Glove[], weaponDefindex: number): CS2Glove[] {
-  return gloves.filter(glove => glove.weapon_defindex === weaponDefindex);
+export function getGlovesForWeapon(gloves: CS2Glove[], weaponDefindex: number | string): CS2Glove[] {
+  return gloves.filter(glove => glove.weapon_defindex.toString() === weaponDefindex.toString());
 }

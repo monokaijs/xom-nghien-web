@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
         }
       } else if (userSkin.weapon_defindex === -1) {
         // Music kit
-        const musicData = musicCache.find(m => m.id === parseInt(userSkin.weapon_paint_id.toString()));
+        const musicData = musicCache.find(m => m.id.toString() === userSkin.weapon_paint_id.toString());
         if (musicData) {
           loadoutItem.musicData = musicData;
           loadoutItem.category = 'music';

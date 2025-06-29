@@ -46,18 +46,21 @@ export interface CS2Agent {
 }
 
 export interface CS2Glove {
-  weapon_defindex: number;
-  weapon_name: string;
+  weapon_defindex: number | string;
+  weapon_name?: string;
   paint: string | number;
   image: string;
   paint_name: string;
-  legacy_model: boolean;
+  legacy_model?: boolean;
+  threejsmodel?: string;
+  texture?: string;
+  texture_metal?: string;
 }
 
 export interface CS2Music {
-  id: number;
+  id: string;
   name: string;
-  image?: string;
+  image: string;
 }
 
 export interface CS2Sticker {

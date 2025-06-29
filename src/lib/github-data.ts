@@ -1,4 +1,4 @@
-import { CS2Skin, CS2Agent, CS2Sticker, CS2Keychain, CS2Glove, CS2Music } from '@/types/server';
+import {CS2Agent, CS2Glove, CS2Keychain, CS2Music, CS2Skin, CS2Sticker} from '@/types/server';
 
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/data';
 
@@ -64,7 +64,7 @@ export async function fetchSkinsData(forceRefresh = false): Promise<CS2Skin[]> {
       const fallbackResponse = await fetch('/api/skins');
       if (fallbackResponse.ok) {
         const fallbackData = await fallbackResponse.json();
-        return fallbackData.categories ? Object.values(fallbackData.categories).flat() : [];
+        return fallbackData.categories ? Object.values(fallbackData.categories).flat() as CS2Skin[] : [];
       }
     } catch (fallbackError) {
       console.error('Fallback API also failed:', fallbackError);

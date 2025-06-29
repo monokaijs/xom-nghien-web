@@ -391,3 +391,123 @@ export function getCacheInfo() {
     }
   };
 }
+
+// Weapon type interface
+export interface WeaponType {
+  weapon_defindex: number;
+  weapon_name: string;
+  display_name: string;
+  default_skin: CS2Skin | CS2Glove;
+  category: string;
+}
+
+// Extract unique weapons from skins data
+export function extractUniqueWeapons(skins: CS2Skin[], gloves: CS2Glove[] = []): WeaponType[] {
+  const weaponMap = new Map<number, WeaponType>();
+
+  // Process skins
+  skins.forEach(skin => {
+    if (skin.paint_name.includes('Default')) {
+      let displayName = skin.paint_name.split('|')[0].trim();
+
+      const category = getWeaponCategory(skin.weapon_name);
+
+      weaponMap.set(skin.weapon_defindex, {
+        weapon_defindex: skin.weapon_defindex,
+        weapon_name: skin.weapon_name ?? skin.paint_name,
+        display_name: displayName,
+        default_skin: skin,
+        category
+      });
+    }
+  });
+
+  // Process gloves
+  gloves.forEach(glove => {
+    if (glove.paint_name.includes('Default')) {
+      let displayName = glove.paint_name.split('|')[0].trim();
+
+      // Handle glove names - remove the ★ symbol if present
+      if (displayName.startsWith('★ ')) {
+        displayName = displayName.substring(2).trim();
+      }
+
+      weaponMap.set(glove.weapon_defindex, {
+        weapon_defindex: glove.weapon_defindex,
+        weapon_name: glove.weapon_name,
+        display_name: displayName,
+        default_skin: glove,
+        category: 'gloves'
+      });
+    }
+  });
+
+  return Array.from(weaponMap.values()).sort((a, b) => a.display_name.localeCompare(b.display_name));
+}
+
+// Get weapon category helper
+function getWeaponCategory(weaponName: string): string {
+  const weaponCategories: Record<string, string> = {
+    // Pistols
+    'weapon_deagle': 'pistols',
+    'weapon_elite': 'pistols',
+    'weapon_fiveseven': 'pistols',
+    'weapon_glock': 'pistols',
+    'weapon_hkp2000': 'pistols',
+    'weapon_p250': 'pistols',
+    'weapon_usp_silencer': 'pistols',
+    'weapon_cz75a': 'pistols',
+    'weapon_revolver': 'pistols',
+    'weapon_tec9': 'pistols',
+
+    // Rifles
+    'weapon_ak47': 'rifles',
+    'weapon_m4a1': 'rifles',
+    'weapon_m4a1_silencer': 'rifles',
+    'weapon_aug': 'rifles',
+    'weapon_sg556': 'rifles',
+    'weapon_famas': 'rifles',
+    'weapon_galilar': 'rifles',
+
+    // SMGs
+    'weapon_mp7': 'smg',
+    'weapon_mp9': 'smg',
+    'weapon_bizon': 'smg',
+    'weapon_mac10': 'smg',
+    'weapon_ump45': 'smg',
+    'weapon_p90': 'smg',
+    'weapon_mp5sd': 'smg',
+
+    // Shotguns
+    'weapon_nova': 'shotguns',
+    'weapon_xm1014': 'shotguns',
+    'weapon_sawedoff': 'shotguns',
+    'weapon_mag7': 'shotguns',
+
+    // Snipers
+    'weapon_awp': 'snipers',
+    'weapon_ssg08': 'snipers',
+    'weapon_scar20': 'snipers',
+    'weapon_g3sg1': 'snipers',
+
+    // Machine Guns
+    'weapon_m249': 'machineguns',
+    'weapon_negev': 'machineguns',
+  };
+
+  if (weaponName.includes('knife')) {
+    return 'knifes';
+  }
+
+  return weaponCategories[weaponName] || 'other';
+}
+
+// Get skins for specific weapon
+export function getSkinsForWeapon(skins: CS2Skin[], weaponDefindex: number): CS2Skin[] {
+  return skins.filter(skin => skin.weapon_defindex === weaponDefindex);
+}
+
+// Get gloves for specific weapon
+export function getGlovesForWeapon(gloves: CS2Glove[], weaponDefindex: number): CS2Glove[] {
+  return gloves.filter(glove => glove.weapon_defindex === weaponDefindex);
+}

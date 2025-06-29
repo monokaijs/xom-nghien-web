@@ -1,31 +1,40 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
+import {useEffect, useState} from 'react';
+import {useRouter} from 'next/navigation';
+import {useAuth} from '@/hooks/useAuth';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import CategoryNavigation, { SkinCategory } from '@/components/CategoryNavigation';
+import CategoryNavigation, {SkinCategory} from '@/components/CategoryNavigation';
 import SearchAndFilter from '@/components/SearchAndFilter';
 import SkinGrid from '@/components/SkinGrid';
 import Pagination from '@/components/Pagination';
 import LoadoutWeaponCard from '@/components/LoadoutWeaponCard';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { CS2Skin, CS2Agent, UserSkinConfig } from '@/types/server';
-import { LogOut, Grid, List, Package } from 'lucide-react';
-import {cn} from "@/lib/utils";
-import { fetchSkinsData, fetchAgentsData, fetchGlovesData, categorizeWeapons } from '@/lib/github-data';
+import {Button} from '@/components/ui/button';
+import {Card, CardContent} from '@/components/ui/card';
+import {CS2Agent, CS2Glove, CS2Skin, UserSkinConfig} from '@/types/server';
+import {Grid, LogOut} from 'lucide-react';
+import {
+  extractUniqueWeapons,
+  fetchAgentsData,
+  fetchGlovesData,
+  fetchSkinsData,
+  getGlovesForWeapon,
+  getSkinsForWeapon,
+  WeaponType
+} from '@/lib/github-data';
+import WeaponSelector from '@/components/WeaponSelector';
+import WeaponSkinsGrid from '@/components/WeaponSkinsGrid';
 
 export default function SkinChangerPage() {
   return (
     <ProtectedRoute>
-      <SkinChangerDashboard />
+      <SkinChangerDashboard/>
     </ProtectedRoute>
   );
 }
 
 function SkinChangerDashboard() {
-  const { user, logout } = useAuth();
+  const {user, logout} = useAuth();
   const router = useRouter();
   const [activeCategory, setActiveCategory] = useState<SkinCategory>('loadout');
   const [skins, setSkins] = useState<CS2Skin[]>([]);
@@ -33,6 +42,9 @@ function SkinChangerDashboard() {
     terrorist: [],
     counterTerrorist: [],
   });
+  const [weapons, setWeapons] = useState<WeaponType[]>([]);
+  const [selectedWeapon, setSelectedWeapon] = useState<WeaponType | null>(null);
+  const [weaponSkins, setWeaponSkins] = useState<(CS2Skin | CS2Glove)[]>([]);
   const [loadoutData, setLoadoutData] = useState<any>({});
   const [userSkins, setUserSkins] = useState<UserSkinConfig[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,7 +56,6 @@ function SkinChangerDashboard() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
-
 
 
   useEffect(() => {
@@ -59,6 +70,7 @@ function SkinChangerDashboard() {
 
   const loadCategoryData = async () => {
     setIsLoading(true);
+    console.log('active category', activeCategory);
     try {
       if (activeCategory === 'loadout') {
         const response = await fetch('/api/user-loadout');
@@ -77,14 +89,21 @@ function SkinChangerDashboard() {
           counterTerrorist: counterTerroristAgents,
         });
       } else if (activeCategory === 'gloves') {
-        // Fetch gloves directly from GitHub
+        // Fetch gloves directly from GitHub and extract unique weapons
         const glovesData = await fetchGlovesData();
-        setSkins(glovesData as any); // Cast to CS2Skin[] for compatibility
+        const uniqueWeapons = extractUniqueWeapons([], glovesData);
+        setWeapons(uniqueWeapons);
+        setSkins([]); // Clear skins when showing weapons
       } else {
-        // Fetch skins directly from GitHub
+        // Fetch skins directly from GitHub and extract unique weapons
         const skinsData = await fetchSkinsData();
-        const categorized = categorizeWeapons(skinsData);
-        setSkins(categorized[activeCategory as keyof typeof categorized] || []);
+        const glovesData = await fetchGlovesData();
+        const uniqueWeapons = extractUniqueWeapons(skinsData, glovesData);
+        let cat = activeCategory === 'knives' ? 'knifes' : activeCategory;
+        // Filter weapons by category
+        const filteredWeapons = uniqueWeapons.filter(weapon => weapon.category === cat);
+        setWeapons(filteredWeapons);
+        setSkins([]); // Clear skins when showing weapons
       }
     } catch (error) {
       console.error('Error loading category data:', error);
@@ -115,6 +134,36 @@ function SkinChangerDashboard() {
     router.push(`/skin-changer/customize?agent=${agentData}&team=${selectedTeam}`);
   };
 
+  const handleWeaponSelect = async (weapon: WeaponType) => {
+    setSelectedWeapon(weapon);
+    setIsLoading(true);
+
+    try {
+      if (weapon.category === 'gloves') {
+        const glovesData = await fetchGlovesData();
+        const weaponGloves = getGlovesForWeapon(glovesData, weapon.weapon_defindex);
+        setWeaponSkins(weaponGloves);
+      } else {
+        const skinsData = await fetchSkinsData();
+        const weaponSkinsData = getSkinsForWeapon(skinsData, weapon.weapon_defindex);
+        setWeaponSkins(weaponSkinsData);
+      }
+    } catch (error) {
+      console.error('Error loading weapon skins:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleWeaponSkinSelect = (skin: CS2Skin | CS2Glove) => {
+    const skinData = encodeURIComponent(JSON.stringify(skin));
+    router.push(`/skin-changer/customize?weapon=${skinData}&team=${selectedTeam}`);
+  };
+
+  const handleBackToWeapons = () => {
+    setSelectedWeapon(null);
+    setWeaponSkins([]);
+  };
 
 
   // Handle search and sort changes
@@ -173,7 +222,7 @@ function SkinChangerDashboard() {
     }
   };
 
-  const { items: currentItems, totalItems, totalPages } = getCurrentItems();
+  const {items: currentItems, totalItems, totalPages} = getCurrentItems();
 
   const renderContent = () => {
     return (
@@ -203,17 +252,14 @@ function SkinChangerDashboard() {
         )}
 
         {/* Search and Filter */}
-        {activeCategory !== 'loadout' && (
+        {activeCategory === 'agents' && (
           <SearchAndFilter
             searchQuery={searchQuery}
             onSearchChange={handleSearchChange}
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSortChange={handleSortChange}
-            totalItems={activeCategory === 'agents' ?
-              (selectedTeam === 2 ? agents.terrorist.length : agents.counterTerrorist.length) :
-              skins.length
-            }
+            totalItems={selectedTeam === 2 ? agents.terrorist.length : agents.counterTerrorist.length}
             filteredItems={totalItems}
           />
         )}
@@ -241,21 +287,28 @@ function SkinChangerDashboard() {
             onAgentCustomize={handleAgentCustomize}
             isLoading={isLoading}
           />
-        ) : (
-          <SkinGrid
-            skins={currentItems as CS2Skin[]}
-            searchQuery=""
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            selectedTeam={selectedTeam}
+        ) : selectedWeapon ? (
+          <WeaponSkinsGrid
+            weapon={selectedWeapon}
+            skins={weaponSkins}
             userSkins={userSkins}
-            onSkinCustomize={handleSkinCustomize}
+            selectedTeam={selectedTeam}
+            onSkinSelect={handleWeaponSkinSelect}
+            onBack={handleBackToWeapons}
+            isLoading={isLoading}
+          />
+        ) : (
+          <WeaponSelector
+            weapons={weapons}
+            userSkins={userSkins}
+            selectedTeam={selectedTeam}
+            onWeaponSelect={handleWeaponSelect}
             isLoading={isLoading}
           />
         )}
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {activeCategory === 'agents' && totalPages > 1 && (
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
@@ -275,7 +328,8 @@ function SkinChangerDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-red-500 to-red-800">
+              <h1
+                className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-red-500 to-red-800">
                 Skin Changer
               </h1>
               <span className="text-neutral-400">|</span>
@@ -300,7 +354,7 @@ function SkinChangerDashboard() {
                 size="sm"
                 className="border-white/20 text-neutral-300 hover:bg-white/10"
               >
-                <LogOut className="w-4 h-4 mr-2" />
+                <LogOut className="w-4 h-4 mr-2"/>
                 Logout
               </Button>
             </div>
@@ -314,7 +368,12 @@ function SkinChangerDashboard() {
           <div className="lg:col-span-1">
             <CategoryNavigation
               activeCategory={activeCategory}
-              onCategoryChange={setActiveCategory}
+              onCategoryChange={(category) => {
+                setActiveCategory(category);
+                setCurrentPage(1);
+                setSelectedWeapon(null);
+                setWeaponSkins([]);
+              }}
             />
           </div>
 
@@ -326,10 +385,13 @@ function SkinChangerDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-xl font-semibold text-white mb-2 capitalize">
-                        {activeCategory}
+                        {selectedWeapon ? `${selectedWeapon.display_name} Skins` : activeCategory}
                       </h2>
                       <p className="text-neutral-400">
-                        Select your preferred {activeCategory} for your loadout
+                        {selectedWeapon
+                          ? `Choose a skin for your ${selectedWeapon.display_name}`
+                          : `Select your preferred ${activeCategory} for your loadout`
+                        }
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -338,7 +400,7 @@ function SkinChangerDashboard() {
                         size="sm"
                         className="border-white/20 text-neutral-300 hover:bg-white/10"
                       >
-                        <Grid className="w-4 h-4" />
+                        <Grid className="w-4 h-4"/>
                       </Button>
                     </div>
                   </div>

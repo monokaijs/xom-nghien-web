@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
 
           // Categorize weapon
           if (skinData.weapon_name.includes('knife')) {
-            loadoutItem.category = 'knives';
+            loadoutItem.category = 'knifes';
           } else {
             loadoutItem.category = weaponCategories[skinData.weapon_name] || 'other';
           }
@@ -219,7 +219,7 @@ export async function GET(request: NextRequest) {
       machineguns: loadoutItems.filter(item => item.category === 'machineguns'),
       snipers: loadoutItems.filter(item => item.category === 'snipers'),
       shotguns: loadoutItems.filter(item => item.category === 'shotguns'),
-      knives: loadoutItems.filter(item => item.category === 'knives'),
+      knifes: loadoutItems.filter(item => item.category === 'knifes'),
       gloves: loadoutItems.filter(item => item.category === 'gloves'),
       agents: loadoutItems.filter(item => item.category === 'agents'),
       music: loadoutItems.filter(item => item.category === 'music'),

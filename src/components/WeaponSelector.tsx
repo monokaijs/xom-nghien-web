@@ -68,6 +68,7 @@ export default function WeaponSelector({
   const getCurrentLoadoutItem = (weapon: WeaponType): LoadoutItem | null => {
     if (!loadoutData || Object.keys(loadoutData).length === 0) return null;
     const categoryItems = loadoutData[weapon.category] || [];
+
     return categoryItems.find(item =>
       item.userConfig.weapon_defindex === weapon.weapon_defindex &&
       item.userConfig.weapon_team === selectedTeam

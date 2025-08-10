@@ -35,7 +35,7 @@ export async function GET() {
       {
         error: 'Failed to fetch contact information',
         contact: {
-          email: 'teamthecheckmate@gmail.com',
+          email: contact.email,
           phone: '',
           supportHours: '24/7',
           responseTime: 'Trong vòng 24 giờ',

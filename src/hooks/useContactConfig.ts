@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import {contact} from "@/lib/config/contact";
 
 interface ContactConfig {
   email: string;
@@ -35,7 +36,7 @@ export function useContactConfig() {
         setError(err instanceof Error ? err.message : 'Unknown error');
         // Fallback config
         setConfig({
-          email: 'teamthecheckmate@gmail.com',
+          email: contact.email,
           phone: '',
           supportHours: '24/7',
           responseTime: 'Trong vòng 24 giờ',

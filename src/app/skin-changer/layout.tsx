@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Skin Changer - Team Checkmate',
+  title: 'Skin Changer - Xóm Nghiện',
   description: 'Customize your CS2 weapon skins, agents, and more',
 };
 

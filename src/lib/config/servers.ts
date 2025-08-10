@@ -8,13 +8,13 @@ export interface GameServer {
 
 export const GameServers: GameServer[] = [{
   id: 'server1',
-  name: '[#1] PvP 5v5 | Team Checkmate',
+  name: '[#1] PvP 5v5 | Xóm Nghiện',
   type: 'counterstrike2',
   ip: '160.25.82.90',
   port: 27015,
 }, {
   id: 'server2',
-  name: '[#2] PvP 5v5 | Team Checkmate',
+  name: '[#2] PvP 5v5 | Xóm Nghiện',
   type: 'counterstrike2',
   ip: '160.25.82.90',
   port: 27021,

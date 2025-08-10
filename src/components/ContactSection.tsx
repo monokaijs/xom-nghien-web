@@ -13,6 +13,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useContactConfig } from '@/hooks/useContactConfig';
+import {contact} from "@/lib/config/contact";
 
 export default function ContactSection() {
   const { config, isLoading } = useContactConfig();
@@ -107,7 +108,7 @@ export default function ContactSection() {
                   </div>
                   <div className="flex-1">
                     <h4 className="text-lg font-semibold text-white mb-1">Email</h4>
-                    <p className="text-neutral-300">{config?.email || 'teamthecheckmate@gmail.com'}</p>
+                    <p className="text-neutral-300">{contact.email}</p>
                     <p className="text-slate-400 text-sm mt-1">{config?.responseTime}</p>
                   </div>
                 </div>

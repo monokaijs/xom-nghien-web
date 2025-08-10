@@ -1,5 +1,5 @@
 export const contact = {
-  email: "teamthecheckmate@gmail.com",
+  email: "contact@xomnghien.com",
   phone: "",
   supportHours: "24/7",
   responseTime: "Trong vòng 24 giờ",

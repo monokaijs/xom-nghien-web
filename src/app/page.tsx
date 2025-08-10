@@ -204,13 +204,13 @@ export default function Home() {
         <div className="container mx-auto">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-              <div className="text-2xl font-bold text-white mb-4">TEAM CHECKMATE</div>
+              <div className="text-2xl font-bold text-white mb-4">XÓM NGHIỆN</div>
               <p className="text-red-200">Community Powered Counter-Strike 2 Server</p>
             </div>
           </div>
 
           <div className="border-t border-red-800/20 pt-8 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-red-200">© 2025 Team Checkmate.</p>
+            <p className="text-red-200">© 2025 Xóm Nghiện.</p>
             <p className="text-red-200 flex items-center gap-1">
               Made with <Heart className="w-4 h-4 text-red-500"/> by
               <a href="https://monokaijs.com"

@@ -36,7 +36,7 @@ export default function Header() {
       <nav className="flex items-center justify-between">
         <div className="flex items-center space-x-8">
           <Link href="/" className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-red-500 to-red-800">
-            Checkmate
+            Xóm Nghiện
           </Link>
           {/* Desktop Navigation */}
           <div className="hidden md:flex space-x-6">

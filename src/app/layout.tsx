@@ -8,8 +8,8 @@ const defaultFont = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Team Checkmate",
-  description: "Checkmate CS2 Panel - Powered by Community",
+  title: "Xóm Nghiện",
+  description: "Xóm Nghiện CS2 Panel - Powered by Community",
 };
 
 export default function RootLayout({

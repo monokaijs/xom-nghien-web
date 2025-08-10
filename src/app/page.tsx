@@ -25,8 +25,8 @@ export default function Home() {
               <span className="text-slate-400 text-sm font-medium">Chào mừng đến với</span>
             </div>
             <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
-              Team <span className="text-transparent bg-clip-text bg-gradient-to-br from-red-500 to-red-950/10">
-              Checkmate
+              Xóm <span className="text-transparent bg-clip-text bg-gradient-to-br from-red-500 to-red-950/10">
+              Nghiện
             </span>
             </h1>
             <p className="text-xl text-neutral-300 mb-8 max-w-2xl mx-auto">

@@ -351,7 +351,7 @@ function SkinChangerDashboard() {
                 Skin Changer
               </h1>
               <span className="text-neutral-400">|</span>
-              <span className="text-neutral-300">Team Checkmate</span>
+              <span className="text-neutral-300">Xóm nghiện</span>
             </div>
 
             <div className="flex items-center gap-4">

@@ -19,7 +19,6 @@ export default function Header() {
 
   const NavigationLinks = () => (
     <>
-      <a href="#rent" className="text-neutral-300 hover:text-white transition-colors">Thuê máy chủ</a>
       <a href="#contact" className="text-neutral-300 hover:text-white transition-colors">Liên hệ</a>
       {isLoggedIn && (
         <>

@@ -46,7 +46,7 @@ export default function Header() {
 
         <div className="flex items-center space-x-2 md:space-x-4">
           {/* Discord Button - Hidden on small screens, shown on medium+ */}
-          <Link href={'https://discord.gg/bDGqfUee3Q'} target={'_blank'} className="hidden sm:block">
+          <Link href={'https://discord.gg/WYaqghEaMe'} target={'_blank'} className="hidden sm:block">
             <Button className="bg-[#5865F2] hover:bg-[#5865F2]/80 text-white transition-colors h-8">
               <DiscordIcon className='w-6 h-6 md:w-8 md:h-8' fill={'white'}/>
               <span className="hidden md:inline ml-2">Discord</span>
@@ -100,7 +100,7 @@ export default function Header() {
                 <NavigationLinks />
 
                 {/* Mobile Discord Link */}
-                <Link href={'https://discord.gg/bDGqfUee3Q'} target={'_blank'} className="sm:hidden">
+                <Link href={'https://discord.gg/WYaqghEaMe'} target={'_blank'} className="sm:hidden">
                   <Button className="w-full bg-[#5865F2] hover:bg-[#5865F2]/80 text-white transition-colors">
                     <DiscordIcon className='w-6 h-6' fill={'white'}/>
                     <span className="ml-2">Discord</span>

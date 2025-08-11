@@ -1,10 +1,8 @@
 import {Button} from "@/components/ui/button";
-import {Card, CardContent} from "@/components/ui/card";
-import {Heart, PlaneIcon, Shield, Shirt, StoreIcon, Users, Video} from "lucide-react";
+import {Heart, PlaneIcon, StoreIcon} from "lucide-react";
 import Header from "@/components/Header";
 import GameServersSection from "@/components/GameServersSection";
 import ContactSection from "@/components/ContactSection";
-import WeaponsSection from "@/components/WeaponsSection";
 import AgentPic from '@/lib/assets/agent2.png';
 import Link from "next/link";
 
@@ -37,7 +35,7 @@ export default function Home() {
                 <Button size="lg"
                         className="bg-red-600/80 border border-red-500/80 hover:bg-red-600 text-white px-8 py-3 transition-colors">
                   <PlaneIcon className="w-5 h-5 mr-1"/>
-                  Thuê máy chủ
+                  Liên hệ
                 </Button>
               </Link>
               <Link href={'/skin-changer'}>
@@ -53,26 +51,6 @@ export default function Home() {
         </div>
       </section>
 
-      <section id={'rent'} className="py-20 px-4 bg-black/20">
-        <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <span className="text-slate-400 text-sm font-medium">Counter-strike 2</span>
-            <h2 className="text-4xl font-bold text-white mb-4 mt-2">
-              Thuê Máy chủ
-            </h2>
-            <p className="text-neutral-300 text-lg">
-              Chọn gói phù hợp với nhu cầu của bạn
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            Coming soon...
-          </div>
-
-        </div>
-      </section>
-
-      {/* Contact Section */}
       <ContactSection/>
 
       <footer className="bg-black/40 border-t border-white/10 py-12 px-4">

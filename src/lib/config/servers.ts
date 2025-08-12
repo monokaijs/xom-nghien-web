@@ -10,18 +10,18 @@ export const GameServers: GameServer[] = [{
   id: 'server1',
   name: '[#1] PvP 5v5 | Xóm Nghiện',
   type: 'counterstrike2',
-  ip: '160.25.82.90',
+  ip: 'cs2.xomnghien.com',
   port: 27015,
 }, {
   id: 'server2',
-  name: '[#2] PvP 5v5 | Xóm Nghiện',
+  name: '[#2] Death Match | Xóm Nghiện',
   type: 'counterstrike2',
-  ip: '160.25.82.90',
+  ip: 'cs2.xomnghien.com',
   port: 27021,
 }, {
   id: 'server3',
-  name: '[#3] PvP 5v5 | Custom Map',
+  name: '[#3] Retake | Custom Map',
   type: 'counterstrike2',
-  ip: '160.25.82.90',
+  ip: 'cs2.xomnghien.com',
   port: 27025,
 }]

@@ -8,6 +8,8 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
 
+  console.log('authenticating');
+
   // If this is a callback from Steam
   if (searchParams.has('openid.mode')) {
     console.log(searchParams)

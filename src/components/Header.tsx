@@ -19,11 +19,10 @@ export default function Header() {
 
   const NavigationLinks = () => (
     <>
-      <a href="#contact" className="text-neutral-300 hover:text-white transition-colors">Liên hệ</a>
       {isLoggedIn && (
         <>
-          <Link href="/skin-changer" className="text-neutral-300 hover:text-red-400 transition-colors">
-            Skin Changer
+          <Link href="/inventory" className="text-neutral-300 hover:text-red-400 transition-colors">
+            Inventory
           </Link>
         </>
       )}

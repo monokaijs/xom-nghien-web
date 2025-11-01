@@ -38,11 +38,11 @@ export default function Home() {
                   Liên hệ
                 </Button>
               </Link>
-              <Link href={'/skin-changer'}>
+              <Link href={'/inventory'}>
                 <Button size="lg"
                         className="bg-white/10 border border-white-500/15 hover:bg-white text-white hover:text-black px-8 py-3 transition-colors">
                   <StoreIcon className="w-5 h-5 mr-1"/>
-                  Skins Changer
+                  Tuỳ chỉnh Loadout
                 </Button>
               </Link>
             </div>

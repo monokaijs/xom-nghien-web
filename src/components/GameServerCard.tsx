@@ -1,6 +1,6 @@
 "use client";
 
-import {ClockIcon, PlayIcon, UsersIcon, WifiOffIcon} from "lucide-react";
+import {PlayIcon, UsersIcon, WifiOffIcon} from "lucide-react";
 import {ServerStatus} from "@/types/server";
 import {useState} from "react";
 import {Button} from "@/components/ui/button";
@@ -126,7 +126,7 @@ export default function GameServerCard({server}: GameServerCardProps) {
 
       {/* Password Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-md bg-background border-neutral-900">
+        <DialogContent className="sm:max-w-xl max-w-xl bg-background border-neutral-900">
           <DialogHeader>
             <DialogTitle className="text-white">Kết nối máy chủ</DialogTitle>
             <DialogDescription className="text-slate-300">

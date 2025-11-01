@@ -105,3 +105,44 @@ export interface ServerResponse {
   nextUpdate?: string;
   error?: string;
 }
+
+export interface CraftedSkin {
+  id: number;
+  steamid: string;
+  weapon_defindex: number;
+  weapon_paint_id: string | number;
+  weapon_wear: number;
+  weapon_seed: number;
+  weapon_nametag: string;
+  weapon_stattrak: number;
+  weapon_sticker_0?: string;
+  weapon_sticker_1?: string;
+  weapon_sticker_2?: string;
+  weapon_sticker_3?: string;
+  weapon_sticker_4?: string;
+  weapon_keychain?: string;
+  equipped_ct: boolean;
+  equipped_t: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InventoryItem {
+  craftedSkin?: CraftedSkin;
+  skinData?: CS2Skin;
+  gloveData?: CS2Glove;
+  stickers: (CS2Sticker | null)[];
+  keychain: CS2Keychain | null;
+  weaponName: string;
+  category: string;
+  isDefault: boolean;
+}
+
+export type SortOption = 'equipped' | 'time' | 'quality' | 'alphabetical' | 'type' | 'collection';
+
+export interface InventoryFilters {
+  sortBy: SortOption;
+  sortOrder: 'asc' | 'desc';
+  searchQuery: string;
+  categoryFilter?: string;
+}

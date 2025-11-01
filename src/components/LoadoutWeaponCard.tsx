@@ -52,14 +52,14 @@ export default function LoadoutWeaponCard({ item, placeholder, team, className }
       // Navigate to customize page with existing item data
       if (item.skinData) {
         const weaponData = encodeURIComponent(JSON.stringify(item.skinData));
-        router.push(`/skin-changer/customize?weapon=${weaponData}&team=${team}`);
+        router.push(`/inventory/customize?weapon=${weaponData}&team=${team}`);
       } else if (item.agentData) {
         const agentData = encodeURIComponent(JSON.stringify(item.agentData));
-        router.push(`/skin-changer/customize?agent=${agentData}&team=${team}`);
+        router.push(`/inventory/customize?agent=${agentData}&team=${team}`);
       }
     } else if (placeholder) {
       // Navigate to skin selector for this weapon category
-      router.push(`/skin-changer?category=${placeholder.category}`);
+      router.push(`/inventory?category=${placeholder.category}`);
     }
   };
 

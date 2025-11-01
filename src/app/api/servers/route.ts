@@ -38,6 +38,13 @@ async function queryServer(server: GameServer): Promise<ServerStatus> {
       players: {
         current: state.players?.length || 0,
         max: state.maxplayers || 0,
+        list: state.players?.map((player: any) => ({
+          name: player.name || 'Unknown',
+          raw: {
+            score: player.raw?.score,
+            time: player.raw?.time,
+          }
+        })) || [],
       },
       map: state.map || undefined,
       ping,

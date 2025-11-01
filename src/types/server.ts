@@ -8,6 +8,14 @@ export interface ServerConfig {
   backgroundImage: string;
 }
 
+export interface PlayerInfo {
+  name: string;
+  raw?: {
+    score?: number;
+    time?: number;
+  };
+}
+
 export interface ServerStatus {
   id: string;
   name: string;
@@ -18,6 +26,7 @@ export interface ServerStatus {
   players: {
     current: number;
     max: number;
+    list?: PlayerInfo[];
   };
   map?: string;
   ping?: number;

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { executeQuery, executeTransaction } from '@/lib/database';
+import { db } from '@/lib/database';
+import { playerSkins } from '@/lib/db/schema';
+import { eq, and, gte, lte } from 'drizzle-orm';
 
 interface ApplySkinRequest {
   type: 'weapons' | 'gloves' | 'agents' | 'mvp' | 'knifes';
@@ -57,15 +59,15 @@ export async function POST(request: NextRequest) {
       case 'gloves':
         await handleGlovesUpdate(steamid, weapon_team, weapon_defindex, weapon_paint_id, weapon_wear, weapon_seed, weapon_nametag, weapon_stattrak);
         break;
-        
+
       case 'agents':
         await handleAgentsUpdate(steamid, weapon_team, weapon_defindex);
         break;
-        
+
       case 'mvp':
         await handleMusicUpdate(steamid, weapon_team, weapon_defindex);
         break;
-        
+
       case 'weapons':
       case 'knifes':
       default:
@@ -112,39 +114,63 @@ async function handleGlovesUpdate(
   weapon_nametag: string,
   weapon_stattrak: number
 ) {
-  // Handle glove removal for specific teams
   if (weapon_paint_id === 'ct' || weapon_paint_id === 't') {
     const teamToRemove = weapon_paint_id === 'ct' ? 3 : 2;
-    await executeQuery(
-      'DELETE FROM wp_player_skins WHERE steamid = ? AND weapon_team = ? AND weapon_defindex >= 5027 AND weapon_defindex <= 5035',
-      [steamid, teamToRemove]
-    );
+    await db
+      .delete(playerSkins)
+      .where(
+        and(
+          eq(playerSkins.steamid, steamid),
+          eq(playerSkins.weapon_team, teamToRemove),
+          gte(playerSkins.weapon_defindex, 5027),
+          lte(playerSkins.weapon_defindex, 5035)
+        )
+      );
     return;
   }
 
-  // Check if glove already exists for this team
-  const existingGlove = await executeQuery(
-    'SELECT * FROM wp_player_skins WHERE steamid = ? AND weapon_team = ? AND weapon_defindex >= 5027 AND weapon_defindex <= 5035',
-    [steamid, weapon_team]
-  ) as any[];
+  const existingGlove = await db
+    .select()
+    .from(playerSkins)
+    .where(
+      and(
+        eq(playerSkins.steamid, steamid),
+        eq(playerSkins.weapon_team, weapon_team),
+        gte(playerSkins.weapon_defindex, 5027),
+        lte(playerSkins.weapon_defindex, 5035)
+      )
+    );
 
   if (existingGlove.length > 0) {
-    // Update existing glove
-    await executeQuery(
-      `UPDATE wp_player_skins SET 
-        weapon_defindex = ?, weapon_paint_id = ?, weapon_wear = ?, weapon_seed = ?, 
-        weapon_nametag = ?, weapon_stattrak = ?
-       WHERE steamid = ? AND weapon_team = ? AND weapon_defindex >= 5027 AND weapon_defindex <= 5035`,
-      [weapon_defindex, weapon_paint_id, weapon_wear, weapon_seed, weapon_nametag, weapon_stattrak, steamid, weapon_team]
-    );
+    await db
+      .update(playerSkins)
+      .set({
+        weapon_defindex: Number(weapon_defindex),
+        weapon_paint_id: String(weapon_paint_id),
+        weapon_wear,
+        weapon_seed,
+        weapon_nametag,
+        weapon_stattrak,
+      })
+      .where(
+        and(
+          eq(playerSkins.steamid, steamid),
+          eq(playerSkins.weapon_team, weapon_team),
+          gte(playerSkins.weapon_defindex, 5027),
+          lte(playerSkins.weapon_defindex, 5035)
+        )
+      );
   } else {
-    // Insert new glove
-    await executeQuery(
-      `INSERT INTO wp_player_skins 
-        (steamid, weapon_team, weapon_defindex, weapon_paint_id, weapon_wear, weapon_seed, weapon_nametag, weapon_stattrak) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [steamid, weapon_team, weapon_defindex, weapon_paint_id, weapon_wear, weapon_seed, weapon_nametag, weapon_stattrak]
-    );
+    await db.insert(playerSkins).values({
+      steamid,
+      weapon_team,
+      weapon_defindex: Number(weapon_defindex),
+      weapon_paint_id: String(weapon_paint_id),
+      weapon_wear,
+      weapon_seed,
+      weapon_nametag,
+      weapon_stattrak,
+    });
   }
 }
 
@@ -154,34 +180,51 @@ async function handleAgentsUpdate(
   weapon_defindex: number | string
 ) {
   if (weapon_defindex === 'default') {
-    // Remove agent
-    await executeQuery(
-      'DELETE FROM wp_player_skins WHERE steamid = ? AND weapon_team = ? AND weapon_defindex = 0',
-      [steamid, weapon_team]
-    );
+    await db
+      .delete(playerSkins)
+      .where(
+        and(
+          eq(playerSkins.steamid, steamid),
+          eq(playerSkins.weapon_team, weapon_team),
+          eq(playerSkins.weapon_defindex, 0)
+        )
+      );
     return;
   }
 
-  // Check if agent already exists for this team
-  const existingAgent = await executeQuery(
-    'SELECT * FROM wp_player_skins WHERE steamid = ? AND weapon_team = ? AND weapon_defindex = 0',
-    [steamid, weapon_team]
-  ) as any[];
+  const existingAgent = await db
+    .select()
+    .from(playerSkins)
+    .where(
+      and(
+        eq(playerSkins.steamid, steamid),
+        eq(playerSkins.weapon_team, weapon_team),
+        eq(playerSkins.weapon_defindex, 0)
+      )
+    );
 
   if (existingAgent.length > 0) {
-    // Update existing agent
-    await executeQuery(
-      'UPDATE wp_player_skins SET weapon_paint_id = ? WHERE steamid = ? AND weapon_team = ? AND weapon_defindex = 0',
-      [weapon_defindex, steamid, weapon_team]
-    );
+    await db
+      .update(playerSkins)
+      .set({ weapon_paint_id: String(weapon_defindex) })
+      .where(
+        and(
+          eq(playerSkins.steamid, steamid),
+          eq(playerSkins.weapon_team, weapon_team),
+          eq(playerSkins.weapon_defindex, 0)
+        )
+      );
   } else {
-    // Insert new agent
-    await executeQuery(
-      `INSERT INTO wp_player_skins 
-        (steamid, weapon_team, weapon_defindex, weapon_paint_id, weapon_wear, weapon_seed, weapon_nametag, weapon_stattrak) 
-       VALUES (?, ?, 0, ?, 0, 0, '', 0)`,
-      [steamid, weapon_team, weapon_defindex]
-    );
+    await db.insert(playerSkins).values({
+      steamid,
+      weapon_team,
+      weapon_defindex: 0,
+      weapon_paint_id: String(weapon_defindex),
+      weapon_wear: 0,
+      weapon_seed: 0,
+      weapon_nametag: '',
+      weapon_stattrak: 0,
+    });
   }
 }
 
@@ -190,26 +233,39 @@ async function handleMusicUpdate(
   weapon_team: number,
   weapon_defindex: number | string
 ) {
-  // Check if music kit already exists
-  const existingMusic = await executeQuery(
-    'SELECT * FROM wp_player_skins WHERE steamid = ? AND weapon_team = ? AND weapon_defindex = -1',
-    [steamid, weapon_team]
-  ) as any[];
+  const existingMusic = await db
+    .select()
+    .from(playerSkins)
+    .where(
+      and(
+        eq(playerSkins.steamid, steamid),
+        eq(playerSkins.weapon_team, weapon_team),
+        eq(playerSkins.weapon_defindex, -1)
+      )
+    );
 
   if (existingMusic.length > 0) {
-    // Update existing music kit
-    await executeQuery(
-      'UPDATE wp_player_skins SET weapon_paint_id = ? WHERE steamid = ? AND weapon_team = ? AND weapon_defindex = -1',
-      [weapon_defindex, steamid, weapon_team]
-    );
+    await db
+      .update(playerSkins)
+      .set({ weapon_paint_id: String(weapon_defindex) })
+      .where(
+        and(
+          eq(playerSkins.steamid, steamid),
+          eq(playerSkins.weapon_team, weapon_team),
+          eq(playerSkins.weapon_defindex, -1)
+        )
+      );
   } else {
-    // Insert new music kit
-    await executeQuery(
-      `INSERT INTO wp_player_skins 
-        (steamid, weapon_team, weapon_defindex, weapon_paint_id, weapon_wear, weapon_seed, weapon_nametag, weapon_stattrak) 
-       VALUES (?, ?, -1, ?, 0, 0, '', 0)`,
-      [steamid, weapon_team, weapon_defindex]
-    );
+    await db.insert(playerSkins).values({
+      steamid,
+      weapon_team,
+      weapon_defindex: -1,
+      weapon_paint_id: String(weapon_defindex),
+      weapon_wear: 0,
+      weapon_seed: 0,
+      weapon_nametag: '',
+      weapon_stattrak: 0,
+    });
   }
 }
 
@@ -229,37 +285,56 @@ async function handleWeaponsUpdate(
   weapon_sticker_4: string,
   weapon_keychain: string
 ) {
-  // Check if weapon already exists
-  const existingWeapon = await executeQuery(
-    'SELECT * FROM wp_player_skins WHERE steamid = ? AND weapon_team = ? AND weapon_defindex = ?',
-    [steamid, weapon_team, weapon_defindex]
-  ) as any[];
+  const existingWeapon = await db
+    .select()
+    .from(playerSkins)
+    .where(
+      and(
+        eq(playerSkins.steamid, steamid),
+        eq(playerSkins.weapon_team, weapon_team),
+        eq(playerSkins.weapon_defindex, weapon_defindex)
+      )
+    );
 
   if (existingWeapon.length > 0) {
-    // Update existing weapon
-    await executeQuery(
-      `UPDATE wp_player_skins SET 
-        weapon_paint_id = ?, weapon_wear = ?, weapon_seed = ?, weapon_nametag = ?, weapon_stattrak = ?,
-        weapon_sticker_0 = ?, weapon_sticker_1 = ?, weapon_sticker_2 = ?, weapon_sticker_3 = ?, weapon_sticker_4 = ?,
-        weapon_keychain = ?
-       WHERE steamid = ? AND weapon_team = ? AND weapon_defindex = ?`,
-      [
-        weapon_paint_id, weapon_wear, weapon_seed, weapon_nametag, weapon_stattrak,
-        weapon_sticker_0, weapon_sticker_1, weapon_sticker_2, weapon_sticker_3, weapon_sticker_4,
-        weapon_keychain, steamid, weapon_team, weapon_defindex
-      ]
-    );
+    await db
+      .update(playerSkins)
+      .set({
+        weapon_paint_id: String(weapon_paint_id),
+        weapon_wear,
+        weapon_seed,
+        weapon_nametag,
+        weapon_stattrak,
+        weapon_sticker_0,
+        weapon_sticker_1,
+        weapon_sticker_2,
+        weapon_sticker_3,
+        weapon_sticker_4,
+        weapon_keychain,
+      })
+      .where(
+        and(
+          eq(playerSkins.steamid, steamid),
+          eq(playerSkins.weapon_team, weapon_team),
+          eq(playerSkins.weapon_defindex, weapon_defindex)
+        )
+      );
   } else {
-    // Insert new weapon
-    await executeQuery(
-      `INSERT INTO wp_player_skins 
-        (steamid, weapon_team, weapon_defindex, weapon_paint_id, weapon_wear, weapon_seed, weapon_nametag, weapon_stattrak,
-         weapon_sticker_0, weapon_sticker_1, weapon_sticker_2, weapon_sticker_3, weapon_sticker_4, weapon_keychain) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        steamid, weapon_team, weapon_defindex, weapon_paint_id, weapon_wear, weapon_seed, weapon_nametag, weapon_stattrak,
-        weapon_sticker_0, weapon_sticker_1, weapon_sticker_2, weapon_sticker_3, weapon_sticker_4, weapon_keychain
-      ]
-    );
+    await db.insert(playerSkins).values({
+      steamid,
+      weapon_team,
+      weapon_defindex,
+      weapon_paint_id: String(weapon_paint_id),
+      weapon_wear,
+      weapon_seed,
+      weapon_nametag,
+      weapon_stattrak,
+      weapon_sticker_0,
+      weapon_sticker_1,
+      weapon_sticker_2,
+      weapon_sticker_3,
+      weapon_sticker_4,
+      weapon_keychain,
+    });
   }
 }

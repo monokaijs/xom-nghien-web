@@ -4,10 +4,11 @@ import {useEffect, useMemo, useState} from 'react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Badge} from '@/components/ui/badge';
-import {ArrowUpDown, CheckCircle2, Circle, Plus, Search, Trash2} from 'lucide-react';
+import {ArrowUpDown, CheckCircle2, Circle, Plus, Search, Trash2, Edit} from 'lucide-react';
 import {cn} from '@/lib/utils';
 import {InventoryItem, SortOption} from '@/types/server';
 import CraftSkinModal from '@/components/CraftSkinModal';
+import EditSkinModal from '@/components/EditSkinModal';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 
 export default function InventoryPage() {
@@ -17,6 +18,8 @@ export default function InventoryPage() {
   const [sortBy, setSortBy] = useState<SortOption>('time');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [craftModalOpen, setCraftModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: InventoryItem } | null>(null);
 
   useEffect(() => {
@@ -133,7 +136,13 @@ export default function InventoryPage() {
           comparison = bEquipped - aEquipped;
           break;
         case 'time':
-          comparison = (a.craftedSkin?.created_at || '').localeCompare(b.craftedSkin?.created_at || '');
+          const aTime = a.craftedSkin?.created_at instanceof Date
+            ? a.craftedSkin.created_at.toISOString()
+            : (a.craftedSkin?.created_at || '');
+          const bTime = b.craftedSkin?.created_at instanceof Date
+            ? b.craftedSkin.created_at.toISOString()
+            : (b.craftedSkin?.created_at || '');
+          comparison = aTime.localeCompare(bTime);
           break;
         case 'quality':
           comparison = (a.craftedSkin?.weapon_wear || 1) - (b.craftedSkin?.weapon_wear || 1);
@@ -273,7 +282,7 @@ export default function InventoryPage() {
                     ) : <></>}
                   </div>
 
-                  <div className="p-4 flex flex-col">
+                  <div className="absolute p-4 left-0 right-0 bottom-0 flex flex-col">
                     <h3 className="text-white font-medium text-sm line-clamp-2 leading-tight">
                       {item.craftedSkin?.weapon_stattrak ? 'StatTrak™ ' : ''}<br/>
                       {item.weaponName}
@@ -289,7 +298,23 @@ export default function InventoryPage() {
                       </div>
                     )}
 
+                    {!item.isDefault && item.stickers.some(s => s !== null) && (
+                      <div className="flex gap-1 mt-2">
+                        {item.stickers.map((sticker, idx) => sticker && (
+                          <div key={idx} className="w-6 h-6 bg-white/10 rounded border border-white/20">
+                            <img src={sticker.image} alt={sticker.name} className="w-full h-full object-contain p-0.5" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
+                    {!item.isDefault && item.keychain && (
+                      <div className="absolute right-4 top-4">
+                        <div className="w-6 h-6 bg-white/10 rounded border border-white/20">
+                          <img src={item.keychain.image} alt={item.keychain.name} className="w-full h-full object-contain p-0.5" />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -371,6 +396,18 @@ export default function InventoryPage() {
           <div className="border-t border-white/10 my-1"/>
 
           <button
+            onClick={() => {
+              setEditingItem(contextMenu.item);
+              setEditModalOpen(true);
+              setContextMenu(null);
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2"
+          >
+            <Edit className="w-4 h-4"/>
+            Edit
+          </button>
+
+          <button
             onClick={() => handleDelete(contextMenu.item)}
             className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/20 flex items-center gap-2"
           >
@@ -379,6 +416,16 @@ export default function InventoryPage() {
           </button>
         </div>
       )}
+
+      <EditSkinModal
+        open={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setEditingItem(null);
+        }}
+        onSkinUpdated={fetchInventory}
+        item={editingItem}
+      />
     </div>
   );
 }

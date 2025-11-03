@@ -124,16 +124,16 @@ export interface CraftedSkin {
   weapon_seed: number;
   weapon_nametag: string;
   weapon_stattrak: number;
-  weapon_sticker_0?: string;
-  weapon_sticker_1?: string;
-  weapon_sticker_2?: string;
-  weapon_sticker_3?: string;
-  weapon_sticker_4?: string;
-  weapon_keychain?: string;
+  weapon_sticker_0?: string | null;
+  weapon_sticker_1?: string | null;
+  weapon_sticker_2?: string | null;
+  weapon_sticker_3?: string | null;
+  weapon_sticker_4?: string | null;
+  weapon_keychain?: string | null;
   equipped_ct: boolean;
   equipped_t: boolean;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
 }
 
 export interface InventoryItem {

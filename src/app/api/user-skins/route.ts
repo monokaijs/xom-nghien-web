@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { executeQuery } from '@/lib/database';
+import { db } from '@/lib/database';
+import { playerSkins } from '@/lib/db/schema';
+import { eq, asc } from 'drizzle-orm';
 import { UserSkinConfig } from '@/types/server';
 
 export async function GET(request: NextRequest) {
@@ -11,10 +13,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userSkins = await executeQuery(
-      'SELECT * FROM wp_player_skins WHERE steamid = ? ORDER BY weapon_team, weapon_defindex',
-      [session.user.steamid]
-    ) as UserSkinConfig[];
+    const userSkins = await db
+      .select()
+      .from(playerSkins)
+      .where(eq(playerSkins.steamid, session.user.steamid))
+      .orderBy(asc(playerSkins.weapon_team), asc(playerSkins.weapon_defindex)) as UserSkinConfig[];
 
     return NextResponse.json({
       skins: userSkins,

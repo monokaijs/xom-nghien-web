@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { executeQuery } from '@/lib/database';
+import { db } from '@/lib/database';
+import { playerSkins } from '@/lib/db/schema';
+import { eq, asc } from 'drizzle-orm';
 import { UserSkinConfig, CS2Skin, CS2Agent, CS2Glove, CS2Music, CS2Sticker, CS2Keychain } from '@/types/server';
 
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/data';
@@ -119,11 +121,11 @@ export async function GET(request: NextRequest) {
     // Fetch external data
     await fetchExternalData();
 
-    // Fetch user's skin configurations
-    const userSkins = await executeQuery(
-      'SELECT * FROM wp_player_skins WHERE steamid = ? ORDER BY weapon_team, weapon_defindex',
-      [session.user.steamid]
-    ) as UserSkinConfig[];
+    const userSkins = await db
+      .select()
+      .from(playerSkins)
+      .where(eq(playerSkins.steamid, session.user.steamid))
+      .orderBy(asc(playerSkins.weapon_team), asc(playerSkins.weapon_defindex)) as UserSkinConfig[];
 
     const weaponCategories = categorizeWeapons();
     const loadoutItems: LoadoutItem[] = [];

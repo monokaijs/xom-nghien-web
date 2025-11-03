@@ -9,11 +9,11 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, ChevronLeft, Target, Settings, Sparkles, Loader2 } from 'lucide-react';
+import { Search, ChevronLeft, Target, Settings, Sparkles, Loader2, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CS2Skin, CS2Glove, CS2Sticker, CS2Keychain } from '@/types/server';
-import StickerSelector from '@/components/StickerSelector';
-import KeychainSelector from '@/components/KeychainSelector';
+import StickerModal from '@/components/StickerModal';
+import KeychainModal from '@/components/KeychainModal';
 
 interface CraftSkinModalProps {
   open: boolean;
@@ -53,6 +53,8 @@ export default function CraftSkinModal({ open, onClose, onSkinCrafted }: CraftSk
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [customizeModalOpen, setCustomizeModalOpen] = useState(false);
+  const [stickerModalOpen, setStickerModalOpen] = useState(false);
+  const [keychainModalOpen, setKeychainModalOpen] = useState(false);
 
   const [wear, setWear] = useState(0.1);
   const [seed, setSeed] = useState(1);
@@ -327,7 +329,7 @@ export default function CraftSkinModal({ open, onClose, onSkinCrafted }: CraftSk
                       <div
                         key={`${name}-${index}`}
                         onClick={() => selectedWeapon ? handleSkinSelect(item) : handleWeaponSelect(item)}
-                        className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 bg-white/5 border border-white/10 backdrop-blur-sm rounded-xl flex flex-col cursor-pointer"
+                        className="group relative overflow-hidden transition-all duration-300 hover:border-red-500 hover:bg-red-500/10 bg-white/5 border border-white/10 backdrop-blur-sm rounded-xl flex flex-col cursor-pointer"
                       >
                         <div className="relative aspect-[4/3] overflow-hidden rounded-t-xl">
                           <img
@@ -389,8 +391,26 @@ export default function CraftSkinModal({ open, onClose, onSkinCrafted }: CraftSk
           keychains={keychains}
           onSave={handleCustomizationSave}
           isSaving={isSaving}
+          onOpenStickerModal={() => setStickerModalOpen(true)}
+          onOpenKeychainModal={() => setKeychainModalOpen(true)}
         />
       )}
+
+      <StickerModal
+        open={stickerModalOpen}
+        onClose={() => setStickerModalOpen(false)}
+        stickers={stickers}
+        selectedStickers={selectedStickers}
+        onSave={setSelectedStickers}
+      />
+
+      <KeychainModal
+        open={keychainModalOpen}
+        onClose={() => setKeychainModalOpen(false)}
+        keychains={keychains}
+        selectedKeychain={selectedKeychain}
+        onSave={setSelectedKeychain}
+      />
     </Dialog>
   );
 }
@@ -422,7 +442,9 @@ function CustomizationDialog({
   stickers,
   keychains,
   onSave,
-  isSaving
+  isSaving,
+  onOpenStickerModal,
+  onOpenKeychainModal
 }: any) {
   const [imageError, setImageError] = useState(false);
   const isSkin = 'weapon_defindex' in skin;
@@ -492,6 +514,28 @@ function CustomizationDialog({
                   <div className="text-sm text-neutral-400">
                     Wear: {wear.toFixed(4)} • Seed: {seed}
                   </div>
+
+                  {isSkin && selectedStickers.some((s: CS2Sticker | null) => s !== null) && (
+                    <div className="mt-4">
+                      <div className="text-xs text-neutral-400 mb-2">Stickers</div>
+                      <div className="flex gap-2 flex-wrap">
+                        {selectedStickers.map((sticker: CS2Sticker | null, idx: number) => sticker && (
+                          <div key={idx} className="relative w-12 h-12 bg-white/5 rounded border border-white/10">
+                            <img src={sticker.image} alt={sticker.name} className="w-full h-full object-contain p-1" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {isSkin && selectedKeychain && (
+                    <div className="mt-4">
+                      <div className="text-xs text-neutral-400 mb-2">Keychain</div>
+                      <div className="relative w-12 h-12 bg-white/5 rounded border border-white/10">
+                        <img src={selectedKeychain.image} alt={selectedKeychain.name} className="w-full h-full object-contain p-1" />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -560,6 +604,30 @@ function CustomizationDialog({
                       <Switch checked={statTrak} onCheckedChange={setStatTrak} />
                       <Label className="text-neutral-300">Enable StatTrak™</Label>
                     </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-white/5 border-white/10">
+                  <CardHeader>
+                    <CardTitle className="text-sm text-white">Stickers & Keychain</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Button
+                      onClick={onOpenStickerModal}
+                      variant="outline"
+                      className="w-full border-white/20 justify-between"
+                    >
+                      <span>Stickers ({selectedStickers.filter((s: CS2Sticker | null) => s !== null).length}/5)</span>
+                      <Package className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      onClick={onOpenKeychainModal}
+                      variant="outline"
+                      className="w-full border-white/20 justify-between"
+                    >
+                      <span>{selectedKeychain ? selectedKeychain.name : 'No Keychain'}</span>
+                      <Package className="w-4 h-4" />
+                    </Button>
                   </CardContent>
                 </Card>
               </>

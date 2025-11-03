@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { executeQuery } from '@/lib/database';
+import { db } from '@/lib/database';
+import { playerInventory, playerSkins } from '@/lib/db/schema';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { CraftedSkin, CS2Skin, CS2Glove, CS2Sticker, CS2Keychain, InventoryItem } from '@/types/server';
 
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/data';
@@ -71,22 +73,23 @@ export async function GET(request: NextRequest) {
 
     await fetchExternalData();
 
-    const craftedSkins = await executeQuery(
-      'SELECT * FROM wp_player_inventory WHERE steamid = ? ORDER BY created_at DESC',
-      [session.user.steamid]
-    ) as CraftedSkin[];
+    const craftedSkins = await db
+      .select()
+      .from(playerInventory)
+      .where(eq(playerInventory.steamid, session.user.steamid))
+      .orderBy(desc(playerInventory.created_at));
 
     const inventoryItems: InventoryItem[] = [];
 
     for (const craftedSkin of craftedSkins) {
       const isGlove = craftedSkin.weapon_defindex >= 5027 && craftedSkin.weapon_defindex <= 5035;
-      
+
       let skinData: CS2Skin | undefined;
       let gloveData: CS2Glove | undefined;
       let weaponName = 'Unknown';
 
       if (isGlove) {
-        gloveData = glovesCache.find(g => 
+        gloveData = glovesCache.find(g =>
           g.weapon_defindex.toString() === craftedSkin.weapon_defindex.toString() &&
           g.paint.toString() === craftedSkin.weapon_paint_id.toString()
         );
@@ -167,39 +170,55 @@ export async function POST(request: NextRequest) {
       weapon_keychain = '0'
     } = body;
 
-    const existingSkin = await executeQuery(
-      'SELECT * FROM wp_player_inventory WHERE steamid = ? AND weapon_defindex = ? AND weapon_paint_id = ?',
-      [session.user.steamid, weapon_defindex, weapon_paint_id]
-    ) as CraftedSkin[];
+    const existingSkin = await db
+      .select()
+      .from(playerInventory)
+      .where(
+        and(
+          eq(playerInventory.steamid, session.user.steamid),
+          eq(playerInventory.weapon_defindex, weapon_defindex),
+          eq(playerInventory.weapon_paint_id, weapon_paint_id)
+        )
+      );
 
     if (existingSkin.length > 0) {
-      await executeQuery(
-        `UPDATE wp_player_inventory SET 
-          weapon_wear = ?, weapon_seed = ?, weapon_nametag = ?, weapon_stattrak = ?,
-          weapon_sticker_0 = ?, weapon_sticker_1 = ?, weapon_sticker_2 = ?, 
-          weapon_sticker_3 = ?, weapon_sticker_4 = ?, weapon_keychain = ?,
-          updated_at = CURRENT_TIMESTAMP
-         WHERE steamid = ? AND weapon_defindex = ? AND weapon_paint_id = ?`,
-        [
-          weapon_wear, weapon_seed, weapon_nametag, weapon_stattrak,
-          weapon_sticker_0, weapon_sticker_1, weapon_sticker_2,
-          weapon_sticker_3, weapon_sticker_4, weapon_keychain,
-          session.user.steamid, weapon_defindex, weapon_paint_id
-        ]
-      );
+      await db
+        .update(playerInventory)
+        .set({
+          weapon_wear,
+          weapon_seed,
+          weapon_nametag,
+          weapon_stattrak,
+          weapon_sticker_0,
+          weapon_sticker_1,
+          weapon_sticker_2,
+          weapon_sticker_3,
+          weapon_sticker_4,
+          weapon_keychain,
+        })
+        .where(
+          and(
+            eq(playerInventory.steamid, session.user.steamid),
+            eq(playerInventory.weapon_defindex, weapon_defindex),
+            eq(playerInventory.weapon_paint_id, weapon_paint_id)
+          )
+        );
     } else {
-      await executeQuery(
-        `INSERT INTO wp_player_inventory 
-          (steamid, weapon_defindex, weapon_paint_id, weapon_wear, weapon_seed, 
-           weapon_nametag, weapon_stattrak, weapon_sticker_0, weapon_sticker_1, 
-           weapon_sticker_2, weapon_sticker_3, weapon_sticker_4, weapon_keychain) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          session.user.steamid, weapon_defindex, weapon_paint_id, weapon_wear, weapon_seed,
-          weapon_nametag, weapon_stattrak, weapon_sticker_0, weapon_sticker_1,
-          weapon_sticker_2, weapon_sticker_3, weapon_sticker_4, weapon_keychain
-        ]
-      );
+      await db.insert(playerInventory).values({
+        steamid: session.user.steamid,
+        weapon_defindex,
+        weapon_paint_id,
+        weapon_wear,
+        weapon_seed,
+        weapon_nametag,
+        weapon_stattrak,
+        weapon_sticker_0,
+        weapon_sticker_1,
+        weapon_sticker_2,
+        weapon_sticker_3,
+        weapon_sticker_4,
+        weapon_keychain,
+      });
     }
 
     return NextResponse.json({ success: true });
@@ -224,35 +243,73 @@ export async function PUT(request: NextRequest) {
     const { id, action, team } = body;
 
     if (action === 'equip') {
-      const craftedSkin = await executeQuery(
-        'SELECT * FROM wp_player_inventory WHERE id = ? AND steamid = ?',
-        [id, session.user.steamid]
-      ) as CraftedSkin[];
+      const craftedSkin = await db
+        .select()
+        .from(playerInventory)
+        .where(
+          and(
+            eq(playerInventory.id, id),
+            eq(playerInventory.steamid, session.user.steamid)
+          )
+        );
 
       if (craftedSkin.length === 0) {
         return NextResponse.json({ error: 'Skin not found' }, { status: 404 });
       }
 
       const skin = craftedSkin[0];
-      
-      await executeQuery(
-        `UPDATE wp_player_inventory SET equipped_${team === 3 ? 'ct' : 't'} = 0 
-         WHERE steamid = ? AND weapon_defindex = ?`,
-        [session.user.steamid, skin.weapon_defindex]
-      );
 
-      await executeQuery(
-        `UPDATE wp_player_inventory SET equipped_${team === 3 ? 'ct' : 't'} = 1 
-         WHERE id = ? AND steamid = ?`,
-        [id, session.user.steamid]
-      );
+      if (team === 3) {
+        await db
+          .update(playerInventory)
+          .set({ equipped_ct: false })
+          .where(
+            and(
+              eq(playerInventory.steamid, session.user.steamid),
+              eq(playerInventory.weapon_defindex, skin.weapon_defindex)
+            )
+          );
 
-      await executeQuery(
-        `INSERT INTO wp_player_skins 
-          (steamid, weapon_team, weapon_defindex, weapon_paint_id, weapon_wear, weapon_seed, 
-           weapon_nametag, weapon_stattrak, weapon_sticker_0, weapon_sticker_1, 
-           weapon_sticker_2, weapon_sticker_3, weapon_sticker_4, weapon_keychain) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        await db
+          .update(playerInventory)
+          .set({ equipped_ct: true })
+          .where(
+            and(
+              eq(playerInventory.id, id),
+              eq(playerInventory.steamid, session.user.steamid)
+            )
+          );
+      } else {
+        await db
+          .update(playerInventory)
+          .set({ equipped_t: false })
+          .where(
+            and(
+              eq(playerInventory.steamid, session.user.steamid),
+              eq(playerInventory.weapon_defindex, skin.weapon_defindex)
+            )
+          );
+
+        await db
+          .update(playerInventory)
+          .set({ equipped_t: true })
+          .where(
+            and(
+              eq(playerInventory.id, id),
+              eq(playerInventory.steamid, session.user.steamid)
+            )
+          );
+      }
+
+      await db.execute(sql`
+        INSERT INTO wp_player_skins
+          (steamid, weapon_team, weapon_defindex, weapon_paint_id, weapon_wear, weapon_seed,
+           weapon_nametag, weapon_stattrak, weapon_sticker_0, weapon_sticker_1,
+           weapon_sticker_2, weapon_sticker_3, weapon_sticker_4, weapon_keychain)
+         VALUES (${session.user.steamid}, ${team}, ${skin.weapon_defindex}, ${skin.weapon_paint_id},
+           ${skin.weapon_wear}, ${skin.weapon_seed}, ${skin.weapon_nametag}, ${skin.weapon_stattrak},
+           ${skin.weapon_sticker_0}, ${skin.weapon_sticker_1}, ${skin.weapon_sticker_2},
+           ${skin.weapon_sticker_3}, ${skin.weapon_sticker_4}, ${skin.weapon_keychain})
          ON DUPLICATE KEY UPDATE
            weapon_paint_id = VALUES(weapon_paint_id),
            weapon_wear = VALUES(weapon_wear),
@@ -264,20 +321,30 @@ export async function PUT(request: NextRequest) {
            weapon_sticker_2 = VALUES(weapon_sticker_2),
            weapon_sticker_3 = VALUES(weapon_sticker_3),
            weapon_sticker_4 = VALUES(weapon_sticker_4),
-           weapon_keychain = VALUES(weapon_keychain)`,
-        [
-          session.user.steamid, team, skin.weapon_defindex, skin.weapon_paint_id,
-          skin.weapon_wear, skin.weapon_seed, skin.weapon_nametag, skin.weapon_stattrak,
-          skin.weapon_sticker_0, skin.weapon_sticker_1, skin.weapon_sticker_2,
-          skin.weapon_sticker_3, skin.weapon_sticker_4, skin.weapon_keychain
-        ]
-      );
+           weapon_keychain = VALUES(weapon_keychain)
+      `);
     } else if (action === 'unequip') {
-      await executeQuery(
-        `UPDATE wp_player_inventory SET equipped_${team === 3 ? 'ct' : 't'} = 0 
-         WHERE id = ? AND steamid = ?`,
-        [id, session.user.steamid]
-      );
+      if (team === 3) {
+        await db
+          .update(playerInventory)
+          .set({ equipped_ct: false })
+          .where(
+            and(
+              eq(playerInventory.id, id),
+              eq(playerInventory.steamid, session.user.steamid)
+            )
+          );
+      } else {
+        await db
+          .update(playerInventory)
+          .set({ equipped_t: false })
+          .where(
+            and(
+              eq(playerInventory.id, id),
+              eq(playerInventory.steamid, session.user.steamid)
+            )
+          );
+      }
     }
 
     return NextResponse.json({ success: true });
@@ -285,6 +352,128 @@ export async function PUT(request: NextRequest) {
     console.error('Error updating equipment:', error);
     return NextResponse.json(
       { error: 'Failed to update equipment' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await getSession();
+
+    if (!session.isLoggedIn || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const {
+      id,
+      weapon_wear,
+      weapon_seed,
+      weapon_nametag,
+      weapon_stattrak,
+      weapon_sticker_0,
+      weapon_sticker_1,
+      weapon_sticker_2,
+      weapon_sticker_3,
+      weapon_sticker_4,
+      weapon_keychain
+    } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Missing skin ID' }, { status: 400 });
+    }
+
+    const inventoryItem = await db
+      .select()
+      .from(playerInventory)
+      .where(
+        and(
+          eq(playerInventory.id, id),
+          eq(playerInventory.steamid, session.user.steamid)
+        )
+      );
+
+    if (inventoryItem.length === 0) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+    }
+
+    const item = inventoryItem[0];
+
+    await db
+      .update(playerInventory)
+      .set({
+        weapon_wear,
+        weapon_seed,
+        weapon_nametag,
+        weapon_stattrak,
+        weapon_sticker_0,
+        weapon_sticker_1,
+        weapon_sticker_2,
+        weapon_sticker_3,
+        weapon_sticker_4,
+        weapon_keychain,
+      })
+      .where(
+        and(
+          eq(playerInventory.id, id),
+          eq(playerInventory.steamid, session.user.steamid)
+        )
+      );
+
+    if (item.equipped_ct) {
+      await db
+        .update(playerSkins)
+        .set({
+          weapon_wear,
+          weapon_seed,
+          weapon_nametag,
+          weapon_stattrak,
+          weapon_sticker_0,
+          weapon_sticker_1,
+          weapon_sticker_2,
+          weapon_sticker_3,
+          weapon_sticker_4,
+          weapon_keychain,
+        })
+        .where(
+          and(
+            eq(playerSkins.steamid, session.user.steamid),
+            eq(playerSkins.weapon_team, 3),
+            eq(playerSkins.weapon_defindex, item.weapon_defindex)
+          )
+        );
+    }
+
+    if (item.equipped_t) {
+      await db
+        .update(playerSkins)
+        .set({
+          weapon_wear,
+          weapon_seed,
+          weapon_nametag,
+          weapon_stattrak,
+          weapon_sticker_0,
+          weapon_sticker_1,
+          weapon_sticker_2,
+          weapon_sticker_3,
+          weapon_sticker_4,
+          weapon_keychain,
+        })
+        .where(
+          and(
+            eq(playerSkins.steamid, session.user.steamid),
+            eq(playerSkins.weapon_team, 2),
+            eq(playerSkins.weapon_defindex, item.weapon_defindex)
+          )
+        );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error updating skin:', error);
+    return NextResponse.json(
+      { error: 'Failed to update skin' },
       { status: 500 }
     );
   }
@@ -305,10 +494,14 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing skin ID' }, { status: 400 });
     }
 
-    await executeQuery(
-      'DELETE FROM wp_player_inventory WHERE id = ? AND steamid = ?',
-      [id, session.user.steamid]
-    );
+    await db
+      .delete(playerInventory)
+      .where(
+        and(
+          eq(playerInventory.id, parseInt(id)),
+          eq(playerInventory.steamid, session.user.steamid)
+        )
+      );
 
     return NextResponse.json({ success: true });
   } catch (error) {

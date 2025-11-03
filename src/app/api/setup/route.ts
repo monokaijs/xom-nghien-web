@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/database';
+import { db } from '@/lib/database';
+import { sql } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   try {
-    const createTableQuery = `
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS wp_player_inventory (
         id INT AUTO_INCREMENT PRIMARY KEY,
         steamid VARCHAR(64) NOT NULL,
@@ -27,19 +28,17 @@ export async function POST(request: NextRequest) {
         INDEX idx_steamid (steamid),
         INDEX idx_equipped (equipped_ct, equipped_t)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    `;
+    `);
 
-    await executeQuery(createTableQuery);
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Inventory table created successfully' 
+    return NextResponse.json({
+      success: true,
+      message: 'Inventory table created successfully'
     });
   } catch (error) {
     console.error('Error creating inventory table:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to create inventory table',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
@@ -50,20 +49,18 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const checkTableQuery = `
-      SELECT COUNT(*) as count 
-      FROM information_schema.tables 
-      WHERE table_schema = DATABASE() 
+    const result = await db.execute<{ count: number }>(sql`
+      SELECT COUNT(*) as count
+      FROM information_schema.tables
+      WHERE table_schema = DATABASE()
       AND table_name = 'wp_player_inventory'
-    `;
+    `);
+    const tableExists = (result[0] as any)?.count > 0;
 
-    const result = await executeQuery(checkTableQuery) as any[];
-    const tableExists = result[0]?.count > 0;
-
-    return NextResponse.json({ 
+    return NextResponse.json({
       tableExists,
-      message: tableExists 
-        ? 'Inventory table already exists' 
+      message: tableExists
+        ? 'Inventory table already exists'
         : 'Inventory table does not exist. Run POST to create it.'
     });
   } catch (error) {

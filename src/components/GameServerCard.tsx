@@ -69,13 +69,14 @@ export default function GameServerCard({server}: GameServerCardProps) {
   };
 
   return (
-    <div
-      className="rounded-3xl p-6 bg-cover bg-center relative z-0 overflow-hidden transition-all duration-300 hover:scale-[1.02] cursor-pointer"
-      style={{
-        backgroundImage: `url(https://www.mapban.gg/images/maps/cs2/${server.map}.jpg), url(https://images.gamebanana.com/img/ss/mods/647fce8887e89.jpg)`,
-      }}
-      onClick={handleCardClick}
-    >
+    <>
+      <div
+        className="rounded-3xl p-6 bg-cover bg-center relative z-0 overflow-hidden transition-all duration-300 hover:scale-[1.02] cursor-pointer"
+        style={{
+          backgroundImage: `url(https://www.mapban.gg/images/maps/cs2/${server.map}.jpg), url(https://images.gamebanana.com/img/ss/mods/647fce8887e89.jpg)`,
+        }}
+        onClick={handleCardClick}
+      >
       <div className="absolute z-10 left-0 right-0 top-0 bottom-0 w-full h-full inset-0 pointer-events-none">
         <div className="w-full h-full bg-radial from-transparent to-black/80 bg-black/40"></div>
       </div>
@@ -124,6 +125,7 @@ export default function GameServerCard({server}: GameServerCardProps) {
           </div>
         </div>
       </div>
+    </div>
 
       {/* Server Info Modal */}
       <Dialog open={isInfoModalOpen} onOpenChange={setIsInfoModalOpen}>
@@ -254,6 +256,6 @@ export default function GameServerCard({server}: GameServerCardProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

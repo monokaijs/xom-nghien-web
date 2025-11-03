@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,15 @@ export default function KeychainModal({ open, onClose, keychains, selectedKeycha
   const [searchQuery, setSearchQuery] = useState('');
   const [draggedKeychain, setDraggedKeychain] = useState<CS2Keychain | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setLocalKeychain(selectedKeychain);
+      setSearchQuery('');
+      setDraggedKeychain(null);
+      setIsDragOver(false);
+    }
+  }, [open, selectedKeychain]);
 
   const filteredKeychains = useMemo(() => {
     if (!searchQuery) return keychains;

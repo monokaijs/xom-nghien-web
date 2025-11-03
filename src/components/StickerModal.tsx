@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Grid, CellComponentProps } from 'react-window';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,16 @@ export default function StickerModal({ open, onClose, stickers, selectedStickers
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [draggedItem, setDraggedItem] = useState<DraggedItem | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setLocalStickers(selectedStickers);
+      setSearchQuery('');
+      setSelectedSlot(null);
+      setDraggedItem(null);
+      setDragOverSlot(null);
+    }
+  }, [open, selectedStickers]);
 
   const filteredStickers = useMemo(() => {
     if (!searchQuery) return stickers;
@@ -288,7 +298,9 @@ function StickerGrid({ stickers, localStickers, selectedSlot, onStickerClick, on
 
 function Cell({ columnIndex, rowIndex, style, stickers, localStickers, onStickerClick, onDragStart, onDragEnd, columnCount, itemSize, gap }: CellComponentProps<CellProps>) {
   const index = rowIndex * columnCount + columnIndex;
-  if (index >= stickers.length) return null;
+  if (index >= stickers.length) {
+    return <div style={style} />;
+  }
 
   const sticker = stickers[index];
   const isSelected = localStickers.some(s => s?.id === sticker.id);

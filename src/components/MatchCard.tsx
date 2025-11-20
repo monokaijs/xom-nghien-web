@@ -39,8 +39,8 @@ export default function MatchCard({ match }: MatchCardProps) {
       })
         .then((res) => res.json())
         .then(({ profiles }) => {
-          const avatarMap = new Map(
-            profiles.map((p: any) => [p.steamId64, p.profile?.avatarMedium || ''])
+          const avatarMap = new Map<string, string>(
+            profiles.map((p: any) => [p.steamId64 as string, (p.profile?.avatarMedium || '') as string])
           );
           setAvatars(avatarMap);
         })

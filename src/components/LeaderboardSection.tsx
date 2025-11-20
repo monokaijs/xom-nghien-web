@@ -51,10 +51,10 @@ export default function LeaderboardSection() {
           profiles.map((p: any) => [p.steamId64, p.profile?.avatarMedium || ''])
         );
 
-        const addAvatars = (players: LeaderboardPlayer[]) =>
+        const addAvatars = (players: LeaderboardPlayer[]): LeaderboardPlayer[] =>
           players.map((player) => ({
             ...player,
-            avatar: avatarMap.get(player.steamid64) || '',
+            avatar: (avatarMap.get(player.steamid64) as string) || '',
           }));
 
         setData({

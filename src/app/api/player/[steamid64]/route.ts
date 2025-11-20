@@ -5,10 +5,10 @@ import { sql, eq } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { steamid64: string } }
+  { params }: { params: Promise<{ steamid64: string }> }
 ) {
   try {
-    const { steamid64 } = params;
+    const { steamid64 } = await params;
 
     const playerStatsQuery = sql`
       SELECT 

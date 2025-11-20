@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     const matches = await db.execute(matchesQuery);
 
     const matchesWithDetails = await Promise.all(
-      (matches[0] as any[]).map(async (match) => {
+      (matches[0] as unknown as any[]).map(async (match) => {
         const mapsQuery = sql`
           SELECT * FROM ${matchzyStatsMaps}
           WHERE matchid = ${match.matchid}
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
 
     const countQuery = sql`SELECT COUNT(*) as total FROM ${matchzyStatsMatches}`;
     const countResult = await db.execute(countQuery);
-    const total = (countResult[0] as any[])[0]?.total || 0;
+    const total = (countResult[0] as unknown as any[])[0]?.total || 0;
 
     return NextResponse.json({
       matches: matchesWithDetails,

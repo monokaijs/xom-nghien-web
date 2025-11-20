@@ -44,7 +44,7 @@ export async function GET(
     `;
 
     const playerStatsResult = await db.execute(playerStatsQuery);
-    const playerStats = (playerStatsResult[0] as any[])[0];
+    const playerStats = (playerStatsResult[0] as unknown as any[])[0];
 
     if (!playerStats) {
       return NextResponse.json(

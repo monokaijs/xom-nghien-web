@@ -25,8 +25,8 @@ async function queryServer(server: GameServer): Promise<ServerStatus> {
       type: server.type,
       host: server.ip,
       port: server.port,
-      socketTimeout: 200,
-      attemptTimeout: 100,
+      socketTimeout: 1000,
+      attemptTimeout: 1000,
       maxRetries: 1,
     });
 

@@ -30,16 +30,29 @@ export async function POST(request: NextRequest) {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS user_info (
+        steamid64 VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        avatar VARCHAR(512),
+        avatarmedium VARCHAR(512),
+        avatarfull VARCHAR(512),
+        profileurl VARCHAR(512),
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_last_updated (last_updated)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
     return NextResponse.json({
       success: true,
-      message: 'Inventory table created successfully'
+      message: 'Tables created successfully'
     });
   } catch (error) {
-    console.error('Error creating inventory table:', error);
+    console.error('Error creating tables:', error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to create inventory table',
+        error: 'Failed to create tables',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
@@ -49,24 +62,33 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const result = await db.execute<{ count: number }>(sql`
+    const inventoryResult = await db.execute<{ count: number }>(sql`
       SELECT COUNT(*) as count
       FROM information_schema.tables
       WHERE table_schema = DATABASE()
       AND table_name = 'wp_player_inventory'
     `);
-    const tableExists = (result[0] as any)?.count > 0;
+    const inventoryTableExists = (inventoryResult[0] as any)?.count > 0;
+
+    const userInfoResult = await db.execute<{ count: number }>(sql`
+      SELECT COUNT(*) as count
+      FROM information_schema.tables
+      WHERE table_schema = DATABASE()
+      AND table_name = 'user_info'
+    `);
+    const userInfoTableExists = (userInfoResult[0] as any)?.count > 0;
 
     return NextResponse.json({
-      tableExists,
-      message: tableExists
-        ? 'Inventory table already exists'
-        : 'Inventory table does not exist. Run POST to create it.'
+      inventoryTableExists,
+      userInfoTableExists,
+      message: inventoryTableExists && userInfoTableExists
+        ? 'All tables already exist'
+        : 'Some tables do not exist. Run POST to create them.'
     });
   } catch (error) {
-    console.error('Error checking inventory table:', error);
+    console.error('Error checking tables:', error);
     return NextResponse.json(
-      { error: 'Failed to check inventory table' },
+      { error: 'Failed to check tables' },
       { status: 500 }
     );
   }

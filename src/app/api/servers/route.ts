@@ -25,9 +25,9 @@ async function queryServer(server: GameServer): Promise<ServerStatus> {
       type: server.type,
       host: server.ip,
       port: server.port,
-      socketTimeout: 3000,
-      attemptTimeout: 3000,
-      maxRetries: 0,
+      socketTimeout: 200,
+      attemptTimeout: 100,
+      maxRetries: 1,
     });
 
     const ping = Date.now() - startTime;

@@ -19,6 +19,9 @@ export default function Header() {
 
   const NavigationLinks = () => (
     <>
+      <Link href="/matches" className="text-neutral-300 hover:text-red-400 transition-colors">
+        Trận Đấu
+      </Link>
       {isLoggedIn && (
         <>
           <Link href="/inventory" className="text-neutral-300 hover:text-red-400 transition-colors">

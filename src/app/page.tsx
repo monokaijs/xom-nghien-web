@@ -3,6 +3,7 @@ import {Heart, PlaneIcon, StoreIcon} from "lucide-react";
 import Header from "@/components/Header";
 import GameServersSection from "@/components/GameServersSection";
 import ContactSection from "@/components/ContactSection";
+import LeaderboardSection from "@/components/LeaderboardSection";
 import AgentPic from '@/lib/assets/agent2.png';
 import Link from "next/link";
 
@@ -50,6 +51,8 @@ export default function Home() {
           <GameServersSection/>
         </div>
       </section>
+
+      <LeaderboardSection/>
 
       <ContactSection/>
 

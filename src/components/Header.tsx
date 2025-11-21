@@ -42,8 +42,7 @@ export default function Header() {
           onClick={handleSkinsClick}
           className="text-neutral-300 hover:text-red-400 transition-colors flex items-center gap-2"
         >
-          <Palette className="w-4 h-4" />
-          Skins Customization
+          Kho Skins
         </button>
       )}
     </>

@@ -1,18 +1,19 @@
 'use client';
 
 import {Button} from "@/components/ui/button";
-import {Heart, PlaneIcon, Palette} from "lucide-react";
+import {Heart, Palette} from "lucide-react";
 import Header from "@/components/Header";
 import GameServersSection from "@/components/GameServersSection";
 import ContactSection from "@/components/ContactSection";
 import LeaderboardSection from "@/components/LeaderboardSection";
 import AgentPic from '@/lib/assets/agent2.png';
 import Link from "next/link";
-import { useAuth } from "@/hooks/useAuth";
+import {useAuth} from "@/hooks/useAuth";
 import UserProfileSection from "@/components/UserProfileSection";
+import DiscordIcon from "@/components/DiscordIcon";
 
 export default function Home() {
-  const { isLoggedIn } = useAuth();
+  const {isLoggedIn} = useAuth();
 
   const handleSkinsClick = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -53,11 +54,13 @@ export default function Home() {
               Server Cộng đồng Counter-strike 2 miễn phí
             </p>
             <div className={'my-16 flex flex-row items-center justify-center gap-4'}>
-              <Link href={'#rent'}>
-                <Button size="lg"
-                        className="bg-red-600/80 border border-red-500/80 hover:bg-red-600 text-white px-8 py-3 transition-colors">
-                  <PlaneIcon className="w-5 h-5 mr-1"/>
-                  Liên hệ
+              <Link href={'https://discord.gg/WYaqghEaMe'} target={'_blank'}>
+                <Button
+                  size="lg"
+                  className="bg-red-600/80 border border-red-500/80 hover:bg-red-600 text-white px-8 py-3 transition-colors"
+                >
+                  <DiscordIcon className="w-5 h-5 mr-1"/>
+                  Tham gia Discord
                 </Button>
               </Link>
               {isLoggedIn && (
@@ -76,7 +79,7 @@ export default function Home() {
         </div>
       </section>
 
-      {isLoggedIn && <UserProfileSection />}
+      {isLoggedIn && <UserProfileSection/>}
 
       <LeaderboardSection/>
 

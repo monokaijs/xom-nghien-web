@@ -4,7 +4,7 @@ import {Button} from "@/components/ui/button";
 import DiscordIcon from "@/components/DiscordIcon";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
-import { User, LogOut, Menu } from "lucide-react";
+import { User, LogOut, Menu, Palette } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -17,17 +17,34 @@ import SteamIcon from "@/components/SteamIcon";
 export default function Header() {
   const { user, isLoggedIn, login, logout } = useAuth();
 
+  const handleSkinsClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/api/auth/inventory-token');
+      if (response.ok) {
+        const data = await response.json();
+        window.location.href = data.url;
+      } else {
+        console.error('Failed to generate inventory token');
+      }
+    } catch (error) {
+      console.error('Error redirecting to inventory:', error);
+    }
+  };
+
   const NavigationLinks = () => (
     <>
       <Link href="/matches" className="text-neutral-300 hover:text-red-400 transition-colors">
         Trận Đấu
       </Link>
       {isLoggedIn && (
-        <>
-          <Link href="/inventory" className="text-neutral-300 hover:text-red-400 transition-colors">
-            Inventory
-          </Link>
-        </>
+        <button
+          onClick={handleSkinsClick}
+          className="text-neutral-300 hover:text-red-400 transition-colors flex items-center gap-2"
+        >
+          <Palette className="w-4 h-4" />
+          Skins Customization
+        </button>
       )}
     </>
   );

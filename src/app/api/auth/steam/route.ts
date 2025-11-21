@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
               profileurl: userInfo.profileurl,
             });
 
-            return NextResponse.redirect(new URL('/inventory', baseUrl));
+            return NextResponse.redirect(new URL('/', baseUrl));
           }
         }
       }

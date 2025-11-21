@@ -1,13 +1,34 @@
+'use client';
+
 import {Button} from "@/components/ui/button";
-import {Heart, PlaneIcon, StoreIcon} from "lucide-react";
+import {Heart, PlaneIcon, Palette} from "lucide-react";
 import Header from "@/components/Header";
 import GameServersSection from "@/components/GameServersSection";
 import ContactSection from "@/components/ContactSection";
 import LeaderboardSection from "@/components/LeaderboardSection";
 import AgentPic from '@/lib/assets/agent2.png';
 import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
+import UserProfileSection from "@/components/UserProfileSection";
 
 export default function Home() {
+  const { isLoggedIn } = useAuth();
+
+  const handleSkinsClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/api/auth/inventory-token');
+      if (response.ok) {
+        const data = await response.json();
+        window.location.href = data.url;
+      } else {
+        console.error('Failed to generate inventory token');
+      }
+    } catch (error) {
+      console.error('Error redirecting to inventory:', error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header/>
@@ -39,18 +60,23 @@ export default function Home() {
                   Liên hệ
                 </Button>
               </Link>
-              <Link href={'/inventory'}>
-                <Button size="lg"
-                        className="bg-white/10 border border-white-500/15 hover:bg-white text-white hover:text-black px-8 py-3 transition-colors">
-                  <StoreIcon className="w-5 h-5 mr-1"/>
-                  Tuỳ chỉnh Loadout
+              {isLoggedIn && (
+                <Button
+                  size="lg"
+                  onClick={handleSkinsClick}
+                  className="bg-white/10 border border-white-500/15 hover:bg-white text-white hover:text-black px-8 py-3 transition-colors"
+                >
+                  <Palette className="w-5 h-5 mr-1"/>
+                  Tuỳ chỉnh Skins
                 </Button>
-              </Link>
+              )}
             </div>
           </div>
           <GameServersSection/>
         </div>
       </section>
+
+      {isLoggedIn && <UserProfileSection />}
 
       <LeaderboardSection/>
 

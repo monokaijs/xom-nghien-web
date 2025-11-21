@@ -115,9 +115,3 @@ export interface ServerResponse {
   error?: string;
 }
 
-export interface InventoryFilters {
-  sortBy: SortOption;
-  sortOrder: 'asc' | 'desc';
-  searchQuery: string;
-  categoryFilter?: string;
-}

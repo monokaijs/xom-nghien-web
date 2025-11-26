@@ -133,19 +133,20 @@ export default function MatchCard({ match, variant = 'default' }: MatchCardProps
         <div className="absolute inset-0 bg-gradient-to-br from-[#2b161b]/60 to-[#1a0f12]/70" />
       </div>
 
-      <div className="relative z-10 p-6">
-        <div className="flex items-center justify-between gap-4 max-md:flex-col max-md:items-start">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-white/70">
-              <IconTrophy size={16} className="text-accent-primary" />
+      <div className="relative z-10 p-6 max-md:p-4">
+        <div className="flex items-center justify-between gap-4 max-md:flex-col max-md:items-start max-md:gap-2">
+          <div className="flex items-center gap-4 max-md:gap-2 max-md:flex-wrap">
+            <div className="flex items-center gap-2 text-sm text-white/70 max-md:text-xs">
+              <IconTrophy size={16} className="text-accent-primary max-md:w-4 max-md:h-4" />
               <span>{match.series_type}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-white/70">
-              <IconClock size={16} />
-              <span>{formatDate(match.start_time)}</span>
+            <div className="flex items-center gap-2 text-sm text-white/70 max-md:text-xs">
+              <IconClock size={16} className="max-md:w-4 max-md:h-4" />
+              <span className="max-md:hidden">{formatDate(match.start_time)}</span>
+              <span className="md:hidden">{formatTime(match.start_time)}</span>
             </div>
             {firstMap && (
-              <div className="px-3 py-1 bg-white/10 rounded-lg text-xs text-white/80 font-medium">
+              <div className="px-3 py-1 bg-white/10 rounded-lg text-xs text-white/80 font-medium max-md:px-2 max-md:py-0.5">
                 {firstMap.mapname.replace('de_', '').toUpperCase()}
               </div>
             )}
@@ -153,21 +154,21 @@ export default function MatchCard({ match, variant = 'default' }: MatchCardProps
           <IconChevronRight size={20} className="text-white/50 max-md:hidden" />
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-8">
-          <div className={`flex-1 text-right ${isTeam1Winner ? 'text-white font-bold' : 'text-white/60'}`}>
-            <div className="text-lg truncate">{match.team1_name}</div>
+        <div className="mt-4 flex items-center justify-between gap-8 max-md:gap-3 max-md:mt-3">
+          <div className={`flex-1 text-right ${isTeam1Winner ? 'text-white font-bold' : 'text-white/60'} max-md:text-sm`}>
+            <div className="text-lg truncate max-md:text-base">{match.team1_name}</div>
           </div>
-          <div className="flex items-center gap-4 px-6 py-2 bg-white/10 backdrop-blur-sm rounded-xl">
-            <span className={`text-2xl font-bold ${isTeam1Winner ? 'text-accent-primary' : 'text-white/60'}`}>
+          <div className="flex items-center gap-4 px-6 py-2 bg-white/10 backdrop-blur-sm rounded-xl max-md:gap-2 max-md:px-4 max-md:py-1.5">
+            <span className={`text-2xl font-bold ${isTeam1Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-xl`}>
               {match.team1_score}
             </span>
-            <span className="text-white/50">-</span>
-            <span className={`text-2xl font-bold ${isTeam2Winner ? 'text-accent-primary' : 'text-white/60'}`}>
+            <span className="text-white/50 max-md:text-sm">-</span>
+            <span className={`text-2xl font-bold ${isTeam2Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-xl`}>
               {match.team2_score}
             </span>
           </div>
-          <div className={`flex-1 text-left ${isTeam2Winner ? 'text-white font-bold' : 'text-white/60'}`}>
-            <div className="text-lg truncate">{match.team2_name}</div>
+          <div className={`flex-1 text-left ${isTeam2Winner ? 'text-white font-bold' : 'text-white/60'} max-md:text-sm`}>
+            <div className="text-lg truncate max-md:text-base">{match.team2_name}</div>
           </div>
         </div>
       </div>

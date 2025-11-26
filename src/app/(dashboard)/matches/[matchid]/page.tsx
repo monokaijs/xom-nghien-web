@@ -136,43 +136,43 @@ export default function MatchDetailPage() {
         <span>Quay Lại</span>
       </button>
 
-      <div className="bg-gradient-to-br from-[#2b161b] to-[#1a0f12] rounded-[30px] p-6">
-        <div className="flex items-center gap-4 mb-6 flex-wrap">
-          <div className="flex items-center gap-2 text-sm text-white/70">
-            <IconTrophy size={16} className="text-accent-primary"/>
+      <div className="bg-gradient-to-br from-[#2b161b] to-[#1a0f12] rounded-[30px] p-6 max-md:p-4">
+        <div className="flex items-center gap-4 mb-6 flex-wrap max-md:gap-2 max-md:mb-4">
+          <div className="flex items-center gap-2 text-sm text-white/70 max-md:text-xs">
+            <IconTrophy size={16} className="text-accent-primary max-md:w-4 max-md:h-4"/>
             <span>{match.series_type}</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-white/70">
-            <IconClock size={16}/>
+          <div className="flex items-center gap-2 text-sm text-white/70 max-md:text-xs">
+            <IconClock size={16} className="max-md:w-4 max-md:h-4"/>
             <span>{formatDate(match.start_time)}</span>
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-8 mb-8">
+        <div className="flex items-center justify-between gap-8 mb-8 max-md:gap-3 max-md:mb-4">
           <div className={`flex-1 text-right ${isTeam1Winner ? 'text-white' : 'text-white/60'}`}>
-            <div className="text-2xl font-bold truncate">{match.team1_name}</div>
+            <div className="text-2xl font-bold truncate max-md:text-lg">{match.team1_name}</div>
           </div>
-          <div className="flex items-center gap-6 px-8 py-4 bg-white/5 rounded-2xl">
-              <span className={`text-4xl font-bold ${isTeam1Winner ? 'text-accent-primary' : 'text-white/60'}`}>
+          <div className="flex items-center gap-6 px-8 py-4 bg-white/5 rounded-2xl max-md:gap-3 max-md:px-4 max-md:py-2">
+              <span className={`text-4xl font-bold ${isTeam1Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-2xl`}>
                 {match.team1_score}
               </span>
-            <span className="text-white/50 text-2xl">-</span>
-            <span className={`text-4xl font-bold ${isTeam2Winner ? 'text-accent-primary' : 'text-white/60'}`}>
+            <span className="text-white/50 text-2xl max-md:text-lg">-</span>
+            <span className={`text-4xl font-bold ${isTeam2Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-2xl`}>
                 {match.team2_score}
               </span>
           </div>
           <div className={`flex-1 text-left ${isTeam2Winner ? 'text-white' : 'text-white/60'}`}>
-            <div className="text-2xl font-bold truncate">{match.team2_name}</div>
+            <div className="text-2xl font-bold truncate max-md:text-lg">{match.team2_name}</div>
           </div>
         </div>
 
         {isTeam1Winner && (
-          <div className="text-center text-accent-primary font-semibold mb-4">
+          <div className="text-center text-accent-primary font-semibold mb-4 max-md:text-sm max-md:mb-2">
             🏆 {match.team1_name} Chiến Thắng
           </div>
         )}
         {isTeam2Winner && (
-          <div className="text-center text-accent-primary font-semibold mb-4">
+          <div className="text-center text-accent-primary font-semibold mb-4 max-md:text-sm max-md:mb-2">
             🏆 {match.team2_name} Chiến Thắng
           </div>
         )}
@@ -185,27 +185,27 @@ export default function MatchDetailPage() {
         const isMapTeam2Winner = map.winner === match.team2_name || (map.team2_score > map.team1_score);
 
         return (
-          <div key={map.mapnumber} className="bg-gradient-to-br from-[#2b161b] to-[#1a0f12] rounded-[30px] p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <IconMap size={24} className="text-accent-primary"/>
-                <h2 className="text-xl font-semibold">{map.mapname}</h2>
+          <div key={map.mapnumber} className="bg-gradient-to-br from-[#2b161b] to-[#1a0f12] rounded-[30px] p-6 max-md:p-4">
+            <div className="flex items-center justify-between mb-6 max-md:mb-4 max-md:flex-col max-md:items-start max-md:gap-3">
+              <div className="flex items-center gap-3 max-md:gap-2">
+                <IconMap size={24} className="text-accent-primary max-md:w-5 max-md:h-5"/>
+                <h2 className="text-xl font-semibold max-md:text-lg">{map.mapname}</h2>
               </div>
-              <div className="flex items-center gap-4 px-4 py-2 bg-white/5 rounded-xl">
-                  <span className={`text-xl font-bold ${isMapTeam1Winner ? 'text-accent-primary' : 'text-white/60'}`}>
+              <div className="flex items-center gap-4 px-4 py-2 bg-white/5 rounded-xl max-md:gap-2 max-md:px-3 max-md:py-1.5">
+                  <span className={`text-xl font-bold ${isMapTeam1Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-lg`}>
                     {map.team1_score}
                   </span>
-                <span className="text-white/50">-</span>
-                <span className={`text-xl font-bold ${isMapTeam2Winner ? 'text-accent-primary' : 'text-white/60'}`}>
+                <span className="text-white/50 max-md:text-sm">-</span>
+                <span className={`text-xl font-bold ${isMapTeam2Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-lg`}>
                     {map.team2_score}
                   </span>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 max-md:grid-cols-1">
+            <div className="grid grid-cols-2 gap-6 max-md:grid-cols-1 max-md:gap-4">
               <div>
                 <h3
-                  className={`text-lg font-semibold mb-4 ${isMapTeam1Winner ? 'text-accent-primary' : 'text-white/70'}`}>
+                  className={`text-lg font-semibold mb-4 ${isMapTeam1Winner ? 'text-accent-primary' : 'text-white/70'} max-md:text-base max-md:mb-3`}>
                   {match.team1_name}
                 </h3>
 
@@ -229,15 +229,17 @@ export default function MatchDetailPage() {
                       <div
                         key={player.steamid64}
                         onClick={() => router.push(`/player/${player.steamid64}`)}
-                        className="bg-white/5 rounded-xl p-3 hover:bg-white/10 transition-colors cursor-pointer"
+                        className="bg-white/5 rounded-xl p-3 hover:bg-white/10 transition-colors cursor-pointer max-md:p-2.5"
                       >
-                        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 items-center max-md:grid-cols-1">
+                        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 items-center max-md:grid-cols-1 max-md:gap-1">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium truncate">{player.name}</div>
-                              <div className="text-xs text-white/50 md:hidden">
-                                {player.kills}/{player.deaths}/{player.assists} • KDA: {kda} •
-                                HS: {player.head_shot_kills}
+                              <div className="font-medium truncate max-md:text-sm">{player.name}</div>
+                              <div className="text-xs text-white/50 md:hidden mt-1">
+                                K/D/A: {player.kills}/{player.deaths}/{player.assists} • KDA: {kda} • HS: {player.head_shot_kills}
+                              </div>
+                              <div className="text-xs text-white/50 md:hidden mt-0.5">
+                                DMG: {player.damage.toLocaleString()} • HS%: {player.kills > 0 ? ((player.head_shot_kills / player.kills) * 100).toFixed(1) : 0}%
                               </div>
                             </div>
                           </div>
@@ -261,7 +263,7 @@ export default function MatchDetailPage() {
 
               <div>
                 <h3
-                  className={`text-lg font-semibold mb-4 ${isMapTeam2Winner ? 'text-accent-primary' : 'text-white/70'}`}>
+                  className={`text-lg font-semibold mb-4 ${isMapTeam2Winner ? 'text-accent-primary' : 'text-white/70'} max-md:text-base max-md:mb-3`}>
                   {match.team2_name}
                 </h3>
 
@@ -285,15 +287,17 @@ export default function MatchDetailPage() {
                       <div
                         key={player.steamid64}
                         onClick={() => router.push(`/player/${player.steamid64}`)}
-                        className="bg-white/5 rounded-xl p-3 hover:bg-white/10 transition-colors cursor-pointer"
+                        className="bg-white/5 rounded-xl p-3 hover:bg-white/10 transition-colors cursor-pointer max-md:p-2.5"
                       >
-                        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 items-center max-md:grid-cols-1">
+                        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 items-center max-md:grid-cols-1 max-md:gap-1">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium truncate">{player.name}</div>
-                              <div className="text-xs text-white/50 md:hidden">
-                                {player.kills}/{player.deaths}/{player.assists} • KDA: {kda} •
-                                HS: {player.head_shot_kills}
+                              <div className="font-medium truncate max-md:text-sm">{player.name}</div>
+                              <div className="text-xs text-white/50 md:hidden mt-1">
+                                K/D/A: {player.kills}/{player.deaths}/{player.assists} • KDA: {kda} • HS: {player.head_shot_kills}
+                              </div>
+                              <div className="text-xs text-white/50 md:hidden mt-0.5">
+                                DMG: {player.damage.toLocaleString()} • HS%: {player.kills > 0 ? ((player.head_shot_kills / player.kills) * 100).toFixed(1) : 0}%
                               </div>
                             </div>
                           </div>

@@ -1,0 +1,1 @@
+export const DiscordInvitationLink = "https://discord.gg/WYaqghEaMe";

@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { matchzyStatsPlayers } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
+import { fetchAndCacheMultipleUsers } from '@/lib/steam-api';
 
 export async function GET() {
   try {
     const topKillersQuery = sql`
-      SELECT 
+      SELECT
         steamid64,
         name,
         SUM(kills) as total_kills,
@@ -21,7 +22,7 @@ export async function GET() {
     `;
 
     const topDamageQuery = sql`
-      SELECT 
+      SELECT
         steamid64,
         name,
         SUM(damage) as total_damage,
@@ -36,7 +37,7 @@ export async function GET() {
     `;
 
     const topHeadshotQuery = sql`
-      SELECT 
+      SELECT
         steamid64,
         name,
         SUM(head_shot_kills) as total_headshots,
@@ -58,10 +59,27 @@ export async function GET() {
       db.execute(topHeadshotQuery),
     ]);
 
+    const allSteamIds = new Set<string>();
+    (topKillers[0] as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
+    (topDamage[0] as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
+    (topHeadshot[0] as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
+
+    const steamUserData = await fetchAndCacheMultipleUsers(Array.from(allSteamIds));
+
+    const enrichPlayers = (players: any[]) => {
+      return players.map((player: any) => {
+        const steamData = steamUserData.get(player.steamid64);
+        return {
+          ...player,
+          avatar: steamData?.avatarfull || steamData?.avatarmedium || steamData?.avatar,
+        };
+      });
+    };
+
     return NextResponse.json({
-      topKillers: topKillers[0],
-      topDamage: topDamage[0],
-      topHeadshot: topHeadshot[0],
+      topKillers: enrichPlayers(topKillers[0] as any[]),
+      topDamage: enrichPlayers(topDamage[0] as any[]),
+      topHeadshot: enrichPlayers(topHeadshot[0] as any[]),
     });
   } catch (error) {
     console.error('Error fetching leaderboard:', error);

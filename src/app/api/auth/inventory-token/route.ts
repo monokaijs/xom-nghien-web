@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/session';
 import { createCipheriv, randomBytes } from 'crypto';
+import { decode } from 'next-auth/jwt';
 
 const THIRD_PARTY_SECRET = process.env.THIRD_PARTY_SECRET;
 const INVENTORY_SERVICE_URL = process.env.INVENTORY_SERVICE_URL || 'https://inventory.xomnghien.com';
@@ -30,19 +30,29 @@ function generateThirdPartyToken(userId: string, expiresInMinutes: number = 5): 
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
+    const sessionToken = request.cookies.get('next-auth.session-token')?.value ||
+                         request.cookies.get('__Secure-next-auth.session-token')?.value;
 
-    if (!session.isLoggedIn || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!sessionToken) {
+      return NextResponse.json({ error: 'Unauthorized - No session token' }, { status: 401 });
     }
 
-    const token = generateThirdPartyToken(session.user.steamid, 5);
-    const inventoryUrl = `${INVENTORY_SERVICE_URL}/auth/third-party?access_token=${encodeURIComponent(token)}`;
+    const token = await decode({
+      token: sessionToken,
+      secret: process.env.NEXTAUTH_SECRET!,
+    });
+
+    if (!token?.steamId) {
+      return NextResponse.json({ error: 'Unauthorized - Invalid session' }, { status: 401 });
+    }
+
+    const inventoryToken = generateThirdPartyToken(token.steamId as string, 5);
+    const inventoryUrl = `${INVENTORY_SERVICE_URL}/auth/third-party?access_token=${encodeURIComponent(inventoryToken)}`;
 
     return NextResponse.json({
       success: true,
       url: inventoryUrl,
-      token,
+      token: inventoryToken,
     });
   } catch (error) {
     console.error('Error generating inventory token:', error);

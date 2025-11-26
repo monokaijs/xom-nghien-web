@@ -11,7 +11,7 @@
   --color-text-secondary: #a0a0a0;
   --color-card-bg: #3b1e25;
 
-  --font-poppins: 'Poppins', sans-serif;
+  --font-manrope: 'Manrope', sans-serif;
 }
 
 :root {
@@ -22,7 +22,7 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-poppins);
+  font-family: var(--font-manrope);
   height: 100vh;
   display: flex;
   justify-content: center;

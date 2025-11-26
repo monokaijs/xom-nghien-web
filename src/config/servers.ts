@@ -2,7 +2,7 @@ import { GameServer } from '@/types/server';
 
 export const GameServers: GameServer[] = [{
     id: 'server1',
-    name: '[#1] PvP 5v5',
+    name: '[#1] Competitive',
     type: 'counterstrike2',
     ip: '222.252.30.216',
     port: 27015,

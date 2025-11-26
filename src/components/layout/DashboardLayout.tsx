@@ -16,6 +16,7 @@ import {
 } from '@tabler/icons-react';
 import IconSolid from "@/components/IconSolid";
 import {usePathname} from 'next/navigation';
+import Link from 'next/link';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -66,35 +67,35 @@ export default function DashboardLayout({children}: DashboardLayoutProps) {
             </div>
 
             <nav className="flex flex-col gap-5 flex-1">
-              <a href="/"
+              <Link href="/"
                  className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${
                    pathname === '/' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
                  }`}>
                 <IconHome size={24}/>
                 <span>Trang Chủ</span>
-              </a>
-              <a href="/matches"
+              </Link>
+              <Link href="/matches"
                  className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${
                    pathname === '/matches' || pathname?.startsWith('/matches/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
                  }`}>
                 <IconSwords size={24}/>
                 <span>Trận Đấu</span>
-              </a>
-              <a href="/leaderboard"
+              </Link>
+              <Link href="/leaderboard"
                  className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${
                    pathname === '/leaderboard' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
                  }`}>
                 <IconTrophy size={24}/>
                 <span>Bảng Xếp Hạng</span>
-              </a>
+              </Link>
               {session?.user && (
-                <a href="/inventory"
+                <Link href="/inventory"
                    className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${
                      pathname === '/inventory' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
                    }`}>
                   <IconPackage size={24}/>
                   <span>Kho Đồ</span>
-                </a>
+                </Link>
               )}
             </nav>
 
@@ -125,14 +126,14 @@ export default function DashboardLayout({children}: DashboardLayoutProps) {
       <div
         className="flex w-[95vw] h-[90vh] bg-bg-dark rounded-[40px] overflow-hidden shadow-2xl max-lg:w-full max-lg:h-screen max-lg:rounded-none max-lg:p-2.5 max-md:flex-col max-md:h-screen max-md:overflow-y-auto max-md:pt-16 max-md:p-0 max-md:w-full max-md:rounded-none">
         <aside className="w-20 m-5 mr-0 bg-bg-sidebar flex flex-col items-center py-5 rounded-[30px] max-md:hidden">
-          <a href={"/"}>
+          <Link href={"/"}>
             <div
               className="w-10 h-10 bg-white text-black font-black text-2xl flex items-center justify-center rounded-[10px] mb-10">
               <IconSolid className={'w-5 h-5'}/>
             </div>
-          </a>
+          </Link>
           <nav className="flex flex-col gap-[30px] flex-1">
-            <a
+            <Link
               href="/"
               className={`transition-colors duration-300 flex items-center justify-center ${
                 pathname === '/' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
@@ -140,8 +141,8 @@ export default function DashboardLayout({children}: DashboardLayoutProps) {
               title="Trang Chủ"
             >
               <IconHome size={24}/>
-            </a>
-            <a
+            </Link>
+            <Link
               href="/matches"
               className={`transition-colors duration-300 flex items-center justify-center ${
                 pathname === '/matches' || pathname?.startsWith('/matches/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
@@ -149,8 +150,8 @@ export default function DashboardLayout({children}: DashboardLayoutProps) {
               title="Trận Đấu"
             >
               <IconSwords size={24}/>
-            </a>
-            <a
+            </Link>
+            <Link
               href="/leaderboard"
               className={`transition-colors duration-300 flex items-center justify-center ${
                 pathname === '/leaderboard' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
@@ -158,9 +159,9 @@ export default function DashboardLayout({children}: DashboardLayoutProps) {
               title="Bảng Xếp Hạng"
             >
               <IconTrophy size={24}/>
-            </a>
+            </Link>
             {session?.user && (
-              <a
+              <Link
                 href="/inventory"
                 className={`transition-colors duration-300 flex items-center justify-center ${
                   pathname === '/inventory' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
@@ -168,7 +169,7 @@ export default function DashboardLayout({children}: DashboardLayoutProps) {
                 title="Kho Đồ"
               >
                 <IconPackage size={24}/>
-              </a>
+              </Link>
             )}
           </nav>
           {session?.user && (

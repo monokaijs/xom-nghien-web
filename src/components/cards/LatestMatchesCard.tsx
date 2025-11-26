@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import MatchCard from './MatchCard';
+import Link from 'next/link';
 
 interface Map {
   matchid: number;

@@ -60,9 +60,9 @@ export async function GET() {
     ]);
 
     const allSteamIds = new Set<string>();
-    (topKillers[0] as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
-    (topDamage[0] as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
-    (topHeadshot[0] as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
+    (topKillers[0] as unknown as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
+    (topDamage[0] as unknown as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
+    (topHeadshot[0] as unknown as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
 
     const steamUserData = await fetchAndCacheMultipleUsers(Array.from(allSteamIds));
 
@@ -77,9 +77,9 @@ export async function GET() {
     };
 
     return NextResponse.json({
-      topKillers: enrichPlayers(topKillers[0] as any[]),
-      topDamage: enrichPlayers(topDamage[0] as any[]),
-      topHeadshot: enrichPlayers(topHeadshot[0] as any[]),
+      topKillers: enrichPlayers(topKillers[0] as unknown as any[]),
+      topDamage: enrichPlayers(topDamage[0] as unknown as any[]),
+      topHeadshot: enrichPlayers(topHeadshot[0] as unknown as any[]),
     });
   } catch (error) {
     console.error('Error fetching leaderboard:', error);

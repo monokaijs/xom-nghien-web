@@ -9,7 +9,7 @@ import { Games } from "@/config/games";
 export default function Dashboard() {
   return (
     <DashboardLayout>
-      <div className="grid grid-cols-[2fr_1fr] gap-[30px] h-full max-lg:grid-cols-1 max-lg:overflow-y-auto max-lg:h-auto">
+      <div className="grid grid-cols-[2fr_1fr] gap-[30px] max-lg:grid-cols-1 max-lg:overflow-y-auto">
         {/* Left Column */}
         <div className="flex flex-col gap-5 min-w-0 min-h-0">
           {/* Hero Card */}

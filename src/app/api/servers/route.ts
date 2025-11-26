@@ -11,7 +11,7 @@ async function queryServer(server: GameServer): Promise<ServerStatus> {
   const baseStatus: ServerStatus = {
     id: server.id,
     name: server.name,
-    ip: server.ip,
+    ip: server.internalIp,
     port: server.port,
     type: server.type,
     online: false,

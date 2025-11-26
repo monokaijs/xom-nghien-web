@@ -11,7 +11,7 @@ async function queryServer(server: GameServer): Promise<ServerStatus> {
   const baseStatus: ServerStatus = {
     id: server.id,
     name: server.name,
-    ip: server.internalIp,
+    ip: server.ip,
     port: server.port,
     type: server.type,
     online: false,
@@ -23,7 +23,7 @@ async function queryServer(server: GameServer): Promise<ServerStatus> {
     const startTime = Date.now();
     const state = await GameDig.query({
       type: server.type,
-      host: server.ip,
+      host: server.internalIp,
       port: server.port,
       socketTimeout: 1000,
       attemptTimeout: 1000,

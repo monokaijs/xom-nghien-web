@@ -17,7 +17,7 @@ export default function GameServersCard({title = "Máy Chủ Game", seeAllLink =
   useEffect(() => {
     const fetchServers = async () => {
       try {
-        const response = await fetch('/api/servers');
+        const response = await fetch('https://servers.xomnghien.com');
         const data = await response.json();
         setServers(data.servers || []);
       } catch (error) {

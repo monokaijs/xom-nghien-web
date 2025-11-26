@@ -104,7 +104,7 @@ export async function fetchAndCacheMultipleUsers(steamids: string[]): Promise<Ma
     const uncachedSteamIds: string[] = [];
 
     for (const steamid of steamids) {
-      const user = existingUsers.find(u => u.steamid64 === steamid);
+      const user = existingUsers.find((u: any) => u.steamid64 === steamid);
 
       if (user) {
         const lastUpdated = new Date(user.last_updated).getTime();

@@ -105,7 +105,6 @@ export default function InventoryPage() {
   return (
     <DashboardLayout>
       <div className="flex flex-col h-full">
-        <h1 className="text-3xl font-bold mb-6">Kho Đồ</h1>
         <div className="flex-1 bg-gradient-to-br from-[#2b161b] to-[#1a0f12] rounded-[30px] overflow-hidden">
           <iframe
             src={inventoryUrl}

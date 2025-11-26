@@ -4,7 +4,7 @@ import * as schema from './db/schema';
 
 declare global {
   var __pool: mysql.Pool | undefined;
-  var __db: ReturnType<typeof drizzle> | undefined;
+  var __db: ReturnType<typeof drizzle<typeof schema>> | undefined;
 }
 
 const poolConfig = {
@@ -29,8 +29,8 @@ if (!global.__pool) {
 }
 
 if (!global.__db) {
-  global.__db = drizzle(global.__pool, { schema, mode: 'default' });
+  global.__db = drizzle(global.__pool, { schema, mode: 'default' }) as any;
 }
 
-export const pool = global.__pool;
-export const db = global.__db;
+export const pool = global.__pool!;
+export const db = global.__db!;

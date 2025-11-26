@@ -14,7 +14,7 @@ export const GameServers: GameServer[] = [{
     port: 27021,
 }, {
     id: 'server3',
-    name: '[#3] Retakes',
+    name: '[#3] 1v1',
     type: 'counterstrike2',
     ip: '222.252.30.216',
     port: 27025,

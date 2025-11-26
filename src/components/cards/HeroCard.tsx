@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import {DiscordInvitationLink} from "@/config/discord";
+import { DiscordInvitationLink } from "@/config/discord";
 
 interface HeroCardProps {
   title: string;
@@ -9,7 +9,7 @@ interface HeroCardProps {
   imageUrl: string;
 }
 
-export default function HeroCard({title, description, imageUrl}: HeroCardProps) {
+export default function HeroCard({ title, description, imageUrl }: HeroCardProps) {
   return (
     <div
       className="bg-gradient-to-r from-[#e54d42] to-[#b83b45] rounded-[30px] p-[30px] flex relative min-h-[300px] max-md:flex-col">
@@ -42,11 +42,11 @@ export default function HeroCard({title, description, imageUrl}: HeroCardProps) 
         </div>
       </div>
       <div
-        className="absolute -right-[50px] bottom-0 h-[120%] z-[1] max-md:relative max-md:w-full max-md:h-[200px] max-md:right-0 max-md:top-0 max-md:mt-5">
+        className="absolute -right-[50px] bottom-0 h-[120%] z-[1] max-md:h-[300px] max-md:w-[250px] max-md:-right-10 max-md:bottom-0">
         <img
           src={imageUrl}
           alt={title}
-          className="w-full h-full object-cover [mask-image:linear-gradient(to_left,black_80%,transparent)] max-md:[mask-image:linear-gradient(to_top,black_80%,transparent)]"
+          className="w-full h-full object-cover [mask-image:linear-gradient(to_left,black_80%,transparent)]"
         />
       </div>
     </div>

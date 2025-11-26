@@ -2,9 +2,9 @@
 
 import React from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import {GameServersCard, HeroCard, LatestMatchesCard, LeaderboardCard} from '@/components/cards';
-import {IconChevronRight} from '@tabler/icons-react';
-import {Games} from "@/config/games";
+import { GameServersCard, HeroCard, LatestMatchesCard, LeaderboardCard } from '@/components/cards';
+import { IconChevronRight } from '@tabler/icons-react';
+import { Games } from "@/config/games";
 
 export default function Dashboard() {
   return (
@@ -20,10 +20,10 @@ export default function Dashboard() {
           />
 
           {/* Game Servers */}
-          <GameServersCard/>
+          <GameServersCard />
 
           {/* Latest Matches */}
-          <LatestMatchesCard/>
+          <LatestMatchesCard />
         </div>
 
         {/* Right Column */}
@@ -35,17 +35,17 @@ export default function Dashboard() {
                 key={game.id}
                 className="bg-bg-dark p-2.5 rounded-[20px] flex items-center gap-[15px] transition-colors duration-300 hover:bg-card-bg cursor-pointer"
               >
-                <img src={game.image} alt={game.name} className="w-[50px] h-[50px] rounded-xl object-cover"/>
+                <img src={game.image} alt={game.name} className="w-[50px] h-[50px] rounded-xl object-cover" />
                 <div className="flex-1">
                   <h4 className="text-sm font-medium">{game.name}</h4>
                 </div>
-                <IconChevronRight size={24}/>
+                <IconChevronRight size={24} />
               </div>
             ))}
           </div>
 
           {/* Leaderboard */}
-          <LeaderboardCard/>
+          <LeaderboardCard />
         </div>
       </div>
     </DashboardLayout>

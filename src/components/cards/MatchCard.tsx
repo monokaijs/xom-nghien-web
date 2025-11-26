@@ -155,7 +155,7 @@ export default function MatchCard({ match, variant = 'default' }: MatchCardProps
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-8 max-md:gap-3 max-md:mt-3">
-          <div className={`flex-1 text-right ${isTeam1Winner ? 'text-white font-bold' : 'text-white/60'} max-md:text-sm`}>
+          <div className={`flex-1 min-w-0 text-right ${isTeam1Winner ? 'text-white font-bold' : 'text-white/60'} max-md:text-sm`}>
             <div className="text-lg truncate max-md:text-base">{match.team1_name}</div>
           </div>
           <div className="flex items-center gap-4 px-6 py-2 bg-white/10 backdrop-blur-sm rounded-xl max-md:gap-2 max-md:px-4 max-md:py-1.5">
@@ -167,7 +167,7 @@ export default function MatchCard({ match, variant = 'default' }: MatchCardProps
               {match.team2_score}
             </span>
           </div>
-          <div className={`flex-1 text-left ${isTeam2Winner ? 'text-white font-bold' : 'text-white/60'} max-md:text-sm`}>
+          <div className={`flex-1 min-w-0 text-left ${isTeam2Winner ? 'text-white font-bold' : 'text-white/60'} max-md:text-sm`}>
             <div className="text-lg truncate max-md:text-base">{match.team2_name}</div>
           </div>
         </div>

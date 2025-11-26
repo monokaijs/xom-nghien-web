@@ -11,7 +11,7 @@ export default function Dashboard() {
     <DashboardLayout>
       <div className="grid grid-cols-[2fr_1fr] gap-[30px] h-full max-lg:grid-cols-1 max-lg:overflow-y-auto max-lg:h-auto">
         {/* Left Column */}
-        <div className="flex flex-col gap-[30px] min-w-0">
+        <div className="flex flex-col gap-5 min-w-0 min-h-0">
           {/* Hero Card */}
           <HeroCard
             title="Tham gia Discord"

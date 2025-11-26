@@ -186,7 +186,7 @@ export default function DashboardLayout({children}: DashboardLayoutProps) {
             </div>
           )}
         </aside>
-        <main className="flex-1 p-7.5 overflow-y-auto flex flex-col scrollbar-hide max-md:p-0 max-md:overflow-visible">
+        <main className="flex-1 p-7.5 overflow-y-auto flex flex-col scrollbar-hide max-md:p-5 max-md:overflow-visible">
           {/* Header (Desktop Only) */}
           <header className="flex justify-between items-center mb-[30px] flex-wrap gap-5 max-md:hidden">
             <div className="text-2xl font-normal text-[#aaa]">

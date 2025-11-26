@@ -3,8 +3,8 @@ import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
 
 export const metadata: Metadata = {
-  title: "Game Dashboard",
-  description: "A modern game dashboard UI",
+  title: "Xóm Nghiện",
+  description: "Xóm Nghiện CS2 Panel - Powered by Community",
 };
 
 export default function RootLayout({

@@ -30,6 +30,10 @@ body {
   overflow: hidden;
 }
 
+a, button {
+  cursor: pointer;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;

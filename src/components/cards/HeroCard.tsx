@@ -12,7 +12,7 @@ interface HeroCardProps {
 export default function HeroCard({ title, description, imageUrl }: HeroCardProps) {
   return (
     <div
-      className="bg-gradient-to-r from-[#e54d42] to-[#b83b45] rounded-[30px] p-[30px] flex relative min-h-[300px] max-md:flex-col">
+      className="bg-gradient-to-r from-[#e54d42] to-[#b83b45] rounded-[30px] p-[30px] flex relative min-h-[300px] max-md:flex-col max-md:overflow-hidden">
       <div className="flex-1 z-10 flex flex-col justify-between">
         <div>
           <div className="flex gap-[15px] items-center mb-[15px]">

@@ -1,4 +1,4 @@
-import { mysqlTable, int, varchar, float, tinyint, text, timestamp, index, unique, datetime } from 'drizzle-orm/mysql-core';
+import { mysqlTable, int, varchar, float, tinyint, text, timestamp, index, unique, datetime, primaryKey } from 'drizzle-orm/mysql-core';
 
 
 export const matchzyStatsMatches = mysqlTable('matchzy_stats_matches', {
@@ -24,7 +24,7 @@ export const matchzyStatsMaps = mysqlTable('matchzy_stats_maps', {
   team1_score: int('team1_score').notNull().default(0),
   team2_score: int('team2_score').notNull().default(0),
 }, (table) => ({
-  pk: index('pk_matchzy_stats_maps').on(table.matchid, table.mapnumber),
+  pk: primaryKey({ columns: [table.matchid, table.mapnumber] }),
   idxMapnumber: index('mapnumber_index').on(table.mapnumber),
 }));
 
@@ -66,7 +66,7 @@ export const matchzyStatsPlayers = mysqlTable('matchzy_stats_players', {
   cash_earned: int('cash_earned').notNull(),
   enemies_flashed: int('enemies_flashed').notNull(),
 }, (table) => ({
-  pk: index('pk_matchzy_stats_players').on(table.matchid, table.mapnumber, table.steamid64),
+  pk: primaryKey({ columns: [table.matchid, table.mapnumber, table.steamid64] }),
 }));
 
 export const userInfo = mysqlTable('user_info', {

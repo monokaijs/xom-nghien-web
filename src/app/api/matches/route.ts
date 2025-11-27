@@ -10,11 +10,12 @@ export async function GET(request: Request) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     const matchesQuery = sql`
-      SELECT 
+      SELECT
         m.*,
         COUNT(DISTINCT mp.mapnumber) as maps_played
       FROM ${matchzyStatsMatches} m
       LEFT JOIN ${matchzyStatsMaps} mp ON m.matchid = mp.matchid
+      WHERE NOT (m.team1_score = 0 AND m.team2_score = 0)
       GROUP BY m.matchid
       ORDER BY m.start_time DESC
       LIMIT ${limit} OFFSET ${offset}
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
       })
     );
 
-    const countQuery = sql`SELECT COUNT(*) as total FROM ${matchzyStatsMatches}`;
+    const countQuery = sql`SELECT COUNT(*) as total FROM ${matchzyStatsMatches} WHERE NOT (team1_score = 0 AND team2_score = 0)`;
     const countResult = await db.execute(countQuery);
     const total = (countResult[0] as unknown as any[])[0]?.total || 0;
 

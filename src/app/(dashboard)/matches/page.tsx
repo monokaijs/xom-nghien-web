@@ -62,7 +62,7 @@ export default function MatchesPage() {
   const totalPages = Math.ceil(total / limit);
 
   return (
-    <div className="max-md:p-5 flex flex-col gap-6 h-full overflow-y-auto">
+    <div className="flex flex-col gap-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Lịch Sử Trận Đấu</h1>
         <div className="text-white/50">Tổng: {total} trận</div>

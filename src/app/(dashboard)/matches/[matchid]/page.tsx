@@ -3,6 +3,7 @@
 import React, {useEffect, useState} from 'react';
 import {useParams, useRouter} from 'next/navigation';
 import {IconArrowLeft, IconClock, IconMap, IconTrophy} from '@tabler/icons-react';
+import Image from 'next/image';
 
 interface Match {
   matchid: number;
@@ -126,8 +127,22 @@ export default function MatchDetailPage() {
   const isTeam1Winner = match.winner === match.team1_name || (match.team1_score > match.team2_score);
   const isTeam2Winner = match.winner === match.team2_name || (match.team2_score > match.team1_score);
 
+  const getMapImage = (mapname: string) => {
+    const mapImages: { [key: string]: string } = {
+      'de_ancient': '/maps/de_ancient.png',
+      'de_anubis': '/maps/de_anubis.png',
+      'de_dust2': '/maps/de_dust2.png',
+      'de_inferno': '/maps/de_inferno.png',
+      'de_mirage': '/maps/de_mirage.png',
+    };
+    return mapImages[mapname] || '/maps/de_dust2.png';
+  };
+
+  const firstMap = maps && maps.length > 0 ? maps[0] : null;
+  const mapImage = firstMap ? getMapImage(firstMap.mapname) : '/maps/de_dust2.png';
+
   return (
-    <div className="max-md:p-5 flex flex-col gap-6 h-full overflow-y-auto">
+    <div className="flex flex-col gap-6">
       <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-white/70 hover:text-white transition-colors w-fit"
@@ -136,46 +151,58 @@ export default function MatchDetailPage() {
         <span>Quay Lại</span>
       </button>
 
-      <div className="bg-gradient-to-br from-[#2b161b] to-[#1a0f12] rounded-[30px] p-6 max-md:p-4">
-        <div className="flex items-center gap-4 mb-6 flex-wrap max-md:gap-2 max-md:mb-4">
-          <div className="flex items-center gap-2 text-sm text-white/70 max-md:text-xs">
-            <IconTrophy size={16} className="text-accent-primary max-md:w-4 max-md:h-4"/>
-            <span>{match.series_type}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-white/70 max-md:text-xs">
-            <IconClock size={16} className="max-md:w-4 max-md:h-4"/>
-            <span>{formatDate(match.start_time)}</span>
-          </div>
+      <div className="relative rounded-[30px] overflow-hidden">
+        <div className="absolute inset-0 z-0">
+          <Image
+            src={mapImage}
+            alt={firstMap?.mapname || 'Map'}
+            fill
+            className="object-cover opacity-40"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#2b161b]/80 to-[#1a0f12]/80" />
         </div>
 
-        <div className="flex items-center justify-between gap-8 mb-8 max-md:gap-3 max-md:mb-4">
-          <div className={`flex-1 text-right ${isTeam1Winner ? 'text-white' : 'text-white/60'}`}>
-            <div className="text-2xl font-bold truncate max-md:text-lg">{match.team1_name}</div>
+        <div className="relative z-10 p-6 max-md:p-4">
+          <div className="flex items-center gap-4 mb-6 flex-wrap max-md:gap-2 max-md:mb-4">
+            <div className="flex items-center gap-2 text-sm text-white/70 max-md:text-xs">
+              <IconTrophy size={16} className="text-accent-primary max-md:w-4 max-md:h-4"/>
+              <span>{match.series_type}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-white/70 max-md:text-xs">
+              <IconClock size={16} className="max-md:w-4 max-md:h-4"/>
+              <span>{formatDate(match.start_time)}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-6 px-8 py-4 bg-white/5 rounded-2xl max-md:gap-3 max-md:px-4 max-md:py-2">
-              <span className={`text-4xl font-bold ${isTeam1Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-2xl`}>
-                {match.team1_score}
-              </span>
-            <span className="text-white/50 text-2xl max-md:text-lg">-</span>
-            <span className={`text-4xl font-bold ${isTeam2Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-2xl`}>
-                {match.team2_score}
-              </span>
-          </div>
-          <div className={`flex-1 text-left ${isTeam2Winner ? 'text-white' : 'text-white/60'}`}>
-            <div className="text-2xl font-bold truncate max-md:text-lg">{match.team2_name}</div>
-          </div>
-        </div>
 
-        {isTeam1Winner && (
-          <div className="text-center text-accent-primary font-semibold mb-4 max-md:text-sm max-md:mb-2">
-            🏆 {match.team1_name} Chiến Thắng
+          <div className="flex items-center justify-between gap-8 mb-8 max-md:gap-3 max-md:mb-4">
+            <div className={`flex-1 text-right ${isTeam1Winner ? 'text-white' : 'text-white/60'}`}>
+              <div className="text-2xl font-bold truncate max-md:text-lg">{match.team1_name}</div>
+            </div>
+            <div className="flex items-center gap-6 px-8 py-4 bg-white/5 rounded-2xl max-md:gap-3 max-md:px-4 max-md:py-2">
+                <span className={`text-4xl font-bold ${isTeam1Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-2xl`}>
+                  {match.team1_score}
+                </span>
+              <span className="text-white/50 text-2xl max-md:text-lg">-</span>
+              <span className={`text-4xl font-bold ${isTeam2Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-2xl`}>
+                  {match.team2_score}
+                </span>
+            </div>
+            <div className={`flex-1 text-left ${isTeam2Winner ? 'text-white' : 'text-white/60'}`}>
+              <div className="text-2xl font-bold truncate max-md:text-lg">{match.team2_name}</div>
+            </div>
           </div>
-        )}
-        {isTeam2Winner && (
-          <div className="text-center text-accent-primary font-semibold mb-4 max-md:text-sm max-md:mb-2">
-            🏆 {match.team2_name} Chiến Thắng
-          </div>
-        )}
+
+          {isTeam1Winner && (
+            <div className="text-center text-accent-primary font-semibold mb-4 max-md:text-sm max-md:mb-2">
+              🏆 {match.team1_name} Chiến Thắng
+            </div>
+          )}
+          {isTeam2Winner && (
+            <div className="text-center text-accent-primary font-semibold mb-4 max-md:text-sm max-md:mb-2">
+              🏆 {match.team2_name} Chiến Thắng
+            </div>
+          )}
+        </div>
       </div>
 
       {maps.map((map) => {

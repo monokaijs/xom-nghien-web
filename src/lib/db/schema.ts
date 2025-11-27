@@ -76,6 +76,11 @@ export const userInfo = mysqlTable('user_info', {
   avatarmedium: varchar('avatarmedium', { length: 512 }),
   avatarfull: varchar('avatarfull', { length: 512 }),
   profileurl: varchar('profileurl', { length: 512 }),
+  facebook: varchar('facebook', { length: 512 }),
+  spotify: varchar('spotify', { length: 512 }),
+  twitter: varchar('twitter', { length: 512 }),
+  instagram: varchar('instagram', { length: 512 }),
+  github: varchar('github', { length: 512 }),
   last_updated: timestamp('last_updated').defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
   idxLastUpdated: index('idx_last_updated').on(table.last_updated),

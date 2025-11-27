@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createCipheriv, randomBytes } from 'crypto';
 import { decode } from 'next-auth/jwt';
+import {INVENTORY_SERVICE_URL, THIRD_PARTY_SECRET} from "@/config/app";
 
-const THIRD_PARTY_SECRET = process.env.THIRD_PARTY_SECRET;
-const INVENTORY_SERVICE_URL = process.env.INVENTORY_SERVICE_URL || 'https://inventory.xomnghien.com';
 
 function generateThirdPartyToken(userId: string, expiresInMinutes: number = 5): string {
   if (!THIRD_PARTY_SECRET) {

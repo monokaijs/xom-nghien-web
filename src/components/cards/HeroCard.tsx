@@ -34,11 +34,11 @@ export default function HeroCard({ title, description, imageUrl }: HeroCardProps
               Tham gia ngay
             </button>
           </a>
-          <div className="flex">
-            <div className="w-[30px] h-[30px] bg-[#ccc] rounded-full border-2 border-[#e54d42] -mr-2.5"></div>
-            <div className="w-[30px] h-[30px] bg-[#ccc] rounded-full border-2 border-[#e54d42] -mr-2.5"></div>
-            <div className="w-[30px] h-[30px] bg-[#ccc] rounded-full border-2 border-[#e54d42] -mr-2.5"></div>
-          </div>
+          {/*<div className="flex">*/}
+          {/*  <div className="w-[30px] h-[30px] bg-[#ccc] rounded-full border-2 border-[#e54d42] -mr-2.5"></div>*/}
+          {/*  <div className="w-[30px] h-[30px] bg-[#ccc] rounded-full border-2 border-[#e54d42] -mr-2.5"></div>*/}
+          {/*  <div className="w-[30px] h-[30px] bg-[#ccc] rounded-full border-2 border-[#e54d42] -mr-2.5"></div>*/}
+          {/*</div>*/}
         </div>
       </div>
       <div

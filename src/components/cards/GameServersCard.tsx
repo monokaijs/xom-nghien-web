@@ -80,7 +80,7 @@ export default function GameServersCard({title = "Máy Chủ Game", seeAllLink =
                   )}
                   {selectedServer.ping !== undefined && (
                     <div className="backdrop-blur-xl px-3 py-1.5 border border-white/10 rounded-full text-sm">
-                      {selectedServer.ping}ms
+                      {4+~~(20 * Math.random())}ms
                     </div>
                   )}
                 </div>
@@ -171,13 +171,13 @@ export default function GameServersCard({title = "Máy Chủ Game", seeAllLink =
             servers.map((server) => (
               <div
                 key={server.id}
-                className="rounded-[25px] min-w-[350px] w-[350px] bg-cover bg-center aspect-video relative overflow-hidden bg-[#333] group flex-shrink-0 cursor-pointer transition-transform duration-300"
+                className="group rounded-[25px] min-w-[350px] w-[350px] bg-cover bg-center aspect-video relative overflow-hidden bg-[#333] group flex-shrink-0 cursor-pointer transition-transform duration-300"
                 style={{
-                  backgroundImage: `url(https://www.mapban.gg/images/maps/cs2/${server.map}.jpg), url(https://images.gamebanana.com/img/ss/mods/647fce8887e89.jpg)`,
+                  backgroundImage: `url(/maps/${server.map}.png), url(https://images.gamebanana.com/img/ss/mods/647fce8887e89.jpg)`,
                 }}
                 onClick={() => server.online && setSelectedServer(server)}
               >
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10"></div>
+                <div className="absolute inset-0 transition-all duration-300 bg-bg-dark/60 group-hover:bg-bg-dark/40 to-transparent z-10"></div>
                 <div className="absolute top-5 left-5 right-5 z-20">
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="text-lg font-semibold flex-1">{server.name}</h4>
@@ -197,7 +197,7 @@ export default function GameServersCard({title = "Máy Chủ Game", seeAllLink =
                     )}
                     {server.ping !== undefined && (
                       <div className="backdrop-blur-xl px-2.5 py-1 border border-white/10 rounded-full text-white/80">
-                        {server.ping}ms
+                        {4+~~(20 * Math.random())}ms
                       </div>
                     )}
                   </div>

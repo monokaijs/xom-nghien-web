@@ -102,7 +102,7 @@ export default function LeaderboardPage() {
   };
 
   return (
-    <div className="max-md:p-5 flex flex-col gap-6 h-full overflow-y-auto">
+    <div className="flex flex-col gap-6">
       <h1 className="text-3xl font-bold">Bảng Xếp Hạng</h1>
 
       <div className="bg-gradient-to-br from-[#2b161b] to-[#1a0f12] rounded-[30px] p-6">

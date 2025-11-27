@@ -154,21 +154,44 @@ export default function MatchCard({ match, variant = 'default' }: MatchCardProps
           <IconChevronRight size={20} className="text-white/50 max-md:hidden" />
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-8 max-md:gap-3 max-md:mt-3">
-          <div className={`flex-1 min-w-0 text-right ${isTeam1Winner ? 'text-white font-bold' : 'text-white/60'} max-md:text-sm`}>
-            <div className="text-lg truncate max-md:text-base">{match.team1_name}</div>
+        {/* Desktop Layout */}
+        <div className="mt-4 hidden md:flex items-center justify-between gap-8">
+          <div className={`flex-1 min-w-0 text-right ${isTeam1Winner ? 'text-white font-bold' : 'text-white/60'}`}>
+            <div className="text-lg truncate">{match.team1_name}</div>
           </div>
-          <div className="flex items-center gap-4 px-6 py-2 bg-white/10 backdrop-blur-sm rounded-xl max-md:gap-2 max-md:px-4 max-md:py-1.5">
-            <span className={`text-2xl font-bold ${isTeam1Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-xl`}>
+          <div className="flex items-center gap-4 px-6 py-2 bg-white/10 backdrop-blur-sm rounded-xl">
+            <span className={`text-2xl font-bold ${isTeam1Winner ? 'text-accent-primary' : 'text-white/60'}`}>
               {match.team1_score}
             </span>
-            <span className="text-white/50 max-md:text-sm">-</span>
-            <span className={`text-2xl font-bold ${isTeam2Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-xl`}>
+            <span className="text-white/50">-</span>
+            <span className={`text-2xl font-bold ${isTeam2Winner ? 'text-accent-primary' : 'text-white/60'}`}>
               {match.team2_score}
             </span>
           </div>
-          <div className={`flex-1 min-w-0 text-left ${isTeam2Winner ? 'text-white font-bold' : 'text-white/60'} max-md:text-sm`}>
-            <div className="text-lg truncate max-md:text-base">{match.team2_name}</div>
+          <div className={`flex-1 min-w-0 text-left ${isTeam2Winner ? 'text-white font-bold' : 'text-white/60'}`}>
+            <div className="text-lg truncate">{match.team2_name}</div>
+          </div>
+        </div>
+
+        {/* Mobile Layout */}
+        <div className="mt-3 flex flex-col gap-2 md:hidden">
+          <div className={`flex items-center justify-between ${isTeam1Winner ? 'text-white font-bold' : 'text-white/60'}`}>
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="text-base truncate">{match.team1_name}</span>
+              {isTeam1Winner && <IconTrophy size={14} className="text-accent-primary shrink-0" />}
+            </div>
+            <span className={`text-xl font-bold ${isTeam1Winner ? 'text-accent-primary' : 'text-white/60'}`}>
+              {match.team1_score}
+            </span>
+          </div>
+          <div className={`flex items-center justify-between ${isTeam2Winner ? 'text-white font-bold' : 'text-white/60'}`}>
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="text-base truncate">{match.team2_name}</span>
+              {isTeam2Winner && <IconTrophy size={14} className="text-accent-primary shrink-0" />}
+            </div>
+            <span className={`text-xl font-bold ${isTeam2Winner ? 'text-accent-primary' : 'text-white/60'}`}>
+              {match.team2_score}
+            </span>
           </div>
         </div>
       </div>

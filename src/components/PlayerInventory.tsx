@@ -4,10 +4,17 @@ import React, { useEffect, useState } from 'react';
 import { CS2Economy, CS2_ITEMS } from "@ianlucas/cs2-lib";
 import { english } from "@ianlucas/cs2-lib/translations";
 
-CS2Economy.use({
-  items: CS2_ITEMS,
-  language: english
-});
+let cs2EconomyInitialized = false;
+
+function initializeCS2Economy() {
+  if (typeof window !== 'undefined' && !cs2EconomyInitialized) {
+    CS2Economy.use({
+      items: CS2_ITEMS,
+      language: english
+    });
+    cs2EconomyInitialized = true;
+  }
+}
 
 interface InventoryItem {
   id: number;
@@ -35,6 +42,8 @@ export default function PlayerInventory({ steamId }: PlayerInventoryProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    initializeCS2Economy();
+
     const fetchInventory = async () => {
       try {
         setLoading(true);
@@ -151,4 +160,6 @@ function getRarityColor(rarity: string | undefined): string {
 
   return rarityColors[rarity.toLowerCase()] || '#b0c3d9';
 }
+
+
 

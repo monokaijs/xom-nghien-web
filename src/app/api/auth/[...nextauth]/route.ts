@@ -24,20 +24,20 @@ export async function GET(req: NextRequest, context: any) {
           await db
             .insert(userInfo)
             .values({
-              steamid64: profile.steamid,
-              name: profile.personaname,
-              avatar: profile.avatar,
-              avatarmedium: profile.avatarmedium,
-              avatarfull: profile.avatarfull,
-              profileurl: profile.profileurl,
+              steamid64: profile.steamid as string,
+              name: profile.personaname as string,
+              avatar: profile.avatar as string,
+              avatarmedium: profile.avatarmedium as string,
+              avatarfull: profile.avatarfull as string,
+              profileurl: profile.profileurl as string,
             })
             .onDuplicateKeyUpdate({
               set: {
-                name: profile.personaname,
-                avatar: profile.avatar,
-                avatarmedium: profile.avatarmedium,
-                avatarfull: profile.avatarfull,
-                profileurl: profile.profileurl,
+                name: profile.personaname as string,
+                avatar: profile.avatar as string,
+                avatarmedium: profile.avatarmedium as string,
+                avatarfull: profile.avatarfull as string,
+                profileurl: profile.profileurl as string,
               },
             });
         }
@@ -82,20 +82,20 @@ export async function POST(req: NextRequest, context: any) {
           await db
             .insert(userInfo)
             .values({
-              steamid64: profile.steamid,
-              name: profile.personaname,
-              avatar: profile.avatar,
-              avatarmedium: profile.avatarmedium,
-              avatarfull: profile.avatarfull,
-              profileurl: profile.profileurl,
+              steamid64: profile.steamid as string,
+              name: profile.personaname as string,
+              avatar: profile.avatar as string,
+              avatarmedium: profile.avatarmedium as string,
+              avatarfull: profile.avatarfull as string,
+              profileurl: profile.profileurl as string,
             })
             .onDuplicateKeyUpdate({
               set: {
-                name: profile.personaname,
-                avatar: profile.avatar,
-                avatarmedium: profile.avatarmedium,
-                avatarfull: profile.avatarfull,
-                profileurl: profile.profileurl,
+                name: profile.personaname as string,
+                avatar: profile.avatar as string,
+                avatarmedium: profile.avatarmedium as string,
+                avatarfull: profile.avatarfull as string,
+                profileurl: profile.profileurl as string,
               },
             });
         }

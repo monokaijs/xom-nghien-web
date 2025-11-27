@@ -1,12 +1,15 @@
 import NextAuth from "next-auth";
 import { NextRequest } from "next/server";
-import { getSteamProvider } from "@/lib/steam-provider";
+import Steam from "next-auth-steam";
 
 export async function GET(req: NextRequest, context: any) {
   const handler = NextAuth({
     secret: process.env.NEXTAUTH_SECRET,
     providers: [
-      getSteamProvider(req),
+      Steam(req, {
+        clientSecret: process.env.STEAM_API_KEY!,
+        callbackUrl: process.env.NEXTAUTH_URL + '/api/auth/callback',
+      }),
     ],
     callbacks: {
       async jwt({token, account, profile}) {
@@ -41,7 +44,10 @@ export async function POST(req: NextRequest, context: any) {
   const handler = NextAuth({
     secret: process.env.NEXTAUTH_SECRET,
     providers: [
-      getSteamProvider(req),
+      Steam(req, {
+        clientSecret: process.env.STEAM_API_KEY!,
+        callbackUrl: process.env.NEXTAUTH_URL + '/api/auth/callback',
+      }),
     ],
     callbacks: {
       async jwt({token, account, profile}) {

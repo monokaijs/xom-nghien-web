@@ -13,6 +13,7 @@ import {
   IconTrophy,
   IconX,
   IconSwords,
+  IconSettings,
 } from '@tabler/icons-react';
 import IconSolid from "@/components/IconSolid";
 import { usePathname } from 'next/navigation';
@@ -160,12 +161,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span>Bảng Xếp Hạng</span>
               </Link>
               {session?.user && (
-                <Link href="/inventory"
-                  className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/inventory' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
-                    }`}>
-                  <IconPackage size={24} />
-                  <span>Kho Đồ</span>
-                </Link>
+                <>
+                  <Link href="/inventory"
+                    className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/inventory' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
+                      }`}>
+                    <IconPackage size={24} />
+                    <span>Kho Đồ</span>
+                  </Link>
+                  <Link href="/settings"
+                    className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/settings' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
+                      }`}>
+                    <IconSettings size={24} />
+                    <span>Cài Đặt</span>
+                  </Link>
+                </>
               )}
             </nav>
 
@@ -238,19 +247,31 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </Link>
             )}
           </nav>
-          {session?.user && session.user.steamId && (
-            <Link href={`/player/${session.user.steamId}`} className="mt-5">
-              <div className="w-12 h-12 rounded-full overflow-hidden bg-[#555] border-2 border-white/10 hover:border-accent-primary transition-colors cursor-pointer">
-                <img
-                  src={session.user.avatar || session.user.image || 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg'}
-                  alt={session.user.name || 'User'}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg';
-                  }}
-                />
-              </div>
-            </Link>
+          {session?.user && (
+            <>
+              <Link
+                href="/settings"
+                className={`transition-colors duration-300 flex items-center justify-center mb-4 ${pathname === '/settings' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
+                  }`}
+                title="Cài Đặt"
+              >
+                <IconSettings size={20} />
+              </Link>
+              {session.user.steamId && (
+                <Link href={`/player/${session.user.steamId}`} className="mt-3">
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-[#555] border-2 border-white/10 hover:border-accent-primary transition-colors cursor-pointer">
+                    <img
+                      src={session.user.avatar || session.user.image || 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg'}
+                      alt={session.user.name || 'User'}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg';
+                      }}
+                    />
+                  </div>
+                </Link>
+              )}
+            </>
           )}
         </aside>
         <main ref={mainRef} className="flex-1 p-7.5 overflow-y-auto flex flex-col scrollbar-hide max-md:p-5 max-md:overflow-visible relative">

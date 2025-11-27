@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { IconArrowLeft, IconFlame, IconShield, IconSword, IconTarget, IconTrophy, IconBrandSteam } from '@tabler/icons-react';
+import { IconArrowLeft, IconFlame, IconShield, IconSword, IconTarget, IconTrophy, IconBrandSteam, IconBrandFacebook, IconBrandSpotify, IconBrandTwitter, IconBrandInstagram, IconBrandGithub } from '@tabler/icons-react';
 import PlayerInventory from '@/components/PlayerInventory';
 
 type TabType = 'statistics' | 'matchHistory';
@@ -62,6 +62,11 @@ interface UserProfile {
   avatarmedium: string | null;
   avatarfull: string | null;
   profileurl: string | null;
+  facebook: string | null;
+  spotify: string | null;
+  twitter: string | null;
+  instagram: string | null;
+  github: string | null;
 }
 
 interface PlayerData {
@@ -150,14 +155,72 @@ export default function PlayerProfilePage() {
               <span>{stats.matches_played} Trận Đã Chơi</span>
             </div>
             <div className="flex-1"></div>
-            <a
-              href={profile?.profileurl || `https://steamcommunity.com/profiles/${steamId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-accent-primary transition-colors w-fit"
-            >
-              <IconBrandSteam size={24} />
-            </a>
+            <div className="flex items-center gap-3 flex-wrap">
+              <a
+                href={profile?.profileurl || `https://steamcommunity.com/profiles/${steamId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white/70 hover:text-accent-primary transition-colors"
+                title="Steam Profile"
+              >
+                <IconBrandSteam size={24} />
+              </a>
+              {profile?.facebook && (
+                <a
+                  href={profile.facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/70 hover:text-[#1877F2] transition-colors"
+                  title="Facebook"
+                >
+                  <IconBrandFacebook size={24} />
+                </a>
+              )}
+              {profile?.spotify && (
+                <a
+                  href={profile.spotify}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/70 hover:text-[#1DB954] transition-colors"
+                  title="Spotify"
+                >
+                  <IconBrandSpotify size={24} />
+                </a>
+              )}
+              {profile?.twitter && (
+                <a
+                  href={profile.twitter}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/70 hover:text-[#1DA1F2] transition-colors"
+                  title="Twitter / X"
+                >
+                  <IconBrandTwitter size={24} />
+                </a>
+              )}
+              {profile?.instagram && (
+                <a
+                  href={profile.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/70 hover:text-[#E4405F] transition-colors"
+                  title="Instagram"
+                >
+                  <IconBrandInstagram size={24} />
+                </a>
+              )}
+              {profile?.github && (
+                <a
+                  href={profile.github}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/70 hover:text-white transition-colors"
+                  title="GitHub"
+                >
+                  <IconBrandGithub size={24} />
+                </a>
+              )}
+            </div>
           </div>
         </div>
       </div>

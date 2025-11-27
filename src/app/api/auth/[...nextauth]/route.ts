@@ -1,6 +1,8 @@
 import NextAuth from "next-auth";
 import { NextRequest } from "next/server";
 import Steam from "next-auth-steam";
+import { db } from "@/lib/database";
+import { userInfo } from "@/lib/db/schema";
 
 export async function GET(req: NextRequest, context: any) {
   const handler = NextAuth({
@@ -18,6 +20,26 @@ export async function GET(req: NextRequest, context: any) {
           token.avatar = profile.avatarfull || profile.avatar;
           token.personaname = profile.personaname;
           token.profileurl = profile.profileurl;
+
+          await db
+            .insert(userInfo)
+            .values({
+              steamid64: profile.steamid,
+              name: profile.personaname,
+              avatar: profile.avatar,
+              avatarmedium: profile.avatarmedium,
+              avatarfull: profile.avatarfull,
+              profileurl: profile.profileurl,
+            })
+            .onDuplicateKeyUpdate({
+              set: {
+                name: profile.personaname,
+                avatar: profile.avatar,
+                avatarmedium: profile.avatarmedium,
+                avatarfull: profile.avatarfull,
+                profileurl: profile.profileurl,
+              },
+            });
         }
         return token;
       },
@@ -56,6 +78,26 @@ export async function POST(req: NextRequest, context: any) {
           token.avatar = profile.avatarfull || profile.avatar;
           token.personaname = profile.personaname;
           token.profileurl = profile.profileurl;
+
+          await db
+            .insert(userInfo)
+            .values({
+              steamid64: profile.steamid,
+              name: profile.personaname,
+              avatar: profile.avatar,
+              avatarmedium: profile.avatarmedium,
+              avatarfull: profile.avatarfull,
+              profileurl: profile.profileurl,
+            })
+            .onDuplicateKeyUpdate({
+              set: {
+                name: profile.personaname,
+                avatar: profile.avatar,
+                avatarmedium: profile.avatarmedium,
+                avatarfull: profile.avatarfull,
+                profileurl: profile.profileurl,
+              },
+            });
         }
         return token;
       },

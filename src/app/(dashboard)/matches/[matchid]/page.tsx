@@ -6,7 +6,6 @@ import {db} from '@/lib/database';
 import {matchzyStatsMatches, matchzyStatsMaps, matchzyStatsPlayers} from '@/lib/db/schema';
 import {sql} from 'drizzle-orm';
 import Link from 'next/link';
-import MatchDetailClient from './MatchDetailClient';
 
 interface Match {
   matchid: number;

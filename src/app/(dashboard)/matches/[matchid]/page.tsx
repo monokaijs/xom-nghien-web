@@ -1,9 +1,12 @@
-"use client";
-
-import React, {useEffect, useState} from 'react';
-import {useParams, useRouter} from 'next/navigation';
+import React from 'react';
+import {notFound} from 'next/navigation';
 import {IconArrowLeft, IconClock, IconMap, IconTrophy} from '@tabler/icons-react';
 import Image from 'next/image';
+import {db} from '@/lib/database';
+import {matchzyStatsMatches, matchzyStatsMaps, matchzyStatsPlayers} from '@/lib/db/schema';
+import {sql} from 'drizzle-orm';
+import Link from 'next/link';
+import MatchDetailClient from './MatchDetailClient';
 
 interface Match {
   matchid: number;
@@ -49,56 +52,64 @@ interface MatchDetailResponse {
   players: Player[];
 }
 
-export default function MatchDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const matchid = params.matchid as string;
-  const [data, setData] = useState<MatchDetailResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+async function getMatchData(matchid: string): Promise<MatchDetailResponse | null> {
+  try {
+    const matchId = parseInt(matchid);
 
-  useEffect(() => {
-    const fetchMatchDetail = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/matches/${matchid}`);
-        if (!response.ok) {
-          throw new Error('Match not found');
-        }
-        const matchData = await response.json();
-        setData(matchData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load match data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (matchid) {
-      fetchMatchDetail();
+    if (isNaN(matchId)) {
+      return null;
     }
-  }, [matchid]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-white/50">Đang tải chi tiết trận đấu...</div>
-      </div>
-    );
+    const matchQuery = sql`
+      SELECT * FROM ${matchzyStatsMatches}
+      WHERE matchid = ${matchId}
+    `;
+
+    const matchResult = await db.execute(matchQuery);
+    const match = (matchResult[0] as unknown as any[])[0];
+
+    if (!match) {
+      return null;
+    }
+
+    const mapsQuery = sql`
+      SELECT * FROM ${matchzyStatsMaps}
+      WHERE matchid = ${matchId}
+      ORDER BY mapnumber ASC
+    `;
+
+    const playersQuery = sql`
+      SELECT
+        p.*,
+        m.mapname
+      FROM ${matchzyStatsPlayers} p
+      JOIN ${matchzyStatsMaps} m ON p.matchid = m.matchid AND p.mapnumber = m.mapnumber
+      WHERE p.matchid = ${matchId}
+      ORDER BY p.mapnumber, p.kills DESC
+    `;
+
+    const [mapsResult, playersResult] = await Promise.all([
+      db.execute(mapsQuery),
+      db.execute(playersQuery),
+    ]);
+
+    return {
+      match,
+      maps: mapsResult[0] as any,
+      players: playersResult[0] as any,
+    };
+  } catch (error) {
+    console.error('Error fetching match details:', error);
+    return null;
   }
+}
 
-  if (error || !data) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-4">
-        <div className="text-white/50">{error || 'Không tìm thấy trận đấu'}</div>
-        <button
-          onClick={() => router.push('/matches')}
-          className="px-4 py-2 bg-accent-primary rounded-lg hover:bg-[#ff6b76] transition-colors"
-        >
-          Về Danh Sách Trận Đấu
-        </button>
-      </div>
-    );
+export default async function MatchDetailPage({params}: {params: Promise<{matchid: string}>}) {
+  const {matchid} = await params;
+  const data = await getMatchData(matchid);
+
+  if (!data) {
+    notFound();
   }
 
   const {match, maps, players} = data;
@@ -143,13 +154,13 @@ export default function MatchDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <button
-        onClick={() => router.back()}
+      <Link
+        href="/matches"
         className="flex items-center gap-2 text-white/70 hover:text-white transition-colors w-fit"
       >
         <IconArrowLeft size={20}/>
         <span>Quay Lại</span>
-      </button>
+      </Link>
 
       <div className="relative rounded-[30px] overflow-hidden">
         <div className="absolute inset-0 z-0">
@@ -253,10 +264,10 @@ export default function MatchDetailPage() {
                       : (player.kills + player.assists).toFixed(2);
 
                     return (
-                      <div
+                      <Link
                         key={player.steamid64}
-                        onClick={() => router.push(`/player/${player.steamid64}`)}
-                        className="bg-white/5 rounded-xl p-3 hover:bg-white/10 transition-colors cursor-pointer max-md:p-2.5"
+                        href={`/player/${player.steamid64}`}
+                        className="bg-white/5 rounded-xl p-3 hover:bg-white/10 transition-colors cursor-pointer max-md:p-2.5 block"
                       >
                         <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 items-center max-md:grid-cols-1 max-md:gap-1">
                           <div className="flex items-center gap-2 min-w-0">
@@ -282,7 +293,7 @@ export default function MatchDetailPage() {
                             <span>HS%: {player.kills > 0 ? ((player.head_shot_kills / player.kills) * 100).toFixed(1) : 0}%</span>
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>
@@ -311,10 +322,10 @@ export default function MatchDetailPage() {
                       : (player.kills + player.assists).toFixed(2);
 
                     return (
-                      <div
+                      <Link
                         key={player.steamid64}
-                        onClick={() => router.push(`/player/${player.steamid64}`)}
-                        className="bg-white/5 rounded-xl p-3 hover:bg-white/10 transition-colors cursor-pointer max-md:p-2.5"
+                        href={`/player/${player.steamid64}`}
+                        className="bg-white/5 rounded-xl p-3 hover:bg-white/10 transition-colors cursor-pointer max-md:p-2.5 block"
                       >
                         <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 items-center max-md:grid-cols-1 max-md:gap-1">
                           <div className="flex items-center gap-2 min-w-0">
@@ -340,7 +351,7 @@ export default function MatchDetailPage() {
                             <span>HS%: {player.kills > 0 ? ((player.head_shot_kills / player.kills) * 100).toFixed(1) : 0}%</span>
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>

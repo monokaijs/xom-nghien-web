@@ -22,12 +22,11 @@ interface InventoryData {
 
 interface PlayerInventoryProps {
   steamId: string;
+  inventoryData: InventoryData | null;
 }
 
-export default function PlayerInventory({steamId}: PlayerInventoryProps) {
-  const [inventory, setInventory] = useState<InventoryData | null>(null);
+export default function PlayerInventory({steamId, inventoryData}: PlayerInventoryProps) {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [hoveredItem, setHoveredItem] = useState<any>(null);
 
   const initializeEconomy = async () => {
@@ -50,30 +49,12 @@ export default function PlayerInventory({steamId}: PlayerInventoryProps) {
     });
   };
 
-  const fetchInventory = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/player/${steamId}/inventory`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch inventory');
-      }
-
-      const data = await response.json();
-      setInventory(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load inventory');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
     (async () => {
       await initializeEconomy();
-      await fetchInventory();
+      setLoading(false);
     })();
-  }, [steamId]);
+  }, []);
 
   if (loading) {
     return (
@@ -86,11 +67,11 @@ export default function PlayerInventory({steamId}: PlayerInventoryProps) {
     );
   }
 
-  if (error || !inventory) {
+  if (!inventoryData) {
     return null;
   }
 
-  const showcaseItems = Object.entries(inventory.items || {})
+  const showcaseItems = Object.entries(inventoryData.items || {})
     .filter(([_, item]) => !item.containerId)
     .slice(0, 12)
     .map(([key, item]) => ({key, ...item}));

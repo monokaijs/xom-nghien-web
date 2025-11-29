@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import Steam from "next-auth-steam";
 import { db } from "@/lib/database";
 import { userInfo } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function GET(req: NextRequest, context: any) {
   const handler = NextAuth({
@@ -41,6 +42,20 @@ export async function GET(req: NextRequest, context: any) {
               },
             });
         }
+
+        if (token.steamId) {
+          const userResult = await db
+            .select()
+            .from(userInfo)
+            .where(eq(userInfo.steamid64, token.steamId as string))
+            .limit(1);
+
+          if (userResult.length > 0) {
+            token.role = userResult[0].role || 'user';
+            token.banned = userResult[0].banned === 1;
+          }
+        }
+
         return token;
       },
       async session({session, token}) {
@@ -49,6 +64,8 @@ export async function GET(req: NextRequest, context: any) {
           session.user.avatar = token.avatar as string;
           session.user.name = token.personaname as string;
           session.user.profileUrl = token.profileurl as string;
+          session.user.role = token.role as string;
+          session.user.banned = token.banned as boolean;
         }
         return session;
       },
@@ -99,6 +116,20 @@ export async function POST(req: NextRequest, context: any) {
               },
             });
         }
+
+        if (token.steamId) {
+          const userResult = await db
+            .select()
+            .from(userInfo)
+            .where(eq(userInfo.steamid64, token.steamId as string))
+            .limit(1);
+
+          if (userResult.length > 0) {
+            token.role = userResult[0].role || 'user';
+            token.banned = userResult[0].banned === 1;
+          }
+        }
+
         return token;
       },
       async session({session, token}) {
@@ -107,6 +138,8 @@ export async function POST(req: NextRequest, context: any) {
           session.user.avatar = token.avatar as string;
           session.user.name = token.personaname as string;
           session.user.profileUrl = token.profileurl as string;
+          session.user.role = token.role as string;
+          session.user.banned = token.banned as boolean;
         }
         return session;
       },

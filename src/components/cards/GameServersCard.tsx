@@ -8,31 +8,12 @@ import {connectToServer} from '@/lib/connectToServer';
 interface GameServersCardProps {
   title?: string;
   seeAllLink?: string;
+  initialServers?: ServerStatus[];
 }
 
-export default function GameServersCard({title = "Máy Chủ Game", seeAllLink = "#"}: GameServersCardProps) {
-  const [servers, setServers] = useState<ServerStatus[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function GameServersCard({title = "Máy Chủ Game", seeAllLink = "#", initialServers = []}: GameServersCardProps) {
+  const [servers, setServers] = useState<ServerStatus[]>(initialServers);
   const [selectedServer, setSelectedServer] = useState<ServerStatus | null>(null);
-
-  useEffect(() => {
-    const fetchServers = async () => {
-      try {
-        const response = await fetch('https://servers.xomnghien.com');
-        const data = await response.json();
-        setServers(data.servers || []);
-      } catch (error) {
-        console.error('Failed to fetch servers:', error);
-        setServers([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchServers();
-    const interval = setInterval(fetchServers, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   const getStatusColor = (online: boolean) => {
     if (!online) return 'border-red-500/30 bg-red-500/20 text-red-300';
@@ -80,7 +61,7 @@ export default function GameServersCard({title = "Máy Chủ Game", seeAllLink =
                   )}
                   {selectedServer.ping !== undefined && (
                     <div className="backdrop-blur-xl px-3 py-1.5 border border-white/10 rounded-full text-sm">
-                      {4+~~(20 * Math.random())}ms
+                      5ms
                     </div>
                   )}
                 </div>
@@ -158,16 +139,7 @@ export default function GameServersCard({title = "Máy Chủ Game", seeAllLink =
             }
           }}
         >
-          {loading ? (
-            Array.from({length: 3}).map((_, i) => (
-              <div
-                key={`skeleton-${i}`}
-                className="rounded-[25px] min-w-[350px] w-[350px] aspect-video relative overflow-hidden bg-[#333] flex-shrink-0 animate-pulse"
-              >
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10"></div>
-              </div>
-            ))
-          ) : servers.length > 0 ? (
+          {servers.length > 0 ? (
             servers.map((server) => (
               <div
                 key={server.id}
@@ -197,7 +169,7 @@ export default function GameServersCard({title = "Máy Chủ Game", seeAllLink =
                     )}
                     {server.ping !== undefined && (
                       <div className="backdrop-blur-xl px-2.5 py-1 border border-white/10 rounded-full text-white/80">
-                        {4+~~(20 * Math.random())}ms
+                        5ms
                       </div>
                     )}
                   </div>

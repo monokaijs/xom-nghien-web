@@ -81,9 +81,25 @@ export const userInfo = mysqlTable('user_info', {
   twitter: varchar('twitter', { length: 512 }),
   instagram: varchar('instagram', { length: 512 }),
   github: varchar('github', { length: 512 }),
+  role: varchar('role', { length: 20 }).notNull().default('user'),
+  banned: tinyint('banned').notNull().default(0),
   last_updated: timestamp('last_updated').defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
   idxLastUpdated: index('idx_last_updated').on(table.last_updated),
+}));
+
+export const servers = mysqlTable('servers', {
+  id: int('id').primaryKey().autoincrement(),
+  name: varchar('name', { length: 255 }).notNull(),
+  game: varchar('game', { length: 50 }).notNull(),
+  address: varchar('address', { length: 255 }).notNull(),
+  description: text('description'),
+  rcon_password: varchar('rcon_password', { length: 255 }),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  idxGame: index('idx_game').on(table.game),
+  uniqueAddress: unique('unique_address').on(table.address),
 }));
 
 export type MatchzyStatsMatch = typeof matchzyStatsMatches.$inferSelect;
@@ -91,4 +107,6 @@ export type MatchzyStatsMap = typeof matchzyStatsMaps.$inferSelect;
 export type MatchzyStatsPlayer = typeof matchzyStatsPlayers.$inferSelect;
 export type UserInfo = typeof userInfo.$inferSelect;
 export type NewUserInfo = typeof userInfo.$inferInsert;
+export type Server = typeof servers.$inferSelect;
+export type NewServer = typeof servers.$inferInsert;
 

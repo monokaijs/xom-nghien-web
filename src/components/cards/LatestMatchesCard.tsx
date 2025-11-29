@@ -27,34 +27,12 @@ interface Match {
   maps?: Map[];
 }
 
-interface LatestMatchesResponse {
-  matches: Match[];
-  total: number;
+interface LatestMatchesCardProps {
+  initialMatches?: Match[];
 }
 
-export default function LatestMatchesCard() {
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchMatches = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch('/api/matches?limit=5');
-        const data: LatestMatchesResponse = await response.json();
-        setMatches(data.matches || []);
-      } catch (error) {
-        console.error('Failed to fetch matches:', error);
-        setMatches([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMatches();
-    const interval = setInterval(fetchMatches, 60000);
-    return () => clearInterval(interval);
-  }, []);
+export default function LatestMatchesCard({ initialMatches = [] }: LatestMatchesCardProps) {
+  const [matches] = useState<Match[]>(initialMatches);
 
   return (
     <>
@@ -65,17 +43,7 @@ export default function LatestMatchesCard() {
         </a>
       </div>
       <div className="flex flex-col gap-[15px]">
-        {loading ? (
-          Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={`skeleton-${i}`}
-              className="bg-card-bg rounded-[25px] p-5 animate-pulse"
-            >
-              <div className="h-6 bg-white/10 rounded w-3/4 mb-3"></div>
-              <div className="h-4 bg-white/10 rounded w-1/2"></div>
-            </div>
-          ))
-        ) : matches.length > 0 ? (
+        {matches.length > 0 ? (
           matches.map((match) => (
             <MatchCard key={match.matchid} match={match} variant="default" />
           ))

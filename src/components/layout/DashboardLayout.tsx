@@ -14,6 +14,7 @@ import {
   IconX,
   IconSwords,
   IconSettings,
+  IconShield,
 } from '@tabler/icons-react';
 import IconSolid from "@/components/IconSolid";
 import { usePathname } from 'next/navigation';
@@ -249,6 +250,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </nav>
           {session?.user && (
             <>
+              {session.user.role === 'admin' && (
+                <Link
+                  href="/admin"
+                  className={`transition-colors duration-300 flex items-center justify-center mb-4 ${pathname?.startsWith('/admin') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
+                    }`}
+                  title="Quản Trị"
+                >
+                  <IconShield size={20} />
+                </Link>
+              )}
               <Link
                 href="/settings"
                 className={`transition-colors duration-300 flex items-center justify-center mb-4 ${pathname === '/settings' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'

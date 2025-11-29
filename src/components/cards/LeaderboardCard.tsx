@@ -7,35 +7,14 @@ import { LeaderboardPlayer, LeaderboardPlayerRaw, LeaderboardResponse, Leaderboa
 
 interface LeaderboardCardProps {
   title?: string;
+  initialData?: LeaderboardResponse;
 }
 
-export default function LeaderboardCard({ title = "Bảng Xếp Hạng" }: LeaderboardCardProps) {
+export default function LeaderboardCard({ title = "Bảng Xếp Hạng", initialData }: LeaderboardCardProps) {
   const router = useRouter();
   const [activeType, setActiveType] = useState<LeaderboardType>('kills');
   const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<LeaderboardResponse | null>(null);
-
-  useEffect(() => {
-    const fetchLeaderboard = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch('/api/leaderboard');
-        const apiData: LeaderboardResponse = await response.json();
-        setData(apiData);
-      } catch (error) {
-        console.error('Failed to fetch leaderboard:', error);
-        setData(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchLeaderboard();
-    // Refresh every 60 seconds
-    const interval = setInterval(fetchLeaderboard, 60000);
-    return () => clearInterval(interval);
-  }, []);
+  const [data] = useState<LeaderboardResponse | null>(initialData || null);
 
   useEffect(() => {
     if (!data) {
@@ -132,23 +111,7 @@ export default function LeaderboardCard({ title = "Bảng Xếp Hạng" }: Leade
 
         {/* Leaderboard List */}
         <div className="flex flex-col gap-3">
-          {loading ? (
-            // Loading skeleton
-            Array.from({ length: 5 }).map((_, i) => (
-              <div
-                key={`skeleton-${i}`}
-                className="flex items-center gap-3 p-3 rounded-xl bg-white/5 animate-pulse"
-              >
-                <div className="w-8 h-8 rounded-full bg-white/10"></div>
-                <div className="w-10 h-10 rounded-full bg-white/10"></div>
-                <div className="flex-1">
-                  <div className="h-4 bg-white/10 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-white/10 rounded w-1/2"></div>
-                </div>
-                <div className="h-6 w-12 bg-white/10 rounded"></div>
-              </div>
-            ))
-          ) : players.length > 0 ? (
+          {players.length > 0 ? (
             players.slice(0, 5).map((player, index) => (
               <div
                 key={player.steamId}

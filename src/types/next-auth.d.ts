@@ -6,6 +6,8 @@ declare module "next-auth" {
       steamId?: string;
       avatar?: string;
       profileUrl?: string;
+      role?: string;
+      banned?: boolean;
     } & DefaultSession["user"];
   }
 
@@ -25,5 +27,7 @@ declare module "next-auth/jwt" {
     avatar?: string;
     personaname?: string;
     profileurl?: string;
+    role?: string;
+    banned?: boolean;
   }
 }

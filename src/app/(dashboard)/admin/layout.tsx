@@ -1,9 +1,10 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import {usePathname} from 'next/navigation';
-import {IconDashboard, IconSettings, IconUsers, IconTrophy, IconServer, IconTerminal} from '@tabler/icons-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { IconDashboard, IconSettings, IconUsers, IconTrophy, IconServer, IconTerminal } from '@tabler/icons-react';
 
 export default function AdminLayout({
                                       children,
@@ -11,6 +12,33 @@ export default function AdminLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const [isAuthorized, setIsAuthorized] = useState(false);
+
+  useEffect(() => {
+    if (status === 'loading') return;
+
+    if (status === 'unauthenticated') {
+      router.push('/');
+      return;
+    }
+
+    if (session?.user?.role !== 'admin') {
+      router.push('/');
+      return;
+    }
+
+    setIsAuthorized(true);
+  }, [session, status, router]);
+
+  if (status === 'loading' || !isAuthorized) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-white/60">Đang tải...</div>
+      </div>
+    );
+  }
 
   const navItems = [
     {

@@ -192,7 +192,11 @@ export default function ManageUsersPage() {
                       <span className="font-medium">{user.name}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 font-mono text-sm text-white/70">{user.steamid64}</td>
+                  <td className="px-6 py-4 font-mono text-sm text-white/70 hover:underline">
+                    <a href={`https://steamcommunity.com/profiles/${user.steamid64}`} target="_blank" rel="noopener noreferrer">
+                      {user.steamid64}
+                    </a>
+                  </td>
                   <td className="px-6 py-4">
                     {canChangeRoles && editingRole === user.steamid64 ? (
                       <Select

@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
-import {IconDashboard, IconSettings, IconUsers, IconTrophy, IconServer} from '@tabler/icons-react';
+import {IconDashboard, IconSettings, IconUsers, IconTrophy, IconServer, IconTerminal} from '@tabler/icons-react';
 
 export default function AdminLayout({
                                       children,
@@ -33,6 +33,11 @@ export default function AdminLayout({
       label: 'Quản Lý Server',
       href: '/admin/servers',
       icon: <IconServer size={20}/>,
+    },
+    {
+      label: 'RCON Console',
+      href: '/admin/rcon',
+      icon: <IconTerminal size={20}/>,
     },
     {
       label: 'Cài Đặt Hệ Thống',

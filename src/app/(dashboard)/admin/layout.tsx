@@ -30,6 +30,11 @@ export default function AdminLayout({
       icon: <IconTrophy size={20}/>,
     },
     {
+      label: 'Giải Đấu CS2',
+      href: '/admin/tournaments',
+      icon: <IconTrophy size={20}/>,
+    },
+    {
       label: 'Quản Lý Server',
       href: '/admin/servers',
       icon: <IconServer size={20}/>,

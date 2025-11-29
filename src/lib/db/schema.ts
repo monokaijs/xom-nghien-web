@@ -1,4 +1,4 @@
-import { mysqlTable, int, varchar, float, tinyint, text, timestamp, index, unique, datetime, primaryKey } from 'drizzle-orm/mysql-core';
+import { mysqlTable, int, varchar, float, tinyint, text, timestamp, index, unique, datetime, primaryKey, json } from 'drizzle-orm/mysql-core';
 
 
 export const matchzyStatsMatches = mysqlTable('matchzy_stats_matches', {
@@ -102,6 +102,30 @@ export const servers = mysqlTable('servers', {
   uniqueAddress: unique('unique_address').on(table.address),
 }));
 
+export const tournaments = mysqlTable('cs2_tournaments', {
+  id: int('id').primaryKey().autoincrement(),
+  team1_name: varchar('team1_name', { length: 255 }).notNull(),
+  team2_name: varchar('team2_name', { length: 255 }).notNull(),
+  num_maps: tinyint('num_maps').notNull(),
+  maplist: json('maplist').$type<string[]>().notNull(),
+  clinch_series: tinyint('clinch_series').notNull().default(1),
+  players_per_team: tinyint('players_per_team').notNull().default(5),
+  cvars: json('cvars').$type<Record<string, string>>(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+export const tournamentPlayers = mysqlTable('cs2_tournament_players', {
+  id: int('id').primaryKey().autoincrement(),
+  tournament_id: int('tournament_id').notNull(),
+  team_number: tinyint('team_number').notNull(),
+  steamid64: varchar('steamid64', { length: 64 }).notNull(),
+  player_name: varchar('player_name', { length: 255 }).notNull(),
+}, (table) => ({
+  idxTournamentId: index('idx_tournament_id').on(table.tournament_id),
+  uniquePlayerPerTournament: unique('unique_player_per_tournament').on(table.tournament_id, table.steamid64),
+}));
+
 export type MatchzyStatsMatch = typeof matchzyStatsMatches.$inferSelect;
 export type MatchzyStatsMap = typeof matchzyStatsMaps.$inferSelect;
 export type MatchzyStatsPlayer = typeof matchzyStatsPlayers.$inferSelect;
@@ -109,4 +133,8 @@ export type UserInfo = typeof userInfo.$inferSelect;
 export type NewUserInfo = typeof userInfo.$inferInsert;
 export type Server = typeof servers.$inferSelect;
 export type NewServer = typeof servers.$inferInsert;
+export type Tournament = typeof tournaments.$inferSelect;
+export type NewTournament = typeof tournaments.$inferInsert;
+export type TournamentPlayer = typeof tournamentPlayers.$inferSelect;
+export type NewTournamentPlayer = typeof tournamentPlayers.$inferInsert;
 

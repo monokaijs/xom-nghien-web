@@ -21,7 +21,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     };
 
     const variantClasses = {
-      default: 'bg-white/10 border-white/20 hover:bg-white/15',
+      default: 'bg-white/5 border-white/10 hover:bg-white/5',
       outline: 'bg-transparent border-white/30 hover:border-white/50',
     };
 

@@ -29,10 +29,10 @@ export async function getServersWithStatus() {
       .join(',');
 
     const statusUrl = `https://servers.xomnghien.com/?addresses=${addressParams}`;
-    
+
     let statusData: any = { servers: [] };
     try {
-      const statusResponse = await fetch(statusUrl, { cache: 'no-store' });
+      const statusResponse = await fetch(statusUrl, { next: { revalidate: 0 } });
       statusData = await statusResponse.json();
     } catch (error) {
       console.error('Failed to fetch server status:', error);

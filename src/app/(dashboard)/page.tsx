@@ -6,8 +6,8 @@ import { getServersWithStatus } from '@/lib/utils/servers';
 import { getMatches } from '@/lib/utils/matches';
 import { getLeaderboard } from '@/lib/utils/leaderboard';
 
-// cache page for 10 secs
-export const revalidate = 10;
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function Dashboard() {
   const [servers, matchesData, leaderboardData] = await Promise.all([

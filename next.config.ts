@@ -12,6 +12,14 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'avatars.steamstatic.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'images.gamebanana.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.xomnghien.com',
+      },
     ],
   },
 };

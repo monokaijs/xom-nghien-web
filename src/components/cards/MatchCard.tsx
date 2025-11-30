@@ -114,10 +114,9 @@ export default function MatchCard({ match, variant = 'default' }: MatchCardProps
       className="relative rounded-[25px] overflow-hidden transition-all duration-300 cursor-pointer group"
     >
       <div className="absolute inset-0 z-0">
-        <Image
+        <img
           src={getMapImage(firstMap?.mapname)}
           alt={firstMap?.mapname || 'Map'}
-          fill
           className="object-cover opacity-50 group-hover:opacity-60 transition-opacity duration-300"
         />
         <div className="absolute inset-0 bg-gradient-to-br from-[#2b161b]/60 to-[#1a0f12]/70" />

@@ -1,9 +1,8 @@
 import React from 'react';
 import {notFound} from 'next/navigation';
 import {IconArrowLeft, IconClock, IconMap, IconTrophy} from '@tabler/icons-react';
-import Image from 'next/image';
 import {db} from '@/lib/database';
-import {matchzyStatsMatches, matchzyStatsMaps, matchzyStatsPlayers} from '@/lib/db/schema';
+import {matchzyStatsMaps, matchzyStatsMatches, matchzyStatsPlayers} from '@/lib/db/schema';
 import {sql} from 'drizzle-orm';
 import Link from 'next/link';
 import {getMapImage} from "@/lib/utils/mapImage";
@@ -61,8 +60,9 @@ async function getMatchData(matchid: string): Promise<MatchDetailResponse | null
     }
 
     const matchQuery = sql`
-      SELECT * FROM ${matchzyStatsMatches}
-      WHERE matchid = ${matchId}
+        SELECT *
+        FROM ${matchzyStatsMatches}
+        WHERE matchid = ${matchId}
     `;
 
     const matchResult = await db.execute(matchQuery);
@@ -73,19 +73,19 @@ async function getMatchData(matchid: string): Promise<MatchDetailResponse | null
     }
 
     const mapsQuery = sql`
-      SELECT * FROM ${matchzyStatsMaps}
-      WHERE matchid = ${matchId}
-      ORDER BY mapnumber ASC
+        SELECT *
+        FROM ${matchzyStatsMaps}
+        WHERE matchid = ${matchId}
+        ORDER BY mapnumber ASC
     `;
 
     const playersQuery = sql`
-      SELECT
-        p.*,
-        m.mapname
-      FROM ${matchzyStatsPlayers} p
-      JOIN ${matchzyStatsMaps} m ON p.matchid = m.matchid AND p.mapnumber = m.mapnumber
-      WHERE p.matchid = ${matchId}
-      ORDER BY p.mapnumber, p.kills DESC
+        SELECT p.*,
+               m.mapname
+        FROM ${matchzyStatsPlayers} p
+                 JOIN ${matchzyStatsMaps} m ON p.matchid = m.matchid AND p.mapnumber = m.mapnumber
+        WHERE p.matchid = ${matchId}
+        ORDER BY p.mapnumber, p.kills DESC
     `;
 
     const [mapsResult, playersResult] = await Promise.all([
@@ -104,7 +104,7 @@ async function getMatchData(matchid: string): Promise<MatchDetailResponse | null
   }
 }
 
-export default async function MatchDetailPage({params}: {params: Promise<{matchid: string}>}) {
+export default async function MatchDetailPage({params}: { params: Promise<{ matchid: string }> }) {
   const {matchid} = await params;
   const data = await getMatchData(matchid);
 
@@ -151,13 +151,12 @@ export default async function MatchDetailPage({params}: {params: Promise<{matchi
 
       <div className="relative rounded-[30px] overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <Image
+          <img
             src={getMapImage(firstMap?.mapname)}
             alt={firstMap?.mapname || 'Map'}
-            fill
             className="object-cover opacity-40"
           />
-          <div className="absolute inset-0 bg-gradient-to-br from-[#2b161b]/80 to-[#1a0f12]/80" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#2b161b]/80 to-[#1a0f12]/80"/>
         </div>
 
         <div className="relative z-10 p-6 max-md:p-4">
@@ -176,12 +175,15 @@ export default async function MatchDetailPage({params}: {params: Promise<{matchi
             <div className={`flex-1 text-right ${isTeam1Winner ? 'text-white' : 'text-white/60'}`}>
               <div className="text-2xl font-bold truncate max-md:text-lg">{match.team1_name}</div>
             </div>
-            <div className="flex items-center gap-6 px-8 py-4 bg-white/5 rounded-2xl max-md:gap-3 max-md:px-4 max-md:py-2">
-                <span className={`text-4xl font-bold ${isTeam1Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-2xl`}>
+            <div
+              className="flex items-center gap-6 px-8 py-4 bg-white/5 rounded-2xl max-md:gap-3 max-md:px-4 max-md:py-2">
+                <span
+                  className={`text-4xl font-bold ${isTeam1Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-2xl`}>
                   {match.team1_score}
                 </span>
               <span className="text-white/50 text-2xl max-md:text-lg">-</span>
-              <span className={`text-4xl font-bold ${isTeam2Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-2xl`}>
+              <span
+                className={`text-4xl font-bold ${isTeam2Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-2xl`}>
                   {match.team2_score}
                 </span>
             </div>
@@ -210,18 +212,23 @@ export default async function MatchDetailPage({params}: {params: Promise<{matchi
         const isMapTeam2Winner = map.winner === match.team2_name || (map.team2_score > map.team1_score);
 
         return (
-          <div key={map.mapnumber} className="bg-gradient-to-br from-[#2b161b] to-[#1a0f12] rounded-[30px] p-6 max-md:p-4">
-            <div className="flex items-center justify-between mb-6 max-md:mb-4 max-md:flex-col max-md:items-start max-md:gap-3">
+          <div key={map.mapnumber}
+               className="bg-gradient-to-br from-[#2b161b] to-[#1a0f12] rounded-[30px] p-6 max-md:p-4">
+            <div
+              className="flex items-center justify-between mb-6 max-md:mb-4 max-md:flex-col max-md:items-start max-md:gap-3">
               <div className="flex items-center gap-3 max-md:gap-2">
                 <IconMap size={24} className="text-accent-primary max-md:w-5 max-md:h-5"/>
                 <h2 className="text-xl font-semibold max-md:text-lg">{map.mapname}</h2>
               </div>
-              <div className="flex items-center gap-4 px-4 py-2 bg-white/5 rounded-xl max-md:gap-2 max-md:px-3 max-md:py-1.5">
-                  <span className={`text-xl font-bold ${isMapTeam1Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-lg`}>
+              <div
+                className="flex items-center gap-4 px-4 py-2 bg-white/5 rounded-xl max-md:gap-2 max-md:px-3 max-md:py-1.5">
+                  <span
+                    className={`text-xl font-bold ${isMapTeam1Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-lg`}>
                     {map.team1_score}
                   </span>
                 <span className="text-white/50 max-md:text-sm">-</span>
-                <span className={`text-xl font-bold ${isMapTeam2Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-lg`}>
+                <span
+                  className={`text-xl font-bold ${isMapTeam2Winner ? 'text-accent-primary' : 'text-white/60'} max-md:text-lg`}>
                     {map.team2_score}
                   </span>
               </div>
@@ -256,15 +263,18 @@ export default async function MatchDetailPage({params}: {params: Promise<{matchi
                         href={`/player/${player.steamid64}`}
                         className="bg-white/5 rounded-xl p-3 hover:bg-white/10 transition-colors cursor-pointer max-md:p-2.5 block"
                       >
-                        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 items-center max-md:grid-cols-1 max-md:gap-1">
+                        <div
+                          className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 items-center max-md:grid-cols-1 max-md:gap-1">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="flex-1 min-w-0">
                               <div className="font-medium truncate max-md:text-sm">{player.name}</div>
                               <div className="text-xs text-white/50 md:hidden mt-1">
-                                K/D/A: {player.kills}/{player.deaths}/{player.assists} • KDA: {kda} • HS: {player.head_shot_kills}
+                                K/D/A: {player.kills}/{player.deaths}/{player.assists} • KDA: {kda} •
+                                HS: {player.head_shot_kills}
                               </div>
                               <div className="text-xs text-white/50 md:hidden mt-0.5">
-                                DMG: {player.damage.toLocaleString()} • HS%: {player.kills > 0 ? ((player.head_shot_kills / player.kills) * 100).toFixed(1) : 0}%
+                                DMG: {player.damage.toLocaleString()} •
+                                HS%: {player.kills > 0 ? ((player.head_shot_kills / player.kills) * 100).toFixed(1) : 0}%
                               </div>
                             </div>
                           </div>
@@ -314,15 +324,18 @@ export default async function MatchDetailPage({params}: {params: Promise<{matchi
                         href={`/player/${player.steamid64}`}
                         className="bg-white/5 rounded-xl p-3 hover:bg-white/10 transition-colors cursor-pointer max-md:p-2.5 block"
                       >
-                        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 items-center max-md:grid-cols-1 max-md:gap-1">
+                        <div
+                          className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 items-center max-md:grid-cols-1 max-md:gap-1">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="flex-1 min-w-0">
                               <div className="font-medium truncate max-md:text-sm">{player.name}</div>
                               <div className="text-xs text-white/50 md:hidden mt-1">
-                                K/D/A: {player.kills}/{player.deaths}/{player.assists} • KDA: {kda} • HS: {player.head_shot_kills}
+                                K/D/A: {player.kills}/{player.deaths}/{player.assists} • KDA: {kda} •
+                                HS: {player.head_shot_kills}
                               </div>
                               <div className="text-xs text-white/50 md:hidden mt-0.5">
-                                DMG: {player.damage.toLocaleString()} • HS%: {player.kills > 0 ? ((player.head_shot_kills / player.kills) * 100).toFixed(1) : 0}%
+                                DMG: {player.damage.toLocaleString()} •
+                                HS%: {player.kills > 0 ? ((player.head_shot_kills / player.kills) * 100).toFixed(1) : 0}%
                               </div>
                             </div>
                           </div>

@@ -77,10 +77,11 @@ function MatchHistoryItem({match, playerTeam}: { match: MatchHistory; playerTeam
     });
   };
 
-  const isPlayerTeam1 = playerTeam === match.team1_name;
-  const isPlayerTeam2 = playerTeam === match.team2_name;
-  const playerWon = (isPlayerTeam1 && match.winner === match.team1_name) ||
-    (isPlayerTeam2 && match.winner === match.team2_name);
+  // playerTeam is "team1" or "team2" from the database
+  const isPlayerTeam1 = playerTeam === 'team1';
+  const isPlayerTeam2 = playerTeam === 'team2';
+  const playerTeamName = isPlayerTeam1 ? match.team1_name : match.team2_name;
+  const playerWon = match.winner === playerTeamName;
 
   return (
     <a

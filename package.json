@@ -5,11 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "start": "next start",
-    "build": "next build",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "build": "next build"
   },
   "dependencies": {
     "@ianlucas/cs2-lib": "^7.15.0",
@@ -29,7 +25,6 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.14.0",
     "@tailwindcss/postcss": "^4",
     "@types/gamedig": "^5.0.3",
     "@types/node": "^20",

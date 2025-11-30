@@ -4,6 +4,7 @@ import React, {useEffect, useState} from 'react';
 import {IconPlayerPlayFilled, IconX} from '@tabler/icons-react';
 import {ServerStatus} from '@/types/server';
 import {connectToServer} from '@/lib/connectToServer';
+import {getMapImage} from "@/lib/utils/mapImage";
 
 interface GameServersCardProps {
   title?: string;
@@ -36,7 +37,7 @@ export default function GameServersCard({title = "Máy Chủ Game", seeAllLink =
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setSelectedServer(null)}>
           <div className="bg-bg-sidebar rounded-[30px] max-w-4xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="relative h-64 bg-cover bg-center" style={{
-              backgroundImage: `url(https://www.mapban.gg/images/maps/cs2/${selectedServer.map}.jpg), url(https://images.gamebanana.com/img/ss/mods/647fce8887e89.jpg)`
+              backgroundImage: `url(${getMapImage(selectedServer.map)}), url(https://images.gamebanana.com/img/ss/mods/647fce8887e89.jpg)`
             }}>
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
               <button
@@ -145,7 +146,7 @@ export default function GameServersCard({title = "Máy Chủ Game", seeAllLink =
                 key={server.id}
                 className="group rounded-[25px] min-w-[350px] w-[350px] bg-cover bg-center aspect-video relative overflow-hidden bg-[#333] group flex-shrink-0 cursor-pointer transition-transform duration-300"
                 style={{
-                  backgroundImage: `url(/maps/${server.map}.png), url(https://images.gamebanana.com/img/ss/mods/647fce8887e89.jpg)`,
+                  backgroundImage: `url(${getMapImage(server.map)}), url(https://images.gamebanana.com/img/ss/mods/647fce8887e89.jpg)`,
                 }}
                 onClick={() => server.online && setSelectedServer(server)}
               >

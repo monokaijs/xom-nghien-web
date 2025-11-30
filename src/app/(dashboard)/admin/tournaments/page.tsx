@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { IconPlus, IconSearch, IconEdit, IconTrash, IconTrophy, IconX, IconCopy } from '@tabler/icons-react';
-import { useSession } from 'next-auth/react';
+import React, {useEffect, useState} from 'react';
+import {IconCopy, IconEdit, IconPlus, IconSearch, IconTrash, IconTrophy, IconX} from '@tabler/icons-react';
+import {useSession} from 'next-auth/react';
 import Select from '@/components/ui/Select';
+import {getMapImage} from "@/lib/utils/mapImage";
 
 interface Tournament {
   id: number;
@@ -30,9 +31,9 @@ interface User {
 }
 
 const BO_OPTIONS = [
-  { value: '1', label: 'BO1' },
-  { value: '3', label: 'BO3' },
-  { value: '5', label: 'BO5' },
+  {value: '1', label: 'BO1'},
+  {value: '3', label: 'BO3'},
+  {value: '5', label: 'BO5'},
 ];
 
 const CS2_MAPS = [
@@ -49,7 +50,7 @@ const CS2_MAPS = [
 let searchDebounceTimer: NodeJS.Timeout;
 
 export default function TournamentsPage() {
-  const { data: session } = useSession();
+  const {data: session} = useSession();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -199,14 +200,20 @@ export default function TournamentsPage() {
       players_per_team: tournament.players_per_team,
     });
     setSelectedMaps(tournament.maplist);
-    setCvars(Object.entries(tournament.cvars || {}).map(([key, value]) => ({ key, value })));
+    setCvars(Object.entries(tournament.cvars || {}).map(([key, value]) => ({key, value})));
 
     try {
       const response = await fetch(`/api/admin/tournaments/${tournament.id}`);
       const data = await response.json();
       const players = data.players || [];
-      setTeam1Players(players.filter((p: any) => p.team_number === 1).map((p: any) => ({ steamid64: p.steamid64, name: p.player_name })));
-      setTeam2Players(players.filter((p: any) => p.team_number === 2).map((p: any) => ({ steamid64: p.steamid64, name: p.player_name })));
+      setTeam1Players(players.filter((p: any) => p.team_number === 1).map((p: any) => ({
+        steamid64: p.steamid64,
+        name: p.player_name
+      })));
+      setTeam2Players(players.filter((p: any) => p.team_number === 2).map((p: any) => ({
+        steamid64: p.steamid64,
+        name: p.player_name
+      })));
     } catch (error) {
       console.error('Error fetching tournament players:', error);
     }
@@ -236,14 +243,14 @@ export default function TournamentsPage() {
         ? `/api/admin/tournaments/${editingTournament.id}`
         : '/api/admin/tournaments';
 
-      const cvarsObj = cvars.reduce((acc, { key, value }) => {
+      const cvarsObj = cvars.reduce((acc, {key, value}) => {
         if (key.trim()) acc[key.trim()] = value;
         return acc;
       }, {} as Record<string, string>);
 
       const response = await fetch(url, {
         method: editingTournament ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           ...formData,
           maplist: selectedMaps,
@@ -291,7 +298,7 @@ export default function TournamentsPage() {
   };
 
   const addPlayer = (user: User, team: 1 | 2) => {
-    const player = { steamid64: user.steamid64, name: user.name };
+    const player = {steamid64: user.steamid64, name: user.name};
     const targetTeam = team === 1 ? team1Players : team2Players;
     const otherTeam = team === 1 ? team2Players : team1Players;
 
@@ -335,7 +342,7 @@ export default function TournamentsPage() {
   };
 
   const addCvar = () => {
-    setCvars([...cvars, { key: '', value: '' }]);
+    setCvars([...cvars, {key: '', value: ''}]);
   };
 
   const removeCvar = (index: number) => {
@@ -373,14 +380,15 @@ export default function TournamentsPage() {
           onClick={openCreateModal}
           className="bg-accent-primary hover:bg-accent-primary/80 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors"
         >
-          <IconPlus size={20} />
+          <IconPlus size={20}/>
           Tạo Giải Đấu
         </button>
       </div>
 
       <div className="flex gap-4 mb-6">
-        <div className="flex-1 bg-white/5 rounded-xl flex items-center px-4 py-2.5 border border-white/5 focus-within:border-accent-primary/50 transition-colors">
-          <IconSearch size={20} className="text-white/40 mr-3" />
+        <div
+          className="flex-1 bg-white/5 rounded-xl flex items-center px-4 py-2.5 border border-white/5 focus-within:border-accent-primary/50 transition-colors">
+          <IconSearch size={20} className="text-white/40 mr-3"/>
           <input
             type="text"
             placeholder="Tìm kiếm theo tên đội..."
@@ -404,54 +412,55 @@ export default function TournamentsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-white/5 border-b border-white/5 text-xs uppercase text-white/50 font-bold tracking-wider">
-                  <th className="px-6 py-4">ID</th>
-                  <th className="px-6 py-4">Đội</th>
-                  <th className="px-6 py-4">Định Dạng</th>
-                  <th className="px-6 py-4">Bản Đồ</th>
-                  <th className="px-6 py-4">Ngày Tạo</th>
-                  <th className="px-6 py-4">Thao Tác</th>
-                </tr>
+              <tr
+                className="bg-white/5 border-b border-white/5 text-xs uppercase text-white/50 font-bold tracking-wider">
+                <th className="px-6 py-4">ID</th>
+                <th className="px-6 py-4">Đội</th>
+                <th className="px-6 py-4">Định Dạng</th>
+                <th className="px-6 py-4">Bản Đồ</th>
+                <th className="px-6 py-4">Ngày Tạo</th>
+                <th className="px-6 py-4">Thao Tác</th>
+              </tr>
               </thead>
               <tbody>
-                {tournaments.map((tournament) => (
-                  <tr key={tournament.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-4 text-white/80">#{tournament.id}</td>
-                    <td className="px-6 py-4">
-                      <div className="text-white font-medium">{tournament.team1_name} vs {tournament.team2_name}</div>
-                    </td>
-                    <td className="px-6 py-4 text-white/80">BO{tournament.num_maps}</td>
-                    <td className="px-6 py-4 text-white/60 text-sm">{tournament.maplist.join(', ')}</td>
-                    <td className="px-6 py-4 text-white/60 text-sm">
-                      {new Date(tournament.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => copyMatchzyUrl(tournament.id)}
-                          className="text-blue-400 hover:text-blue-300 transition-colors"
-                          title="Sao chép URL MatchZy"
-                        >
-                          <IconCopy size={18} />
-                        </button>
-                        <button
-                          onClick={() => openEditModal(tournament)}
-                          className="text-yellow-400 hover:text-yellow-300 transition-colors"
-                          disabled={actionLoading === tournament.id}
-                        >
-                          <IconEdit size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(tournament.id)}
-                          className="text-red-400 hover:text-red-300 transition-colors"
-                          disabled={actionLoading === tournament.id}
-                        >
-                          <IconTrash size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+              {tournaments.map((tournament) => (
+                <tr key={tournament.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                  <td className="px-6 py-4 text-white/80">#{tournament.id}</td>
+                  <td className="px-6 py-4">
+                    <div className="text-white font-medium">{tournament.team1_name} vs {tournament.team2_name}</div>
+                  </td>
+                  <td className="px-6 py-4 text-white/80">BO{tournament.num_maps}</td>
+                  <td className="px-6 py-4 text-white/60 text-sm">{tournament.maplist.join(', ')}</td>
+                  <td className="px-6 py-4 text-white/60 text-sm">
+                    {new Date(tournament.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => copyMatchzyUrl(tournament.id)}
+                        className="text-blue-400 hover:text-blue-300 transition-colors"
+                        title="Sao chép URL MatchZy"
+                      >
+                        <IconCopy size={18}/>
+                      </button>
+                      <button
+                        onClick={() => openEditModal(tournament)}
+                        className="text-yellow-400 hover:text-yellow-300 transition-colors"
+                        disabled={actionLoading === tournament.id}
+                      >
+                        <IconEdit size={18}/>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(tournament.id)}
+                        className="text-red-400 hover:text-red-300 transition-colors"
+                        disabled={actionLoading === tournament.id}
+                      >
+                        <IconTrash size={18}/>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
               </tbody>
             </table>
           </div>
@@ -463,11 +472,11 @@ export default function TournamentsPage() {
           <div className="bg-card-bg rounded-2xl border border-white/10 w-full max-w-6xl my-8">
             <div className="p-6 border-b border-white/10 flex justify-between items-center">
               <h3 className="text-xl font-bold flex items-center gap-2">
-                <IconTrophy size={24} />
+                <IconTrophy size={24}/>
                 {editingTournament ? 'Chỉnh Sửa Giải Đấu' : 'Tạo Giải Đấu'}
               </h3>
               <button onClick={() => setShowModal(false)} className="text-white/60 hover:text-white">
-                <IconX size={24} />
+                <IconX size={24}/>
               </button>
             </div>
 
@@ -478,7 +487,7 @@ export default function TournamentsPage() {
                   <input
                     type="text"
                     value={formData.team1_name}
-                    onChange={(e) => setFormData({ ...formData, team1_name: e.target.value })}
+                    onChange={(e) => setFormData({...formData, team1_name: e.target.value})}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white"
                     required
                   />
@@ -488,7 +497,7 @@ export default function TournamentsPage() {
                   <input
                     type="text"
                     value={formData.team2_name}
-                    onChange={(e) => setFormData({ ...formData, team2_name: e.target.value })}
+                    onChange={(e) => setFormData({...formData, team2_name: e.target.value})}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white"
                     required
                   />
@@ -503,7 +512,7 @@ export default function TournamentsPage() {
                     value={formData.num_maps.toString()}
                     onChange={(e) => {
                       const num = parseInt(e.target.value);
-                      setFormData({ ...formData, num_maps: num });
+                      setFormData({...formData, num_maps: num});
                       setSelectedMaps(selectedMaps.slice(0, num));
                     }}
                     className={'w-full'}
@@ -517,7 +526,7 @@ export default function TournamentsPage() {
                     min="1"
                     max="10"
                     value={formData.players_per_team}
-                    onChange={(e) => setFormData({ ...formData, players_per_team: parseInt(e.target.value) })}
+                    onChange={(e) => setFormData({...formData, players_per_team: parseInt(e.target.value)})}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white"
                   />
                 </div>
@@ -526,11 +535,11 @@ export default function TournamentsPage() {
                   <Select
                     className={'w-full'}
                     options={[
-                      { value: 'true', label: 'Bật' },
-                      { value: 'false', label: 'Tắt' },
+                      {value: 'true', label: 'Bật'},
+                      {value: 'false', label: 'Tắt'},
                     ]}
                     value={formData.clinch_series.toString()}
-                    onChange={(e) => setFormData({ ...formData, clinch_series: e.target.value === 'true' })}
+                    onChange={(e) => setFormData({...formData, clinch_series: e.target.value === 'true'})}
                     size="md"
                   />
                 </div>
@@ -555,14 +564,14 @@ export default function TournamentsPage() {
                       <div
                         className="absolute inset-0 bg-cover bg-center transition-transform group-hover:scale-110"
                         style={{
-                          backgroundImage: `url(/maps/${map}.png)`,
+                          backgroundImage: `url(${getMapImage(map)})`,
                         }}
                       />
                       <div className={`absolute inset-0 transition-colors ${
                         selectedMaps.includes(map)
                           ? 'bg-accent-primary/60'
                           : 'bg-black/60 group-hover:bg-black/40'
-                      }`} />
+                      }`}/>
                       <div className="relative z-10 h-full flex items-center justify-center">
                         <span className="text-white drop-shadow-lg">{map.replace('de_', '')}</span>
                       </div>
@@ -596,7 +605,7 @@ export default function TournamentsPage() {
                             onClick={() => addPlayer(user, 1)}
                             className="w-full flex items-center gap-3 bg-white/5 hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
                           >
-                            <img src={user.avatar} alt={user.name} className="w-6 h-6 rounded-full" />
+                            <img src={user.avatar} alt={user.name} className="w-6 h-6 rounded-full"/>
                             <div className="text-left flex-1 min-w-0">
                               <div className="text-white text-sm truncate">{user.name}</div>
                             </div>
@@ -608,14 +617,15 @@ export default function TournamentsPage() {
                     <div className="border-t border-white/10 pt-3 mt-3">
                       <div className="text-white/40 text-xs mb-2">Danh sách ({team1Players.length})</div>
                       {team1Players.map((player) => (
-                        <div key={player.steamid64} className="flex justify-between items-center mb-2 bg-white/5 px-3 py-2 rounded-lg">
+                        <div key={player.steamid64}
+                             className="flex justify-between items-center mb-2 bg-white/5 px-3 py-2 rounded-lg">
                           <span className="text-white text-sm">{player.name}</span>
                           <button
                             type="button"
                             onClick={() => removePlayer(player.steamid64, 1)}
                             className="text-red-400 hover:text-red-300"
                           >
-                            <IconX size={16} />
+                            <IconX size={16}/>
                           </button>
                         </div>
                       ))}
@@ -650,7 +660,7 @@ export default function TournamentsPage() {
                             onClick={() => addPlayer(user, 2)}
                             className="w-full flex items-center gap-3 bg-white/5 hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
                           >
-                            <img src={user.avatar} alt={user.name} className="w-6 h-6 rounded-full" />
+                            <img src={user.avatar} alt={user.name} className="w-6 h-6 rounded-full"/>
                             <div className="text-left flex-1 min-w-0">
                               <div className="text-white text-sm truncate">{user.name}</div>
                             </div>
@@ -662,14 +672,15 @@ export default function TournamentsPage() {
                     <div className="border-t border-white/10 pt-3 mt-3">
                       <div className="text-white/40 text-xs mb-2">Danh sách ({team2Players.length})</div>
                       {team2Players.map((player) => (
-                        <div key={player.steamid64} className="flex justify-between items-center mb-2 bg-white/5 px-3 py-2 rounded-lg">
+                        <div key={player.steamid64}
+                             className="flex justify-between items-center mb-2 bg-white/5 px-3 py-2 rounded-lg">
                           <span className="text-white text-sm">{player.name}</span>
                           <button
                             type="button"
                             onClick={() => removePlayer(player.steamid64, 2)}
                             className="text-red-400 hover:text-red-300"
                           >
-                            <IconX size={16} />
+                            <IconX size={16}/>
                           </button>
                         </div>
                       ))}
@@ -714,7 +725,7 @@ export default function TournamentsPage() {
                         onClick={() => removeCvar(index)}
                         className="text-red-400 hover:text-red-300 px-3"
                       >
-                        <IconX size={20} />
+                        <IconX size={20}/>
                       </button>
                     </div>
                   ))}

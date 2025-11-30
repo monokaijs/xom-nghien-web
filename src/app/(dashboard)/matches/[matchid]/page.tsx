@@ -6,6 +6,7 @@ import {db} from '@/lib/database';
 import {matchzyStatsMatches, matchzyStatsMaps, matchzyStatsPlayers} from '@/lib/db/schema';
 import {sql} from 'drizzle-orm';
 import Link from 'next/link';
+import {getMapImage} from "@/lib/utils/mapImage";
 
 interface Match {
   matchid: number;
@@ -136,20 +137,7 @@ export default async function MatchDetailPage({params}: {params: Promise<{matchi
 
   const isTeam1Winner = match.winner === match.team1_name || (match.team1_score > match.team2_score);
   const isTeam2Winner = match.winner === match.team2_name || (match.team2_score > match.team1_score);
-
-  const getMapImage = (mapname: string) => {
-    const mapImages: { [key: string]: string } = {
-      'de_ancient': '/maps/de_ancient.png',
-      'de_anubis': '/maps/de_anubis.png',
-      'de_dust2': '/maps/de_dust2.png',
-      'de_inferno': '/maps/de_inferno.png',
-      'de_mirage': '/maps/de_mirage.png',
-    };
-    return mapImages[mapname] || '/maps/de_dust2.png';
-  };
-
   const firstMap = maps && maps.length > 0 ? maps[0] : null;
-  const mapImage = firstMap ? getMapImage(firstMap.mapname) : '/maps/de_dust2.png';
 
   return (
     <div className="flex flex-col gap-6">
@@ -164,7 +152,7 @@ export default async function MatchDetailPage({params}: {params: Promise<{matchi
       <div className="relative rounded-[30px] overflow-hidden">
         <div className="absolute inset-0 z-0">
           <Image
-            src={mapImage}
+            src={getMapImage(firstMap?.mapname)}
             alt={firstMap?.mapname || 'Map'}
             fill
             className="object-cover opacity-40"

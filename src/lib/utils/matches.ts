@@ -16,42 +16,65 @@ export async function getMatches(limit: number = 10, offset: number = 0) {
       LIMIT ${limit} OFFSET ${offset}
     `;
 
-    const matches = await db.execute(matchesQuery);
+    const [matchesResult, countResult] = await Promise.all([
+      db.execute(matchesQuery),
+      db.execute(sql`SELECT COUNT(*) as total FROM ${matchzyStatsMatches} WHERE NOT (team1_score = 0 AND team2_score = 0)`),
+    ]);
 
-    const matchesWithDetails = await Promise.all(
-      (matches[0] as unknown as any[]).map(async (match) => {
-        const mapsQuery = sql`
-          SELECT * FROM ${matchzyStatsMaps}
-          WHERE matchid = ${match.matchid}
-          ORDER BY mapnumber ASC
-        `;
-
-        const playersQuery = sql`
-          SELECT 
-            p.*,
-            m.mapname
-          FROM ${matchzyStatsPlayers} p
-          JOIN ${matchzyStatsMaps} m ON p.matchid = m.matchid AND p.mapnumber = m.mapnumber
-          WHERE p.matchid = ${match.matchid}
-          ORDER BY p.mapnumber, p.kills DESC
-        `;
-
-        const [maps, players] = await Promise.all([
-          db.execute(mapsQuery),
-          db.execute(playersQuery),
-        ]);
-
-        return {
-          ...match,
-          maps: maps[0],
-          players: players[0],
-        };
-      })
-    );
-
-    const countQuery = sql`SELECT COUNT(*) as total FROM ${matchzyStatsMatches} WHERE NOT (team1_score = 0 AND team2_score = 0)`;
-    const countResult = await db.execute(countQuery);
+    const matchesList = matchesResult[0] as unknown as any[];
     const total = (countResult[0] as unknown as any[])[0]?.total || 0;
+
+    if (matchesList.length === 0) {
+      return { matches: [], total, limit, offset };
+    }
+
+    // Batch fetch all maps and players for all matches in 2 queries instead of 2*N
+    const matchIds = matchesList.map(m => m.matchid);
+    const matchIdsPlaceholder = sql.join(matchIds.map(id => sql`${id}`), sql`, `);
+
+    const [allMapsResult, allPlayersResult] = await Promise.all([
+      db.execute(sql`
+        SELECT * FROM ${matchzyStatsMaps}
+        WHERE matchid IN (${matchIdsPlaceholder})
+        ORDER BY matchid, mapnumber ASC
+      `),
+      db.execute(sql`
+        SELECT
+          p.*,
+          m.mapname
+        FROM ${matchzyStatsPlayers} p
+        JOIN ${matchzyStatsMaps} m ON p.matchid = m.matchid AND p.mapnumber = m.mapnumber
+        WHERE p.matchid IN (${matchIdsPlaceholder})
+        ORDER BY p.matchid, p.mapnumber, p.kills DESC
+      `),
+    ]);
+
+    const allMaps = allMapsResult[0] as unknown as any[];
+    const allPlayers = allPlayersResult[0] as unknown as any[];
+
+    // Group maps and players by matchid
+    const mapsByMatchId = new Map<number, any[]>();
+    const playersByMatchId = new Map<number, any[]>();
+
+    for (const map of allMaps) {
+      if (!mapsByMatchId.has(map.matchid)) {
+        mapsByMatchId.set(map.matchid, []);
+      }
+      mapsByMatchId.get(map.matchid)!.push(map);
+    }
+
+    for (const player of allPlayers) {
+      if (!playersByMatchId.has(player.matchid)) {
+        playersByMatchId.set(player.matchid, []);
+      }
+      playersByMatchId.get(player.matchid)!.push(player);
+    }
+
+    const matchesWithDetails = matchesList.map(match => ({
+      ...match,
+      maps: mapsByMatchId.get(match.matchid) || [],
+      players: playersByMatchId.get(match.matchid) || [],
+    }));
 
     return {
       matches: matchesWithDetails,

@@ -7,7 +7,7 @@ import { getMatches } from '@/lib/utils/matches';
 import { getLeaderboard } from '@/lib/utils/leaderboard';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 30;
 
 export default async function Dashboard() {
   const [servers, matchesData, leaderboardData] = await Promise.all([

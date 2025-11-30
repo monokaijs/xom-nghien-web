@@ -1,6 +1,6 @@
-import { db } from '@/lib/database';
-import { servers } from '@/lib/db/schema';
-import { asc } from 'drizzle-orm';
+import {db} from '@/lib/database';
+import {servers} from '@/lib/db/schema';
+import {asc} from 'drizzle-orm';
 
 const GAME_NAME_MAP: Record<string, string> = {
   'CS2': 'counterstrike2',
@@ -32,13 +32,13 @@ export async function getServersWithStatus() {
 
     let statusData: any = { servers: [] };
     try {
-      const statusResponse = await fetch(statusUrl, { next: { revalidate: 0 } });
+      const statusResponse = await fetch(statusUrl, { next: { revalidate: 30 } });
       statusData = await statusResponse.json();
     } catch (error) {
       console.error('Failed to fetch server status:', error);
     }
 
-    const serversWithStatus = serverList.map((server, index) => {
+    return serverList.map((server, index) => {
       const statusServer = statusData.servers?.[index] || {};
 
       return {
@@ -58,8 +58,6 @@ export async function getServersWithStatus() {
         lastUpdated: new Date().toISOString(),
       };
     });
-
-    return serversWithStatus;
   } catch (error) {
     console.error('Error fetching servers:', error);
     return [];

@@ -1,6 +1,6 @@
 import { db } from './database';
 import { userInfo } from './db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 const STEAM_API_KEY = process.env.STEAM_API_KEY;
 const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000;
@@ -95,12 +95,13 @@ export async function fetchAndCacheMultipleUsers(steamids: string[]): Promise<Ma
   }
 
   try {
+    // Only fetch users we need instead of all users
     const existingUsers = await db
       .select()
-      .from(userInfo);
+      .from(userInfo)
+      .where(inArray(userInfo.steamid64, steamids));
 
     const now = Date.now();
-    const cachedUsers = new Map<string, SteamPlayerSummary>();
     const uncachedSteamIds: string[] = [];
 
     for (const steamid of steamids) {
@@ -110,7 +111,7 @@ export async function fetchAndCacheMultipleUsers(steamids: string[]): Promise<Ma
         const lastUpdated = new Date(user.last_updated).getTime();
 
         if (now - lastUpdated < CACHE_DURATION) {
-          cachedUsers.set(steamid, {
+          result.set(steamid, {
             steamid: steamid,
             personaname: user.name,
             avatar: user.avatar || '',
@@ -124,8 +125,6 @@ export async function fetchAndCacheMultipleUsers(steamids: string[]): Promise<Ma
 
       uncachedSteamIds.push(steamid);
     }
-
-    cachedUsers.forEach((value, key) => result.set(key, value));
 
     if (uncachedSteamIds.length === 0) {
       return result;
@@ -149,30 +148,35 @@ export async function fetchAndCacheMultipleUsers(steamids: string[]): Promise<Ma
     const data = await response.json();
     const players = data.response?.players || [];
 
-    for (const player of players) {
-      const steamid = player.steamid;
+    // Batch insert/update all players at once
+    if (players.length > 0) {
+      await Promise.all(
+        players.map((player: any) =>
+          db
+            .insert(userInfo)
+            .values({
+              steamid64: player.steamid,
+              name: player.personaname,
+              avatar: player.avatar,
+              avatarmedium: player.avatarmedium,
+              avatarfull: player.avatarfull,
+              profileurl: player.profileurl,
+            })
+            .onDuplicateKeyUpdate({
+              set: {
+                name: player.personaname,
+                avatar: player.avatar,
+                avatarmedium: player.avatarmedium,
+                avatarfull: player.avatarfull,
+                profileurl: player.profileurl,
+              },
+            })
+        )
+      );
 
-      await db
-        .insert(userInfo)
-        .values({
-          steamid64: steamid,
-          name: player.personaname,
-          avatar: player.avatar,
-          avatarmedium: player.avatarmedium,
-          avatarfull: player.avatarfull,
-          profileurl: player.profileurl,
-        })
-        .onDuplicateKeyUpdate({
-          set: {
-            name: player.personaname,
-            avatar: player.avatar,
-            avatarmedium: player.avatarmedium,
-            avatarfull: player.avatarfull,
-            profileurl: player.profileurl,
-          },
-        });
-
-      result.set(steamid, player);
+      for (const player of players) {
+        result.set(player.steamid, player);
+      }
     }
 
     return result;

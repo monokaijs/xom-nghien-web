@@ -3,18 +3,12 @@ import { GameServersCard, HeroCard, LatestMatchesCard, LeaderboardCard } from '@
 import { IconChevronRight } from '@tabler/icons-react';
 import { Games } from "@/config/games";
 import { getServersWithStatus } from '@/lib/utils/servers';
-import { getMatches } from '@/lib/utils/matches';
-import { getLeaderboard } from '@/lib/utils/leaderboard';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 30;
+export const revalidate = 5; // additional 5 secs caching
 
 export default async function Dashboard() {
-  const [servers, matchesData, leaderboardData] = await Promise.all([
-    getServersWithStatus(),
-    getMatches(5, 0),
-    getLeaderboard(),
-  ]);
+  const servers = await getServersWithStatus();
 
   return (
     <div className="grid grid-cols-[2fr_1fr] gap-[30px] max-lg:grid-cols-1 max-lg:overflow-y-auto">
@@ -31,7 +25,7 @@ export default async function Dashboard() {
         <GameServersCard initialServers={servers} />
 
         {/* Latest Matches */}
-        <LatestMatchesCard initialMatches={matchesData.matches} />
+        <LatestMatchesCard />
       </div>
 
       {/* Right Column */}
@@ -53,7 +47,7 @@ export default async function Dashboard() {
         </div>
 
         {/* Leaderboard */}
-        <LeaderboardCard initialData={leaderboardData} />
+        <LeaderboardCard />
       </div>
     </div>
   );

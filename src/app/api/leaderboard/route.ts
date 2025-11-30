@@ -1,85 +1,14 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { matchzyStatsPlayers } from '@/lib/db/schema';
-import { sql } from 'drizzle-orm';
-import { fetchAndCacheMultipleUsers } from '@/lib/steam-api';
+import { getLeaderboard } from '@/lib/utils/leaderboard';
 
 export async function GET() {
   try {
-    const topKillersQuery = sql`
-      SELECT
-        steamid64,
-        name,
-        SUM(kills) as total_kills,
-        SUM(deaths) as total_deaths,
-        SUM(damage) as total_damage,
-        SUM(head_shot_kills) as total_headshots,
-        COUNT(DISTINCT matchid) as matches_played
-      FROM ${matchzyStatsPlayers}
-      GROUP BY steamid64, name
-      ORDER BY total_kills DESC
-      LIMIT 10
-    `;
+    const result = await getLeaderboard();
 
-    const topDamageQuery = sql`
-      SELECT
-        steamid64,
-        name,
-        SUM(damage) as total_damage,
-        SUM(kills) as total_kills,
-        SUM(deaths) as total_deaths,
-        SUM(head_shot_kills) as total_headshots,
-        COUNT(DISTINCT matchid) as matches_played
-      FROM ${matchzyStatsPlayers}
-      GROUP BY steamid64, name
-      ORDER BY total_damage DESC
-      LIMIT 10
-    `;
-
-    const topHeadshotQuery = sql`
-      SELECT
-        steamid64,
-        name,
-        SUM(head_shot_kills) as total_headshots,
-        SUM(kills) as total_kills,
-        SUM(deaths) as total_deaths,
-        SUM(damage) as total_damage,
-        COUNT(DISTINCT matchid) as matches_played,
-        ROUND((SUM(head_shot_kills) * 100.0 / NULLIF(SUM(kills), 0)), 2) as headshot_percentage
-      FROM ${matchzyStatsPlayers}
-      GROUP BY steamid64, name
-      HAVING total_kills > 0
-      ORDER BY total_headshots DESC
-      LIMIT 10
-    `;
-
-    const [topKillers, topDamage, topHeadshot] = await Promise.all([
-      db.execute(topKillersQuery),
-      db.execute(topDamageQuery),
-      db.execute(topHeadshotQuery),
-    ]);
-
-    const allSteamIds = new Set<string>();
-    (topKillers[0] as unknown as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
-    (topDamage[0] as unknown as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
-    (topHeadshot[0] as unknown as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
-
-    const steamUserData = await fetchAndCacheMultipleUsers(Array.from(allSteamIds));
-
-    const enrichPlayers = (players: any[]) => {
-      return players.map((player: any) => {
-        const steamData = steamUserData.get(player.steamid64);
-        return {
-          ...player,
-          avatar: steamData?.avatarfull || steamData?.avatarmedium || steamData?.avatar,
-        };
-      });
-    };
-
-    return NextResponse.json({
-      topKillers: enrichPlayers(topKillers[0] as unknown as any[]),
-      topDamage: enrichPlayers(topDamage[0] as unknown as any[]),
-      topHeadshot: enrichPlayers(topHeadshot[0] as unknown as any[]),
+    return NextResponse.json(result, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+      },
     });
   } catch (error) {
     console.error('Error fetching leaderboard:', error);

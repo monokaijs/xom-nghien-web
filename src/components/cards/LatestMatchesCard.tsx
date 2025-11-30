@@ -27,12 +27,45 @@ interface Match {
   maps?: Map[];
 }
 
-interface LatestMatchesCardProps {
-  initialMatches?: Match[];
-}
+export default function LatestMatchesCard() {
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [loading, setLoading] = useState(true);
 
-export default function LatestMatchesCard({ initialMatches = [] }: LatestMatchesCardProps) {
-  const [matches] = useState<Match[]>(initialMatches);
+  useEffect(() => {
+    const fetchMatches = async () => {
+      try {
+        const response = await fetch('/api/matches?limit=5&offset=0');
+        if (response.ok) {
+          const data = await response.json();
+          setMatches(data.matches || []);
+        }
+      } catch (error) {
+        console.error('Error fetching matches:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMatches();
+  }, []);
+
+  if (loading) {
+    return (
+      <>
+        <div className="flex justify-between items-center -mb-2.5">
+          <h3 className="text-lg font-semibold">Trận Đấu Gần Đây</h3>
+          <a href="/matches" className="text-text-secondary no-underline text-sm hover:text-white transition-colors">
+            Xem Thêm
+          </a>
+        </div>
+        <div className="flex flex-col gap-[15px]">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-card-bg rounded-[25px] p-5 h-24 animate-pulse" />
+          ))}
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

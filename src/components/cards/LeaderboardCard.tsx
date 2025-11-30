@@ -7,14 +7,32 @@ import { LeaderboardPlayer, LeaderboardPlayerRaw, LeaderboardResponse, Leaderboa
 
 interface LeaderboardCardProps {
   title?: string;
-  initialData?: LeaderboardResponse;
 }
 
-export default function LeaderboardCard({ title = "Bảng Xếp Hạng", initialData }: LeaderboardCardProps) {
+export default function LeaderboardCard({ title = "Bảng Xếp Hạng" }: LeaderboardCardProps) {
   const router = useRouter();
   const [activeType, setActiveType] = useState<LeaderboardType>('kills');
   const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
-  const [data] = useState<LeaderboardResponse | null>(initialData || null);
+  const [data, setData] = useState<LeaderboardResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      try {
+        const response = await fetch('/api/leaderboard');
+        if (response.ok) {
+          const result = await response.json();
+          setData(result);
+        }
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
+  }, []);
 
   useEffect(() => {
     if (!data) {
@@ -84,6 +102,28 @@ export default function LeaderboardCard({ title = "Bảng Xếp Hạng", initial
     }
     return value.toString();
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="flex justify-between items-center -mb-2.5">
+          <h3 className="text-lg font-semibold">{title}</h3>
+        </div>
+        <div className="bg-gradient-to-br from-[#2b161b] to-[#1a0f12] rounded-[30px] p-5 flex flex-col">
+          <div className="flex gap-2 mb-5">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="flex-1 h-9 rounded-xl bg-white/5 animate-pulse" />
+            ))}
+          </div>
+          <div className="flex flex-col gap-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-16 rounded-xl bg-white/5 animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5">

@@ -1,4 +1,4 @@
 export const getMapImage = (map?: string) => {
   if (!map) return '';
-  return `https://cdn.xomnghien.com/maps/${map}.png`
+  return `https://cdn.xomnghien.com/maps/${map}.jpg`
 };

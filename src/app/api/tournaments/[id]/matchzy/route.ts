@@ -52,11 +52,11 @@ export async function GET(
     const matchzyData = {
       team1: {
         name: tournament.team1_name,
-        players: team1Players,
+        players: Object.keys(team1Players).length > 0 ? team1Players : undefined,
       },
       team2: {
         name: tournament.team2_name,
-        players: team2Players,
+        players: Object.keys(team2Players).length > 0 ? team2Players : undefined,
       },
       num_maps: tournament.num_maps,
       maplist: tournament.maplist,

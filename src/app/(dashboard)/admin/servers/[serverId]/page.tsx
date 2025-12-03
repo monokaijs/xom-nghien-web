@@ -178,7 +178,7 @@ export default function ServerManagementPage() {
 
   const handleLoadMatch = () => {
     if (!matchUrl.trim()) return;
-    executeRconCommand(`matchzy_loadmatch_url ${matchUrl}`);
+    executeRconCommand(`matchzy_loadmatch_url "${matchUrl}"`);
     setShowMatchDialog(false);
     setMatchUrl('');
   };

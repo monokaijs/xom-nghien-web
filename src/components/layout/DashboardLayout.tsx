@@ -15,6 +15,7 @@ import {
   IconSwords,
   IconSettings,
   IconShield,
+  IconAward,
 } from '@tabler/icons-react';
 import IconSolid from "@/components/IconSolid";
 import { usePathname } from 'next/navigation';
@@ -155,6 +156,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <IconSwords size={24} />
                 <span>Trận Đấu</span>
               </Link>
+              <Link href="/tournaments"
+                className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/tournaments' || pathname?.startsWith('/tournaments/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
+                  }`}>
+                <IconAward size={24} />
+                <span>Giải Đấu</span>
+              </Link>
               <Link href="/leaderboard"
                 className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/leaderboard' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
                   }`}>
@@ -228,6 +235,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               title="Trận Đấu"
             >
               <IconSwords size={24} />
+            </Link>
+            <Link
+              href="/tournaments"
+              className={`transition-colors duration-300 flex items-center justify-center ${pathname === '/tournaments' || pathname?.startsWith('/tournaments/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
+                }`}
+              title="Giải Đấu"
+            >
+              <IconAward size={24} />
             </Link>
             <Link
               href="/leaderboard"

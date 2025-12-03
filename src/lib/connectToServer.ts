@@ -1,7 +1,8 @@
 export async function connectToServer(
     ip: string,
     port: number | string,
-    password: string = ''
+    password: string = '',
+    game: string = '730'
 ) {
     const p = String(port);
 
@@ -10,5 +11,5 @@ export async function connectToServer(
         ? `${baseCmd};+password ${password}`
         : baseCmd;
 
-    window.location.href = `steam://run/730//${cmd}`;
+    window.location.href = `steam://run/${game}//${cmd}`;
 }

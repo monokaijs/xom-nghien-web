@@ -53,6 +53,7 @@ export const POST = requireAdmin(async (request: NextRequest) => {
       cvars,
       team1_players,
       team2_players,
+      registration_deadline,
     } = body;
 
     if (!team1_name || !team2_name || !num_maps || !maplist || !Array.isArray(maplist)) {
@@ -84,6 +85,7 @@ export const POST = requireAdmin(async (request: NextRequest) => {
       clinch_series: clinch_series ? 1 : 0,
       players_per_team: players_per_team || 5,
       cvars: cvars || {},
+      registration_deadline: registration_deadline || null,
     });
 
     const tournamentId = result[0].insertId;

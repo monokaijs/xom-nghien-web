@@ -49,6 +49,7 @@ export const PUT = requireAdmin(async (
       cvars,
       team1_players,
       team2_players,
+      registration_deadline,
     } = body;
 
     if (!team1_name || !team2_name || !num_maps || !maplist) {
@@ -73,6 +74,7 @@ export const PUT = requireAdmin(async (
       clinch_series: clinch_series ? 1 : 0,
       players_per_team: players_per_team || 5,
       cvars: cvars || {},
+      registration_deadline: registration_deadline || null,
     }).where(eq(tournaments.id, parseInt(id)));
 
     await db.delete(tournamentPlayers).where(eq(tournamentPlayers.tournament_id, parseInt(id)));

@@ -15,6 +15,7 @@ interface Tournament {
   clinch_series: number;
   players_per_team: number;
   cvars: Record<string, string>;
+  registration_deadline: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -64,6 +65,7 @@ export default function TournamentsPage() {
     num_maps: 3,
     clinch_series: true,
     players_per_team: 5,
+    registration_deadline: '',
   });
 
   const [selectedMaps, setSelectedMaps] = useState<string[]>([]);
@@ -178,6 +180,7 @@ export default function TournamentsPage() {
       num_maps: 3,
       clinch_series: true,
       players_per_team: 5,
+      registration_deadline: '',
     });
     setSelectedMaps([]);
     setCvars([]);
@@ -192,12 +195,16 @@ export default function TournamentsPage() {
 
   const openEditModal = async (tournament: Tournament) => {
     setEditingTournament(tournament);
+    const deadlineValue = tournament.registration_deadline
+      ? new Date(tournament.registration_deadline).toISOString().slice(0, 16)
+      : '';
     setFormData({
       team1_name: tournament.team1_name,
       team2_name: tournament.team2_name,
       num_maps: tournament.num_maps,
       clinch_series: tournament.clinch_series === 1,
       players_per_team: tournament.players_per_team,
+      registration_deadline: deadlineValue,
     });
     setSelectedMaps(tournament.maplist);
     setCvars(Object.entries(tournament.cvars || {}).map(([key, value]) => ({key, value})));
@@ -543,6 +550,16 @@ export default function TournamentsPage() {
                     size="md"
                   />
                 </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="text-white/80 text-sm mb-2 block">Hạn Đăng Ký (Tùy chọn)</label>
+                <input
+                  type="datetime-local"
+                  value={formData.registration_deadline}
+                  onChange={(e) => setFormData({...formData, registration_deadline: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white"
+                />
               </div>
 
               <div className="mb-6">

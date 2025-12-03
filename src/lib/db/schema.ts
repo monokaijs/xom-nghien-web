@@ -111,6 +111,7 @@ export const tournaments = mysqlTable('cs2_tournaments', {
   clinch_series: tinyint('clinch_series').notNull().default(1),
   players_per_team: tinyint('players_per_team').notNull().default(5),
   cvars: json('cvars').$type<Record<string, string>>(),
+  registration_deadline: timestamp('registration_deadline'),
   created_at: timestamp('created_at').defaultNow().notNull(),
   updated_at: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 });

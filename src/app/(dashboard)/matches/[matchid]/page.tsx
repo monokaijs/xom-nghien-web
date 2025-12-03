@@ -150,12 +150,14 @@ export default async function MatchDetailPage({params}: { params: Promise<{ matc
       </Link>
 
       <div className="relative rounded-[30px] overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <img
-            src={getMapImage(firstMap?.mapname)}
-            alt={firstMap?.mapname || 'Map'}
-            className="object-cover opacity-40"
-          />
+        <div
+          className="absolute inset-0 z-0"
+          style={{
+            backgroundImage: `url(${getMapImage(firstMap?.mapname)})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
           <div className="absolute inset-0 bg-gradient-to-br from-[#2b161b]/80 to-[#1a0f12]/80"/>
         </div>
 

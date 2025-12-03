@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {IconFlame, IconShield, IconSword, IconTarget, IconTrophy} from '@tabler/icons-react';
 import {getMapImage} from "@/lib/utils/mapImage";
 
@@ -46,11 +46,15 @@ interface MatchHistory {
   assists: number;
   head_shot_kills: number;
   mapname: string;
+  map_winner: string;
+  map_team1_score: number;
+  map_team2_score: number;
+  player_won: number;
 }
 
 interface PlayerTabsProps {
   stats: PlayerStats;
-  matchHistory: MatchHistory[];
+  steamId: string;
 }
 
 function StatItem({label, value, icon}: { label: string; value: string | number; icon?: React.ReactNode }) {
@@ -77,11 +81,9 @@ function MatchHistoryItem({match, playerTeam}: { match: MatchHistory; playerTeam
     });
   };
 
-  // playerTeam is "team1" or "team2" from the database
-  const isPlayerTeam1 = playerTeam === 'team1';
-  const isPlayerTeam2 = playerTeam === 'team2';
-  const playerTeamName = isPlayerTeam1 ? match.team1_name : match.team2_name;
-  const playerWon = match.winner === playerTeamName;
+  const isPlayerTeam1 = playerTeam === match.team1_name;
+  const isPlayerTeam2 = playerTeam === match.team2_name;
+  const playerWon = Number(match.player_won) === 1;
 
   return (
     <a
@@ -185,8 +187,36 @@ function MatchHistoryItem({match, playerTeam}: { match: MatchHistory; playerTeam
   );
 }
 
-export default function PlayerTabs({stats, matchHistory}: PlayerTabsProps) {
+export default function PlayerTabs({stats, steamId}: PlayerTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>('statistics');
+  const [matchHistory, setMatchHistory] = useState<MatchHistory[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const limit = 10;
+
+  useEffect(() => {
+    if (activeTab === 'matchHistory') {
+      fetchMatchHistory();
+    }
+  }, [page, activeTab]);
+
+  const fetchMatchHistory = async () => {
+    try {
+      setLoading(true);
+      const offset = (page - 1) * limit;
+      const response = await fetch(`/api/player/${steamId}?limit=${limit}&offset=${offset}`);
+      const data = await response.json();
+      setMatchHistory(data.matchHistory || []);
+      setTotal(data.total || 0);
+    } catch (error) {
+      console.error('Error fetching match history:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalPages = Math.ceil(total / limit);
 
   return (
     <div className="bg-gradient-to-br from-[#2b161b] to-[#1a0f12] rounded-[30px] p-6">
@@ -265,10 +295,37 @@ export default function PlayerTabs({stats, matchHistory}: PlayerTabsProps) {
 
       {activeTab === 'matchHistory' && (
         <div className="flex flex-col gap-3">
-          {matchHistory.length > 0 ? (
-            matchHistory.map((match) => (
-              <MatchHistoryItem key={`${match.matchid}-${match.mapname}`} match={match} playerTeam={match.team}/>
-            ))
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="text-white/50">Đang tải...</div>
+            </div>
+          ) : matchHistory.length > 0 ? (
+            <>
+              {matchHistory.map((match) => (
+                <MatchHistoryItem key={`${match.matchid}-${match.mapname}`} match={match} playerTeam={match.team}/>
+              ))}
+              {totalPages > 1 && (
+                <div className="flex justify-center gap-2 mt-4">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="px-4 py-2 bg-white/5 rounded-lg hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Trước
+                  </button>
+                  <span className="px-4 py-2 text-white/70">
+                    Trang {page} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="px-4 py-2 bg-white/5 rounded-lg hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Sau
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-10 text-white/50">Không có lịch sử trận đấu</div>
           )}

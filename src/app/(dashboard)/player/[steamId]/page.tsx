@@ -11,7 +11,6 @@ import {INVENTORY_SERVICE_URL} from '@/config/app';
 
 interface PlayerData {
   stats: any;
-  matchHistory: any[];
   profile: any;
   inventory: any;
 }
@@ -52,34 +51,7 @@ async function getPlayerData(steamId: string): Promise<PlayerData | null> {
       return null;
     }
 
-    const matchHistoryQuery = sql`
-      SELECT
-        m.matchid,
-        m.start_time,
-        m.end_time,
-        m.winner,
-        m.series_type,
-        m.team1_name,
-        m.team1_score,
-        m.team2_name,
-        m.team2_score,
-        p.team,
-        p.kills,
-        p.deaths,
-        p.damage,
-        p.assists,
-        p.head_shot_kills,
-        mp.mapname
-      FROM ${matchzyStatsPlayers} p
-      JOIN ${matchzyStatsMatches} m ON p.matchid = m.matchid
-      JOIN ${matchzyStatsMaps} mp ON p.matchid = mp.matchid AND p.mapnumber = mp.mapnumber
-      WHERE p.steamid64 = ${steamId}
-      ORDER BY m.start_time DESC
-      LIMIT 20
-    `;
 
-    const matchHistoryResult = await db.execute(matchHistoryQuery);
-    const matchHistory = matchHistoryResult[0];
 
     const userInfoResult = await db
       .select()
@@ -104,7 +76,6 @@ async function getPlayerData(steamId: string): Promise<PlayerData | null> {
 
     return {
       stats: playerStats as any,
-      matchHistory: matchHistory as any,
       profile: profile as any,
       inventory: inventory,
     };
@@ -221,7 +192,7 @@ export default async function PlayerProfilePage({params}: {params: Promise<{stea
 
       <PlayerInventory steamId={steamId} inventoryData={data.inventory} />
 
-      <PlayerTabs stats={stats} matchHistory={data.matchHistory} />
+      <PlayerTabs stats={stats} steamId={steamId} />
 
 
     </div>

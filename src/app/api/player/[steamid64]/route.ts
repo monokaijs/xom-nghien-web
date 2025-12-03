@@ -9,6 +9,9 @@ export async function GET(
 ) {
   try {
     const { steamid64 } = await params;
+    const { searchParams } = new URL(request.url);
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const offset = parseInt(searchParams.get('offset') || '0');
 
     const playerStatsQuery = sql`
       SELECT 
@@ -54,7 +57,7 @@ export async function GET(
     }
 
     const matchHistoryQuery = sql`
-      SELECT 
+      SELECT
         m.matchid,
         m.start_time,
         m.end_time,
@@ -70,17 +73,39 @@ export async function GET(
         p.damage,
         p.assists,
         p.head_shot_kills,
-        mp.mapname
+        mp.mapname,
+        mp.winner as map_winner,
+        mp.team1_score as map_team1_score,
+        mp.team2_score as map_team2_score,
+        CASE
+          WHEN mp.winner = p.team THEN 1
+          WHEN mp.winner = '' AND p.team = m.team1_name AND mp.team1_score > mp.team2_score THEN 1
+          WHEN mp.winner = '' AND p.team = m.team2_name AND mp.team2_score > mp.team1_score THEN 1
+          ELSE 0
+        END as player_won
       FROM ${matchzyStatsPlayers} p
       JOIN ${matchzyStatsMatches} m ON p.matchid = m.matchid
       JOIN ${matchzyStatsMaps} mp ON p.matchid = mp.matchid AND p.mapnumber = mp.mapnumber
       WHERE p.steamid64 = ${steamid64}
       ORDER BY m.start_time DESC
-      LIMIT 20
+      LIMIT ${limit} OFFSET ${offset}
     `;
 
-    const matchHistoryResult = await db.execute(matchHistoryQuery);
+    const countQuery = sql`
+      SELECT COUNT(*) as total
+      FROM ${matchzyStatsPlayers} p
+      JOIN ${matchzyStatsMatches} m ON p.matchid = m.matchid
+      JOIN ${matchzyStatsMaps} mp ON p.matchid = mp.matchid AND p.mapnumber = mp.mapnumber
+      WHERE p.steamid64 = ${steamid64}
+    `;
+
+    const [matchHistoryResult, countResult] = await Promise.all([
+      db.execute(matchHistoryQuery),
+      db.execute(countQuery),
+    ]);
+
     const matchHistory = matchHistoryResult[0];
+    const total = (countResult[0] as unknown as any[])[0]?.total || 0;
 
     const userInfoResult = await db
       .select()
@@ -93,6 +118,9 @@ export async function GET(
     return NextResponse.json({
       stats: playerStats,
       matchHistory,
+      total,
+      limit,
+      offset,
       profile,
     });
   } catch (error) {

@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { IconPlus, IconSearch, IconEdit, IconTrash, IconServer } from '@tabler/icons-react';
+import { IconPlus, IconSearch, IconEdit, IconTrash, IconServer, IconTerminal } from '@tabler/icons-react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import Select from '@/components/ui/Select';
 
 interface Server {
@@ -27,6 +28,7 @@ const GAME_OPTIONS = [
 
 export default function ServersManagementPage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [servers, setServers] = useState<Server[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -231,6 +233,16 @@ export default function ServersManagementPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
+                        {server.rcon_password && (
+                          <button
+                            onClick={() => router.push(`/admin/servers/${server.id}`)}
+                            disabled={actionLoading === server.id}
+                            className="p-2 bg-accent-primary/20 hover:bg-accent-primary/30 text-accent-primary rounded-lg transition-colors disabled:opacity-50"
+                            title="Manage Server"
+                          >
+                            <IconTerminal size={18} />
+                          </button>
+                        )}
                         <button
                           onClick={() => openEditModal(server)}
                           disabled={actionLoading === server.id}

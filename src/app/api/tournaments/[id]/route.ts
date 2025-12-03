@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
-import { tournaments, tournamentPlayers } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { tournaments, tournamentPlayers, userInfo } from '@/lib/db/schema';
+import { eq, sql } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
@@ -33,14 +33,28 @@ export async function GET(
 
     const tournament = tournamentResult[0];
 
-    const playersResult = await db
-      .select()
-      .from(tournamentPlayers)
-      .where(eq(tournamentPlayers.tournament_id, tournamentId));
+    const playersQuery = sql`
+      SELECT
+        tp.id,
+        tp.tournament_id,
+        tp.team_number,
+        tp.steamid64,
+        tp.player_name,
+        ui.avatar,
+        ui.avatarmedium,
+        ui.avatarfull
+      FROM ${tournamentPlayers} tp
+      LEFT JOIN ${userInfo} ui ON tp.steamid64 = ui.steamid64
+      WHERE tp.tournament_id = ${tournamentId}
+      ORDER BY tp.team_number, tp.id
+    `;
+
+    const playersResult = await db.execute(playersQuery);
+    const playersData = playersResult[0] as unknown as any[];
 
     return NextResponse.json({
       tournament,
-      players: playersResult,
+      players: playersData,
     });
   } catch (error) {
     console.error('Error fetching tournament:', error);

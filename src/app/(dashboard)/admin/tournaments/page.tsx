@@ -72,6 +72,7 @@ export default function TournamentsPage() {
   const [cvars, setCvars] = useState<Array<{ key: string; value: string }>>([]);
   const [team1Players, setTeam1Players] = useState<Player[]>([]);
   const [team2Players, setTeam2Players] = useState<Player[]>([]);
+  const [spectators, setSpectators] = useState<Player[]>([]);
 
   const [team1Search, setTeam1Search] = useState('');
   const [team2Search, setTeam2Search] = useState('');
@@ -79,6 +80,10 @@ export default function TournamentsPage() {
   const [team2SearchResults, setTeam2SearchResults] = useState<User[]>([]);
   const [team1SearchLoading, setTeam1SearchLoading] = useState(false);
   const [team2SearchLoading, setTeam2SearchLoading] = useState(false);
+
+  const [spectatorSearch, setSpectatorSearch] = useState('');
+  const [spectatorSearchResults, setSpectatorSearchResults] = useState<User[]>([]);
+  const [spectatorSearchLoading, setSpectatorSearchLoading] = useState(false);
 
   const isAdmin = session?.user?.role === 'admin';
 
@@ -130,6 +135,28 @@ export default function TournamentsPage() {
     };
   }, [team2Search]);
 
+  useEffect(() => {
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer);
+    }
+
+    if (spectatorSearch.length >= 2) {
+      setSpectatorSearchLoading(true);
+      searchDebounceTimer = setTimeout(() => {
+        searchUsers(spectatorSearch, 0);
+      }, 500);
+    } else {
+      setSpectatorSearchResults([]);
+      setSpectatorSearchLoading(false);
+    }
+
+    return () => {
+      if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+      }
+    };
+  }, [spectatorSearch]);
+
   const fetchTournaments = async () => {
     setLoading(true);
     try {
@@ -146,7 +173,7 @@ export default function TournamentsPage() {
     }
   };
 
-  const searchUsers = async (query: string, team: 1 | 2) => {
+  const searchUsers = async (query: string, team: 0 | 1 | 2) => {
     try {
       const params = new URLSearchParams();
       params.append('search', query);
@@ -158,16 +185,21 @@ export default function TournamentsPage() {
       if (team === 1) {
         setTeam1SearchResults(data.users || []);
         setTeam1SearchLoading(false);
-      } else {
+      } else if (team === 2) {
         setTeam2SearchResults(data.users || []);
         setTeam2SearchLoading(false);
+      } else {
+        setSpectatorSearchResults(data.users || []);
+        setSpectatorSearchLoading(false);
       }
     } catch (error) {
       console.error('Error searching users:', error);
       if (team === 1) {
         setTeam1SearchLoading(false);
-      } else {
+      } else if (team === 2) {
         setTeam2SearchLoading(false);
+      } else {
+        setSpectatorSearchLoading(false);
       }
     }
   };
@@ -186,10 +218,13 @@ export default function TournamentsPage() {
     setCvars([]);
     setTeam1Players([]);
     setTeam2Players([]);
+    setSpectators([]);
     setTeam1Search('');
     setTeam2Search('');
+    setSpectatorSearch('');
     setTeam1SearchResults([]);
     setTeam2SearchResults([]);
+    setSpectatorSearchResults([]);
     setShowModal(true);
   };
 
@@ -218,6 +253,10 @@ export default function TournamentsPage() {
         name: p.player_name
       })));
       setTeam2Players(players.filter((p: any) => p.team_number === 2).map((p: any) => ({
+        steamid64: p.steamid64,
+        name: p.player_name
+      })));
+      setSpectators(players.filter((p: any) => p.team_number === 0).map((p: any) => ({
         steamid64: p.steamid64,
         name: p.player_name
       })));
@@ -264,6 +303,7 @@ export default function TournamentsPage() {
           cvars: cvarsObj,
           team1_players: team1Players,
           team2_players: team2Players,
+          spectators: spectators,
         }),
       });
 
@@ -304,8 +344,24 @@ export default function TournamentsPage() {
     }
   };
 
-  const addPlayer = (user: User, team: 1 | 2) => {
+  const addPlayer = (user: User, team: 0 | 1 | 2) => {
     const player = {steamid64: user.steamid64, name: user.name};
+
+    if (team === 0) {
+      if (spectators.some(p => p.steamid64 === user.steamid64)) {
+        alert('Player already in spectators');
+        return;
+      }
+      if (team1Players.some(p => p.steamid64 === user.steamid64) || team2Players.some(p => p.steamid64 === user.steamid64)) {
+        alert('Player is already in a team');
+        return;
+      }
+      setSpectators([...spectators, player]);
+      setSpectatorSearch('');
+      setSpectatorSearchResults([]);
+      return;
+    }
+
     const targetTeam = team === 1 ? team1Players : team2Players;
     const otherTeam = team === 1 ? team2Players : team1Players;
 
@@ -316,6 +372,11 @@ export default function TournamentsPage() {
 
     if (otherTeam.some(p => p.steamid64 === user.steamid64)) {
       alert('Player already in the other team');
+      return;
+    }
+
+    if (spectators.some(p => p.steamid64 === user.steamid64)) {
+      alert('Player is already a spectator');
       return;
     }
 
@@ -330,8 +391,10 @@ export default function TournamentsPage() {
     }
   };
 
-  const removePlayer = (steamid64: string, team: 1 | 2) => {
-    if (team === 1) {
+  const removePlayer = (steamid64: string, team: 0 | 1 | 2) => {
+    if (team === 0) {
+      setSpectators(spectators.filter(p => p.steamid64 !== steamid64));
+    } else if (team === 1) {
       setTeam1Players(team1Players.filter(p => p.steamid64 !== steamid64));
     } else {
       setTeam2Players(team2Players.filter(p => p.steamid64 !== steamid64));
@@ -475,9 +538,9 @@ export default function TournamentsPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-card-bg rounded-2xl border border-white/10 w-full max-w-6xl my-8">
-            <div className="p-6 border-b border-white/10 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card-bg rounded-2xl border border-white/10 w-full max-w-6xl max-h-[95vh] flex flex-col">
+            <div className="p-6 border-b border-white/10 flex justify-between items-center flex-shrink-0">
               <h3 className="text-xl font-bold flex items-center gap-2">
                 <IconTrophy size={24}/>
                 {editingTournament ? 'Chỉnh Sửa Giải Đấu' : 'Tạo Giải Đấu'}
@@ -487,7 +550,7 @@ export default function TournamentsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6">
+            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-6 mb-6">
                 <div>
                   <label className="text-white/80 text-sm mb-2 block">Tên Đội 1</label>
@@ -597,7 +660,7 @@ export default function TournamentsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6 mb-6">
+              <div className="grid grid-cols-2 gap-3 mb-6">
                 <div>
                   <label className="text-white/80 text-sm mb-2 block">Người Chơi Đội 1</label>
                   <div className="bg-white/5 border border-white/10 rounded-xl p-4">
@@ -705,6 +768,61 @@ export default function TournamentsPage() {
                         <div className="text-white/40 text-sm text-center py-4">Chưa có người chơi</div>
                       )}
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="text-white/80 text-sm mb-2 block">Spectators (Tùy chọn)</label>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <input
+                    type="text"
+                    value={spectatorSearch}
+                    onChange={(e) => setSpectatorSearch(e.target.value)}
+                    placeholder="Tìm kiếm người xem..."
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white mb-3 text-sm"
+                  />
+
+                  {spectatorSearchLoading && (
+                    <div className="text-white/50 text-sm mb-3">Đang tìm...</div>
+                  )}
+
+                  {spectatorSearchResults.length > 0 && (
+                    <div className="space-y-2 max-h-40 overflow-y-auto mb-3">
+                      {spectatorSearchResults.map((user) => (
+                        <button
+                          key={user.steamid64}
+                          type="button"
+                          onClick={() => addPlayer(user, 0)}
+                          className="w-full flex items-center gap-3 bg-white/5 hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
+                        >
+                          <img src={user.avatar} alt={user.name} className="w-6 h-6 rounded-full"/>
+                          <div className="text-left flex-1 min-w-0">
+                            <div className="text-white text-sm truncate">{user.name}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="border-t border-white/10 pt-3 mt-3">
+                    <div className="text-white/40 text-xs mb-2">Danh sách ({spectators.length})</div>
+                    {spectators.map((player) => (
+                      <div key={player.steamid64}
+                           className="flex justify-between items-center mb-2 bg-white/5 px-3 py-2 rounded-lg">
+                        <span className="text-white text-sm">{player.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removePlayer(player.steamid64, 0)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <IconX size={16}/>
+                        </button>
+                      </div>
+                    ))}
+                    {spectators.length === 0 && (
+                      <div className="text-white/40 text-sm text-center py-4">Chưa có người xem</div>
+                    )}
                   </div>
                 </div>
               </div>

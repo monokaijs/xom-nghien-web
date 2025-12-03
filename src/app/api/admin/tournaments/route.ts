@@ -53,6 +53,7 @@ export const POST = requireAdmin(async (request: NextRequest) => {
       cvars,
       team1_players,
       team2_players,
+      spectators,
       registration_deadline,
     } = body;
 
@@ -106,6 +107,17 @@ export const POST = requireAdmin(async (request: NextRequest) => {
         await db.insert(tournamentPlayers).values({
           tournament_id: tournamentId,
           team_number: 2,
+          steamid64: player.steamid64,
+          player_name: player.name,
+        });
+      }
+    }
+
+    if (spectators && Array.isArray(spectators)) {
+      for (const player of spectators) {
+        await db.insert(tournamentPlayers).values({
+          tournament_id: tournamentId,
+          team_number: 0,
           steamid64: player.steamid64,
           player_name: player.name,
         });

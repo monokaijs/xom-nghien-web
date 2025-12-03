@@ -40,16 +40,19 @@ export async function GET(
 
     const team1Players: Record<string, string> = {};
     const team2Players: Record<string, string> = {};
+    const spectatorPlayers: Record<string, string> = {};
 
     playersResult.forEach((player) => {
       if (player.team_number === 1) {
         team1Players[player.steamid64] = player.player_name;
       } else if (player.team_number === 2) {
         team2Players[player.steamid64] = player.player_name;
+      } else if (player.team_number === 0) {
+        spectatorPlayers[player.steamid64] = player.player_name;
       }
     });
 
-    const matchzyData = {
+    const matchzyData: any = {
       team1: {
         name: tournament.team1_name,
         players: team1Players,
@@ -64,6 +67,12 @@ export async function GET(
       players_per_team: tournament.players_per_team,
       cvars: tournament.cvars || {},
     };
+
+    if (Object.keys(spectatorPlayers).length > 0) {
+      matchzyData.spectators = {
+        players: spectatorPlayers,
+      };
+    }
 
     return NextResponse.json(matchzyData);
   } catch (error) {

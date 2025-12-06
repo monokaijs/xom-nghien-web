@@ -133,6 +133,67 @@ export const tournamentPlayers = mysqlTable('cs2_tournament_players', {
   uniquePlayerPerTournament: unique('unique_player_per_tournament').on(table.tournament_id, table.steamid64),
 }));
 
+export const vpsInstances = mysqlTable('vps_instances', {
+  id: int('id').primaryKey().autoincrement(),
+  name: varchar('name', { length: 255 }).notNull(),
+  ip: varchar('ip', { length: 45 }).notNull(),
+  port: int('port').notNull().default(22),
+  username: varchar('username', { length: 255 }).notNull(),
+  privateKey: text('private_key').notNull(),
+  openPortRangeStart: int('open_port_range_start').notNull(),
+  openPortRangeEnd: int('open_port_range_end').notNull(),
+  maxGameInstances: int('max_game_instances').notNull().default(5),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  uniqueIp: unique('unique_vps_ip').on(table.ip),
+}));
+
+export const steamApiKeys = mysqlTable('steam_api_keys', {
+  id: int('id').primaryKey().autoincrement(),
+  name: varchar('name', { length: 255 }).notNull(),
+  steamAccount: varchar('steam_account', { length: 255 }),
+  isActive: tinyint('is_active').notNull().default(1),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+export const tempGameServers = mysqlTable('temp_game_servers', {
+  id: int('id').primaryKey().autoincrement(),
+  vpsId: int('vps_id').notNull(),
+  steamApiKeyId: int('steam_api_key_id'),
+  assignedPort: int('assigned_port').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('offline'),
+  rconPassword: varchar('rcon_password', { length: 255 }).notNull(),
+  containerId: varchar('container_id', { length: 255 }),
+  createdBy: varchar('created_by', { length: 64 }),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  expires_at: timestamp('expires_at').notNull(),
+}, (table) => ({
+  idxVpsId: index('idx_temp_server_vps_id').on(table.vpsId),
+  idxSteamApiKeyId: index('idx_temp_server_steam_api_key_id').on(table.steamApiKeyId),
+  idxExpiresAt: index('idx_temp_server_expires_at').on(table.expires_at),
+  idxCreatedBy: index('idx_temp_server_created_by').on(table.createdBy),
+  uniqueVpsPort: unique('unique_vps_port').on(table.vpsId, table.assignedPort),
+}));
+
+export const lobbies = mysqlTable('lobbies', {
+  id: int('id').primaryKey().autoincrement(),
+  name: varchar('name', { length: 255 }).notNull(),
+  gameMode: varchar('game_mode', { length: 50 }).notNull(),
+  maxPlayers: int('max_players').notNull().default(10),
+  map: varchar('map', { length: 100 }).notNull(),
+  serverPassword: varchar('server_password', { length: 255 }),
+  tempGameServerId: int('temp_game_server_id'),
+  createdBy: varchar('created_by', { length: 64 }).notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  expires_at: timestamp('expires_at').notNull(),
+}, (table) => ({
+  idxTempGameServerId: index('idx_lobby_temp_game_server_id').on(table.tempGameServerId),
+  idxCreatedBy: index('idx_lobby_created_by').on(table.createdBy),
+  idxExpiresAt: index('idx_lobby_expires_at').on(table.expires_at),
+}));
+
 export type MatchzyStatsMatch = typeof matchzyStatsMatches.$inferSelect;
 export type MatchzyStatsMap = typeof matchzyStatsMaps.$inferSelect;
 export type MatchzyStatsPlayer = typeof matchzyStatsPlayers.$inferSelect;
@@ -144,4 +205,12 @@ export type Tournament = typeof tournaments.$inferSelect;
 export type NewTournament = typeof tournaments.$inferInsert;
 export type TournamentPlayer = typeof tournamentPlayers.$inferSelect;
 export type NewTournamentPlayer = typeof tournamentPlayers.$inferInsert;
+export type VpsInstance = typeof vpsInstances.$inferSelect;
+export type NewVpsInstance = typeof vpsInstances.$inferInsert;
+export type SteamApiKey = typeof steamApiKeys.$inferSelect;
+export type NewSteamApiKey = typeof steamApiKeys.$inferInsert;
+export type TempGameServer = typeof tempGameServers.$inferSelect;
+export type NewTempGameServer = typeof tempGameServers.$inferInsert;
+export type Lobby = typeof lobbies.$inferSelect;
+export type NewLobby = typeof lobbies.$inferInsert;
 

@@ -16,6 +16,7 @@ import {
   IconSettings,
   IconShield,
   IconAward,
+  IconUsers,
 } from '@tabler/icons-react';
 import IconSolid from "@/components/IconSolid";
 import { usePathname } from 'next/navigation';
@@ -170,6 +171,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <IconTrophy size={24} />
                 <span>Bảng Xếp Hạng</span>
               </Link>
+              <Link href="/lobbies"
+                className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/lobbies' || pathname?.startsWith('/lobbies/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
+                  }`}>
+                <IconUsers size={24} />
+                <span>Lobbies</span>
+              </Link>
               {session?.user && (
                 <>
                   <Link href="/inventory"
@@ -253,6 +260,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               title="Bảng Xếp Hạng"
             >
               <IconTrophy size={24} />
+            </Link>
+            <Link
+              href="/lobbies"
+              className={`transition-colors duration-300 flex items-center justify-center ${pathname === '/lobbies' || pathname?.startsWith('/lobbies/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
+                }`}
+              title="Lobbies"
+            >
+              <IconUsers size={24} />
             </Link>
             {session?.user && (
               <Link

@@ -19,9 +19,11 @@
     "next": "16.0.4",
     "next-auth": "^4.24.13",
     "next-auth-steam": "github:monokaijs/next-auth-steam#fix/peer-legacy-deps",
+    "node-ssh": "^13.2.1",
     "rcon": "^1.1.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "ssh2-sftp-client": "^12.0.1",
     "tailwind-merge": "^3.4.0",
     "uuid": "^13.0.0"
   },
@@ -31,6 +33,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ssh2-sftp-client": "^9.0.6",
     "tailwindcss": "^4",
     "typescript": "^5",
     "wrangler": "^4.51.0"

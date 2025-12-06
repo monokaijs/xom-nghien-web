@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { IconDashboard, IconSettings, IconUsers, IconTrophy, IconServer, IconTerminal } from '@tabler/icons-react';
+import { IconDashboard, IconSettings, IconUsers, IconTrophy, IconServer, IconTerminal, IconCloud, IconKey } from '@tabler/icons-react';
 
 export default function AdminLayout({
                                       children,
@@ -66,6 +66,16 @@ export default function AdminLayout({
       label: 'Quản Lý Server',
       href: '/admin/servers',
       icon: <IconServer size={20}/>,
+    },
+    {
+      label: 'Quản Lý VPS',
+      href: '/admin/vps',
+      icon: <IconCloud size={20}/>,
+    },
+    {
+      label: 'Steam API Keys',
+      href: '/admin/steam-api-keys',
+      icon: <IconKey size={20}/>,
     },
     {
       label: 'RCON Console',

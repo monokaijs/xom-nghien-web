@@ -81,11 +81,17 @@ export const userInfo = mysqlTable('user_info', {
   twitter: varchar('twitter', { length: 512 }),
   instagram: varchar('instagram', { length: 512 }),
   github: varchar('github', { length: 512 }),
+  google_id: varchar('google_id', { length: 255 }),
+  discord_id: varchar('discord_id', { length: 255 }),
+  github_oauth_id: varchar('github_oauth_id', { length: 255 }),
   role: varchar('role', { length: 20 }).notNull().default('user'),
   banned: tinyint('banned').notNull().default(0),
   last_updated: timestamp('last_updated').defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
   idxLastUpdated: index('idx_last_updated').on(table.last_updated),
+  idxGoogleId: index('idx_google_id').on(table.google_id),
+  idxDiscordId: index('idx_discord_id').on(table.discord_id),
+  idxGithubOauthId: index('idx_github_oauth_id').on(table.github_oauth_id),
 }));
 
 export const servers = mysqlTable('servers', {

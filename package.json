@@ -8,6 +8,7 @@
     "build": "next build"
   },
   "dependencies": {
+    "@auth/core": "^0.34.3",
     "@ianlucas/cs2-lib": "^7.15.0",
     "@tabler/icons-react": "^3.35.0",
     "@types/uuid": "^10.0.0",

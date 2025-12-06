@@ -20,6 +20,7 @@ import {
 import IconSolid from "@/components/IconSolid";
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import LoginModal from '@/components/auth/LoginModal';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -37,6 +38,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const isLoading = status === "loading";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showFloatingNav, setShowFloatingNav] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [greeting, setGreeting] = useState(getGreeting());
   const pathname = usePathname();
   const mainRef = useRef<HTMLElement>(null);
@@ -95,9 +97,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </button>
             ) : (
               <button
-                onClick={() => signIn('steam')}
+                onClick={() => setIsLoginModalOpen(true)}
                 className="bg-accent-primary border-none px-4 py-2 rounded-full text-white flex items-center gap-2 cursor-pointer hover:bg-[#ff6b76] transition-colors text-sm whitespace-nowrap flex-shrink-0"
-                title="Đăng nhập với Steam"
+                title="Đăng nhập"
               >
                 <IconLogin size={18} />
                 <span>Đăng Nhập</span>
@@ -335,9 +337,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   </button>
                 ) : (
                   <button
-                    onClick={() => signIn('steam')}
+                    onClick={() => setIsLoginModalOpen(true)}
                     className="bg-accent-primary border-none px-4 py-2 rounded-full text-white flex items-center gap-2 cursor-pointer hover:bg-[#ff6b76] transition-colors"
-                    title="Đăng nhập với Steam"
+                    title="Đăng nhập"
                   >
                     <IconLogin size={20} />
                     <span className={'line-clamp-1'}>Đăng Nhập</span>
@@ -349,6 +351,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {children}
         </main>
       </div>
+      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
     </>
   );
 }

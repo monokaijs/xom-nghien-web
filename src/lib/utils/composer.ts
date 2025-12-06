@@ -60,7 +60,7 @@ volumes:
 };
 
 export const generateCustomConfig = (mode: string) => {
-  const content = `exec_after_delay 30 "exec css_mode ${mode}"`;
+  const content = `exec_after_delay 30 "exec ${mode}.cfg"`;
   return {
     path: 'cfg/custom_config.cfg',
     content,

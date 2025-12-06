@@ -7,9 +7,9 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import Link from 'next/link';
 
 const GAME_MODES = [
-  { value: 'competitive', label: 'Competitive' },
+  { value: 'comp', label: 'Competitive' },
   { value: 'wingman', label: 'Wingman' },
-  { value: 'deathmatch', label: 'Death Match' },
+  { value: 'dm', label: 'Death Match' },
   { value: '1v1', label: 'Solo (1v1)' },
   { value: 'gg', label: 'Gun Game' },
 ];

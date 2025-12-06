@@ -64,9 +64,13 @@ async function findAvailableSteamApiKey(): Promise<{ id: number; apiKey: string;
     return null;
   }
 
+  if (!process.env.STEAM_API_KEY) {
+    throw new Error('STEAM_API_KEY not configured');
+  }
+
   return {
     id: availableKeys[0].id,
-    apiKey: availableKeys[0].apiKey,
+    apiKey: process.env.STEAM_API_KEY,
     steamAccount: availableKeys[0].steamAccount,
   };
 }

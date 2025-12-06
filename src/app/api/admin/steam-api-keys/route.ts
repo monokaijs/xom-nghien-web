@@ -10,22 +10,21 @@ export const GET = requireAdmin(async (request: NextRequest) => {
 
   try {
     let query = sql`
-      SELECT 
-        sak.id, 
-        sak.name, 
-        sak.api_key, 
+      SELECT
+        sak.id,
+        sak.name,
         sak.steam_account,
-        sak.is_active, 
-        sak.created_at, 
+        sak.is_active,
+        sak.created_at,
         sak.updated_at,
-        (SELECT COUNT(*) FROM temp_game_servers tgs 
-         WHERE tgs.steam_api_key_id = sak.id 
+        (SELECT COUNT(*) FROM temp_game_servers tgs
+         WHERE tgs.steam_api_key_id = sak.id
          AND tgs.expires_at > NOW()) as active_servers
       FROM steam_api_keys sak
     `;
 
     if (search) {
-      query = sql`${query} WHERE (sak.name LIKE ${`%${search}%`} OR sak.api_key LIKE ${`%${search}%`})`;
+      query = sql`${query} WHERE (sak.name LIKE ${`%${search}%`} OR sak.steam_account LIKE ${`%${search}%`})`;
     }
 
     query = sql`${query} ORDER BY sak.created_at DESC`;

@@ -16,7 +16,7 @@
     "drizzle-orm": "^0.44.7",
     "gamedig": "^5.3.2",
     "mysql2": "^3.15.3",
-    "next": "16.0.4",
+    "next": "16.0.7",
     "next-auth": "^4.24.13",
     "next-auth-steam": "github:monokaijs/next-auth-steam#fix/peer-legacy-deps",
     "node-ssh": "^13.2.1",

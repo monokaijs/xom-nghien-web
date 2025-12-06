@@ -83,6 +83,7 @@ export async function GET(request: NextRequest) {
       let status = 'initializing';
       let playerCount = 0;
       let currentMaxPlayers = lobby.maxPlayers;
+      let currentMap = lobby.map;
 
       if (lobby.serverIp && lobby.serverPort) {
         const serverCreatedAt = lobby.serverCreatedAt ? new Date(lobby.serverCreatedAt).getTime() : 0;
@@ -96,6 +97,7 @@ export async function GET(request: NextRequest) {
           status = 'online';
           playerCount = serverStatus.players?.current || 0;
           currentMaxPlayers = serverStatus.players?.max || lobby.maxPlayers;
+          currentMap = serverStatus.map || lobby.map;
         } else {
           status = isInitializing ? 'initializing' : 'offline';
         }
@@ -106,7 +108,7 @@ export async function GET(request: NextRequest) {
         name: lobby.name,
         gameMode: lobby.gameMode,
         maxPlayers: currentMaxPlayers,
-        map: lobby.map,
+        map: currentMap,
         hasPassword: !!lobby.hasPassword,
         tempGameServerId: lobby.tempGameServerId,
         createdBy: lobby.createdBy,

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import {useRouter} from 'next/navigation';
-import { IconFlame, IconTarget, IconTrophy } from '@tabler/icons-react';
+import { IconFlame, IconTarget, IconTrophy, IconAward } from '@tabler/icons-react';
 import { LeaderboardPlayer, LeaderboardPlayerRaw, LeaderboardResponse, LeaderboardType } from '@/types/leaderboard';
 
 interface LeaderboardCardProps {
@@ -56,6 +56,10 @@ export default function LeaderboardCard({ title = "Bảng Xếp Hạng" }: Leade
         rawPlayers = data.topDamage || [];
         valueField = 'total_damage';
         break;
+      case 'kda':
+        rawPlayers = data.topKDA || [];
+        valueField = 'kda_ratio';
+        break;
     }
 
     const processedPlayers: LeaderboardPlayer[] = rawPlayers.map((player, index) => ({
@@ -63,12 +67,14 @@ export default function LeaderboardCard({ title = "Bảng Xếp Hạng" }: Leade
       steamId: player.steamid64,
       name: player.name,
       avatar: player.avatar,
-      value: parseInt(player[valueField] as string) || 0,
+      value: activeType === 'kda' ? parseFloat(player[valueField] as string) || 0 : parseInt(player[valueField] as string) || 0,
       kills: parseInt(player.total_kills) || 0,
       deaths: parseInt(player.total_deaths) || 0,
       damage: parseInt(player.total_damage) || 0,
       headshots: parseInt(player.total_headshots) || 0,
+      assists: parseInt(player.total_assists || '0') || 0,
       headshotPercentage: player.headshot_percentage ? parseFloat(player.headshot_percentage) : undefined,
+      kdaRatio: player.kda_ratio ? parseFloat(player.kda_ratio) : undefined,
     }));
 
     setPlayers(processedPlayers);
@@ -82,6 +88,8 @@ export default function LeaderboardCard({ title = "Bảng Xếp Hạng" }: Leade
         return 'Bắn Đầu';
       case 'damage':
         return 'Sát Thương';
+      case 'kda':
+        return 'KDA';
     }
   };
 
@@ -93,12 +101,17 @@ export default function LeaderboardCard({ title = "Bảng Xếp Hạng" }: Leade
         return <IconTarget size={16} />;
       case 'damage':
         return <IconFlame size={16} />;
+      case 'kda':
+        return <IconAward size={16} />;
     }
   };
 
   const formatValue = (value: number, type: LeaderboardType) => {
     if (type === 'damage') {
       return value.toLocaleString();
+    }
+    if (type === 'kda') {
+      return value.toFixed(2);
     }
     return value.toString();
   };
@@ -134,7 +147,7 @@ export default function LeaderboardCard({ title = "Bảng Xếp Hạng" }: Leade
       <div className="bg-gradient-to-br from-[#2b161b] to-[#1a0f12] rounded-[30px] p-5 flex flex-col">
         {/* Type Selector */}
         <div className="flex gap-2 mb-5">
-          {(['kills', 'headshots', 'damage'] as LeaderboardType[]).map((type) => (
+          {(['kills', 'headshots', 'damage', 'kda'] as LeaderboardType[]).map((type) => (
             <button
               key={type}
               onClick={() => setActiveType(type)}
@@ -187,7 +200,9 @@ export default function LeaderboardCard({ title = "Bảng Xếp Hạng" }: Leade
                   <div className="text-xs text-white/50">
                     {activeType === 'headshots' && player.headshotPercentage
                       ? `${player.headshotPercentage.toFixed(1)}% accuracy`
-                      : `${player.kills}K / ${player.deaths}D`
+                      : activeType === 'kda'
+                        ? `${player.kills}K / ${player.deaths}D / ${player.assists}A`
+                        : `${player.kills}K / ${player.deaths}D`
                     }
                   </div>
                 </div>
@@ -198,7 +213,7 @@ export default function LeaderboardCard({ title = "Bảng Xếp Hạng" }: Leade
                     {formatValue(player.value, activeType)}
                   </div>
                   <div className="text-xs text-white/50">
-                    {activeType === 'damage' ? 'DMG' : activeType === 'headshots' ? 'HS' : 'K'}
+                    {activeType === 'damage' ? 'DMG' : activeType === 'headshots' ? 'HS' : activeType === 'kda' ? 'KDA' : 'K'}
                   </div>
                 </div>
               </div>

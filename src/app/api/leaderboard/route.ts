@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getLeaderboard } from '@/lib/utils/leaderboard';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const result = await getLeaderboard();
+    const { searchParams } = new URL(request.url);
+    const timeframe = searchParams.get('timeframe') as 'all' | 'weekly' || 'all';
+
+    const result = await getLeaderboard(timeframe);
 
     return NextResponse.json(result, {
       headers: {

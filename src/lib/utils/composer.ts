@@ -40,8 +40,8 @@ export const generateDockerCompose = (opts: GenerateComposeOpts) => {
     environment:
 ${envLines}
     volumes:
-      - cs2-base:/home/steam/cs2:ro
-      - steamrt-base:/home/steam/steamrt:ro
+      - cs2-base:/home/steam/cs2:rw
+      - steamrt-base:/home/steam/steamrt:rw
       - ./custom_files:/home/custom_files:ro
     ports:
       - "${opts.port}:27015/tcp"

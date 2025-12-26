@@ -42,10 +42,6 @@ ${envLines}
     volumes:
       - cs2-base:/home/steam/cs2:ro
       - steamrt-base:/home/steam/steamrt:ro
-      - cs2-comp1-addons:/home/steam/cs2/game/csgo/addons:rw
-      - cs2-comp1-cfg-settings:/home/steam/cs2/game/csgo/cfg/settings:rw
-      - cs2-comp1-logs:/home/steam/cs2/game/csgo/logs:rw
-      - cs2-comp1-workshop:/home/steam/cs2/game/csgo/maps/workshop:rw
       - ./custom_files:/home/custom_files:ro
     ports:
       - "${opts.port}:27015/tcp"

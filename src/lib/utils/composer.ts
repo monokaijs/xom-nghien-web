@@ -57,7 +57,8 @@ networks:
     external: true
 
 volumes:
-  temp-server:
+  cs2-base:
+  steamrt-base:
     external: true
 `;
 };

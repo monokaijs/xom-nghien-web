@@ -5,33 +5,13 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { IconArrowLeft } from '@tabler/icons-react';
 import Link from 'next/link';
-
-const GAME_MODES = [
-  { value: 'comp', label: 'Competitive' },
-  { value: 'wingman', label: 'Wingman' },
-  { value: 'dm', label: 'Death Match' },
-  { value: '1v1', label: 'Solo (1v1)' },
-  { value: 'gg', label: 'Gun Game' },
-];
-
-const CS2_MAPS = [
-  { value: 'de_dust2', label: 'Dust II' },
-  { value: 'de_mirage', label: 'Mirage' },
-  { value: 'de_inferno', label: 'Inferno' },
-  { value: 'de_nuke', label: 'Nuke' },
-  { value: 'de_overpass', label: 'Overpass' },
-  { value: 'de_ancient', label: 'Ancient' },
-  { value: 'de_anubis', label: 'Anubis' },
-  { value: 'de_vertigo', label: 'Vertigo' },
-  { value: 'cs_office', label: 'Office' },
-  { value: 'cs_italy', label: 'Italy' },
-];
+import { GameMode, CS2Map, GAME_MODE_LABELS, CS2_MAP_LABELS } from '@/types/lobby';
 
 interface FormData {
   name: string;
-  gameMode: string;
+  gameMode: GameMode;
   maxPlayers: number;
-  map: string;
+  map: CS2Map;
   serverPassword: string;
 }
 
@@ -42,9 +22,9 @@ export default function CreateLobbyPage() {
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     name: '',
-    gameMode: 'competitive',
+    gameMode: GameMode.Competitive,
     maxPlayers: 10,
-    map: 'de_dust2',
+    map: CS2Map.Dust2,
     serverPassword: '',
   });
 
@@ -122,11 +102,11 @@ export default function CreateLobbyPage() {
             <select
               required
               value={formData.gameMode}
-              onChange={(e) => setFormData({ ...formData, gameMode: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, gameMode: e.target.value as GameMode })}
               className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-accent-primary/50"
             >
-              {GAME_MODES.map(mode => (
-                <option key={mode.value} value={mode.value} className="bg-bg-panel">{mode.label}</option>
+              {Object.values(GameMode).map(mode => (
+                <option key={mode} value={mode} className="bg-bg-panel">{GAME_MODE_LABELS[mode]}</option>
               ))}
             </select>
           </div>
@@ -149,11 +129,11 @@ export default function CreateLobbyPage() {
           <select
             required
             value={formData.map}
-            onChange={(e) => setFormData({ ...formData, map: e.target.value })}
+            onChange={(e) => setFormData({ ...formData, map: e.target.value as CS2Map })}
             className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-accent-primary/50"
           >
-            {CS2_MAPS.map(map => (
-              <option key={map.value} value={map.value} className="bg-bg-panel">{map.label}</option>
+            {Object.values(CS2Map).map(map => (
+              <option key={map} value={map} className="bg-bg-panel">{CS2_MAP_LABELS[map]}</option>
             ))}
           </select>
         </div>

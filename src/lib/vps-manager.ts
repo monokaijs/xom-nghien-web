@@ -1,5 +1,6 @@
 import {NodeSSH} from "node-ssh";
 import {generateDockerCompose, generateCustomConfig, generateAdminConfig} from "@/lib/utils/composer";
+import { GameMode, CS2Map } from '@/types/lobby';
 
 export interface SpawnServerOptions {
   tempServerId: string;
@@ -7,7 +8,8 @@ export interface SpawnServerOptions {
   rconPassword: string;
   steamAccount: string;
   serverPassword?: string;
-  mode?: string;
+  mode?: GameMode;
+  map?: CS2Map;
   admins?: string[];
 }
 
@@ -46,15 +48,16 @@ export class VpsManager {
 
   async spawnNewServer(options: SpawnServerOptions) {
     const {
-      tempServerId, port, rconPassword, steamAccount, mode = 'competitive', admins = [],
+      tempServerId, port, rconPassword, steamAccount, mode = GameMode.Competitive, admins = [],
       serverPassword,
+      map = CS2Map.Dust2,
     } = options;
     const rootPath = `~/temp-servers/${tempServerId}`;
 
     return this.withConnection(async (ssh) => {
       await ssh.execCommand(`mkdir -p ${rootPath}/ && cp ~/custom_files ${rootPath}/ -r`);
 
-      const customConfig = generateCustomConfig(mode);
+      const customConfig = generateCustomConfig(mode, map);
       await ssh.execCommand(`mkdir -p ${rootPath}/custom_files/${customConfig.path.split('/').slice(0, -1).join('/')}`);
       await ssh.execCommand(`cat > ${rootPath}/custom_files/${customConfig.path} << 'EOF'
 ${customConfig.content}

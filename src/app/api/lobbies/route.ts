@@ -5,6 +5,7 @@ import { vpsInstances, tempGameServers, steamApiKeys, lobbies } from '@/lib/db/s
 import { eq, and, gt, isNotNull, notInArray } from 'drizzle-orm';
 import { VpsManager } from '@/lib/vps-manager';
 import { v4 as uuidv4 } from 'uuid';
+import { GameMode, CS2Map, isValidGameMode, isValidCS2Map } from '@/types/lobby';
 
 async function findAvailableVpsAndPort(): Promise<{ vps: any; port: number } | null> {
   const allVps = await db.select().from(vpsInstances);
@@ -134,11 +135,19 @@ export const POST = requireAuth(async (request: NextRequest, user: AuthUser) => 
     const { name, gameMode, maxPlayers, map, serverPassword } = body;
 
     if (!name || !gameMode || !maxPlayers || !map) {
-      return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
+      return NextResponse.json({ error: 'Tất cả thông tin là bắt buộc' }, { status: 400 });
+    }
+
+    if (!isValidGameMode(gameMode)) {
+      return NextResponse.json({ error: 'Chế độ chơi không hợp lệ' }, { status: 400 });
+    }
+
+    if (!isValidCS2Map(map)) {
+      return NextResponse.json({ error: 'Bản đồ không hợp lệ' }, { status: 400 });
     }
 
     if (maxPlayers < 2 || maxPlayers > 10) {
-      return NextResponse.json({ error: 'Max players must be between 2 and 10' }, { status: 400 });
+      return NextResponse.json({ error: 'Người chơi tối thiểu là 2, tối đa là 10' }, { status: 400 });
     }
 
     const existingLobby = await db.select()
@@ -147,17 +156,17 @@ export const POST = requireAuth(async (request: NextRequest, user: AuthUser) => 
       .limit(1);
 
     if (existingLobby.length > 0) {
-      return NextResponse.json({ error: 'You already have an active lobby' }, { status: 400 });
+      return NextResponse.json({ error: 'Không thể tạo lobby khi bạn đã có lobby khác hoạt động' }, { status: 400 });
     }
 
     const available = await findAvailableVpsAndPort();
     if (!available) {
-      return NextResponse.json({ error: 'No available VPS slots. Please try again later.' }, { status: 503 });
+      return NextResponse.json({ error: 'Hết slot, vui lòng chờ một chút.' }, { status: 503 });
     }
 
     const steamApiKey = await findAvailableSteamApiKey();
     if (!steamApiKey) {
-      return NextResponse.json({ error: 'No available Steam API keys. Please try again later.' }, { status: 503 });
+      return NextResponse.json({ error: 'Hệ thống hết slot, vui lòng chờ.' }, { status: 503 });
     }
 
     const { vps, port } = available;
@@ -174,9 +183,9 @@ export const POST = requireAuth(async (request: NextRequest, user: AuthUser) => 
       steamAccount: steamApiKey.steamAccount || process.env.STEAM_ACCOUNT || '',
       serverPassword: serverPassword || undefined,
       mode: gameMode,
+      map,
       admins: [user.steamId],
     });
-    console.log({spawnResult})
 
     if (spawnResult.stderr && !spawnResult.stdout) {
       console.error('Failed to spawn server:', spawnResult.stderr);

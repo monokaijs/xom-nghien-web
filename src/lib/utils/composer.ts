@@ -1,3 +1,5 @@
+import { GameMode } from '@/types/lobby';
+
 interface GenerateComposeOpts {
   port: number;
   name: string;
@@ -59,8 +61,17 @@ volumes:
 `;
 };
 
-export const generateCustomConfig = (mode: string) => {
-  const content = `exec_after_delay 30 "exec ${mode}.cfg"`;
+const MODE_CONFIG_FILE: Record<GameMode, string> = {
+  [GameMode.Competitive]: 'comp.cfg',
+  [GameMode.Wingman]: 'wingman.cfg',
+  [GameMode.Deathmatch]: 'dm.cfg',
+  [GameMode.Solo1v1]: '1v1.cfg',
+  [GameMode.GunGame]: 'gg.cfg',
+};
+
+export const generateCustomConfig = (mode: GameMode, map: string) => {
+  const content = `exec_after_delay 30 "changelevel ${map}"` +
+  `\nexec_after_delay 50 "exec ${MODE_CONFIG_FILE[mode]}"`;
   return {
     path: 'cfg/custom_config.cfg',
     content,

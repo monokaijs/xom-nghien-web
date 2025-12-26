@@ -6,11 +6,12 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { getMapImage } from '@/lib/utils/mapImage';
 import { connectToServer } from '@/lib/connectToServer';
+import { GameMode, GAME_MODE_LABELS } from '@/types/lobby';
 
 interface Lobby {
   id: number;
   name: string;
-  gameMode: string;
+  gameMode: GameMode;
   maxPlayers: number;
   map: string;
   hasPassword: boolean;
@@ -23,14 +24,6 @@ interface Lobby {
   status: string;
   playerCount: number;
 }
-
-const GAME_MODE_LABELS: Record<string, string> = {
-  competitive: 'Competitive',
-  wingman: 'Wingman',
-  deathmatch: 'Death Match',
-  '1v1': 'Solo (1v1)',
-  gg: 'Gun Game',
-};
 
 export default function LobbiesPage() {
   const { data: session } = useSession();

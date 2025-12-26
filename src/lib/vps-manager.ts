@@ -53,8 +53,12 @@ export class VpsManager {
       map = CS2Map.Dust2,
     } = options;
     const rootPath = `~/temp-servers/${tempServerId}`;
+    const volumeName = `lobby-${tempServerId}`;
 
     return this.withConnection(async (ssh) => {
+      await ssh.execCommand(`docker volume create ${volumeName}`);
+      await ssh.execCommand(`docker run --rm -v cs2_cs2-comp:/source:ro -v ${volumeName}:/dest alpine sh -c "cp -a /source/. /dest/"`);
+
       await ssh.execCommand(`mkdir -p ${rootPath}/ && cp ~/custom_files ${rootPath}/ -r`);
 
       const customConfig = generateCustomConfig(mode, map);
@@ -77,7 +81,7 @@ EOF`);
         serverPassword,
         maxPlayer: 10,
         tickRate: 128,
-        rootPath
+        volumeName,
       });
 
       await ssh.execCommand(`cat > ${rootPath}/docker-compose.yml << 'EOF'
@@ -97,8 +101,10 @@ EOF`);
 
   async shutdownServer(tempServerId: string, containerId: string) {
     const rootPath = `~/temp-servers/${tempServerId}`;
+    const volumeName = `lobby-${tempServerId}`;
     return this.withConnection(async (ssh) => {
       await ssh.execCommand(`cd ${rootPath} && docker compose down 2>/dev/null || true`);
+      await ssh.execCommand(`docker volume rm ${volumeName} 2>/dev/null || true`);
       await ssh.execCommand(`rm -rf ${rootPath}`);
       return { success: true };
     });

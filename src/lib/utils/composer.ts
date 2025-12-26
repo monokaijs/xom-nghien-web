@@ -8,7 +8,7 @@ interface GenerateComposeOpts {
   serverPassword?: string;
   maxPlayer: number;
   tickRate: number;
-  rootPath: string;
+  volumeName: string;
 }
 
 export const generateDockerCompose = (opts: GenerateComposeOpts) => {
@@ -40,8 +40,7 @@ export const generateDockerCompose = (opts: GenerateComposeOpts) => {
     environment:
 ${envLines}
     volumes:
-      - cs2-base:/home/steam/cs2:rw
-      - steamrt-base:/home/steam/steamrt:rw
+      - ${opts.volumeName}:/home/steam:rw
       - ./custom_files:/home/custom_files:ro
     ports:
       - "${opts.port}:27015/tcp"
@@ -57,8 +56,7 @@ networks:
     external: true
 
 volumes:
-  cs2-base:
-  steamrt-base:
+  ${opts.volumeName}:
     external: true
 `;
 };

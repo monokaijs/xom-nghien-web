@@ -72,22 +72,19 @@ export default function GameDetailPage() {
       })
     : null;
 
-  const screenshots = game.screenshotImages?.filter(Boolean) || [];
+  const upscaleUrl = (url: string) => url.replace('.240p.', '.1080p.');
+  const screenshots = game.screenshotImages?.filter(Boolean).map(upscaleUrl) || [];
   const downloads = game.downloadCollections?.filter(c => c.urls?.length > 0) || [];
   const torrents = game.torrentLinks?.filter(t => t.url) || [];
-  const allMedia = screenshots.length > 0 ? screenshots : (game.postImage ? [game.postImage] : []);
+  const allMedia = screenshots.length > 0 ? screenshots : (game.postImage ? [upscaleUrl(game.postImage)] : []);
 
   return (
     <div className="flex flex-col gap-5 min-h-0 flex-1 overflow-y-auto scrollbar-hide pb-10">
-      <div className="flex items-center gap-3 text-sm text-text-secondary">
-        <Link href="/games" className="hover:text-white transition-colors">Kho Game</Link>
-        <span className="text-text-secondary/40">›</span>
-        <span className="text-white truncate">{game.title}</span>
-      </div>
+      <div className="max-w-[1100px] w-full mx-auto flex flex-col gap-5">
 
       <h1 className="text-3xl font-bold max-md:text-xl leading-tight">{game.title}</h1>
 
-      <div className="grid grid-cols-[1fr_320px] gap-4 max-lg:grid-cols-1">
+      <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1">
         <div className="flex flex-col gap-2 min-w-0">
           {allMedia.length > 0 && (
             <>
@@ -96,7 +93,7 @@ export default function GameDetailPage() {
                 className="aspect-video rounded-[12px] overflow-hidden bg-bg-dark cursor-pointer"
               >
                 <img
-                  src={allMedia[activeScreenshot]}
+                  src={upscaleUrl(allMedia[activeScreenshot])}
                   alt={`Screenshot ${activeScreenshot + 1}`}
                   className="w-full h-full object-cover"
                 />
@@ -132,7 +129,7 @@ export default function GameDetailPage() {
           {game.postImage && (
             <div className="rounded-[10px] overflow-hidden bg-bg-dark">
               <img
-                src={game.postImage}
+                src={upscaleUrl(game.postImage)}
                 alt={game.title}
                 className="w-full object-cover"
               />
@@ -267,6 +264,8 @@ export default function GameDetailPage() {
           <p className="text-text-secondary text-sm leading-relaxed">{game.additionalNotes}</p>
         </div>
       )}
+
+      </div>
 
       {lightboxIndex !== null && allMedia.length > 0 && (
         <div

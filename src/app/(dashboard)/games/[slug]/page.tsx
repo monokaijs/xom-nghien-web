@@ -18,6 +18,12 @@ import {
   IconX,
 } from '@tabler/icons-react';
 
+const decodeHtml = (html: string) => {
+  const el = document.createElement('textarea');
+  el.innerHTML = html;
+  return el.value;
+};
+
 export default function GameDetailPage() {
   const params = useParams<{ slug: string }>();
   const [game, setGame] = useState<FgGameDetail | null>(null);
@@ -95,7 +101,7 @@ export default function GameDetailPage() {
     <div className="flex flex-col min-h-0 flex-1 overflow-y-auto scrollbar-hide pb-10">
       <div className="max-w-[1100px] w-full mx-auto flex flex-col gap-5">
 
-      <h1 className="text-3xl font-bold max-md:text-xl leading-tight">{game.title}</h1>
+      <h1 className="text-3xl font-bold max-md:text-xl leading-tight">{decodeHtml(game.title)}</h1>
 
       <div className="grid grid-cols-[1fr_340px] gap-5 max-lg:grid-cols-1">
 

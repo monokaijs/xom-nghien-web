@@ -6,6 +6,12 @@ import { FG_CDN_BASE } from '@/config/cdn';
 import { FgCatalogEntry, FgCatalog } from '@/types/fg-game';
 import { IconSearch, IconLoader2, IconAlertTriangle, IconDeviceGamepad2 } from '@tabler/icons-react';
 
+const decodeHtml = (html: string) => {
+  const el = document.createElement('textarea');
+  el.innerHTML = html;
+  return el.value;
+};
+
 const PER_PAGE = 24;
 
 export default function GamesPage() {
@@ -116,7 +122,7 @@ export default function GamesPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
                 <div className="absolute bottom-0 left-0 right-0 p-3">
                   <h3 className="text-xs font-semibold line-clamp-2 leading-snug drop-shadow-lg">
-                    {game.title}
+                    {decodeHtml(game.title)}
                   </h3>
                 </div>
               </div>

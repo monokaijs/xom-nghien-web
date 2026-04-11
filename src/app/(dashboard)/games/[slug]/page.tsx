@@ -73,7 +73,7 @@ export default function GameDetailPage() {
     : null;
 
   const upscaleUrl = (url: string) => url.replace('.240p.', '.1080p.');
-  const screenshots = game.screenshotImages?.filter(Boolean).map(upscaleUrl) || [];
+  const screenshots = game.screenshotImages?.filter(Boolean).filter(u => !u.includes('torrent-stats.info')).map(upscaleUrl) || [];
   const downloads = game.downloadCollections?.filter(c => c.urls?.length > 0) || [];
   const torrents = game.torrentLinks?.filter(t => t.url) || [];
   const allMedia = screenshots.length > 0 ? screenshots : (game.postImage ? [upscaleUrl(game.postImage)] : []);

@@ -72,13 +72,23 @@ export default function GameDetailPage() {
       })
     : null;
 
-  const upscaleUrl = (url: string) => url.replace('.240p.', '.1080p.');
+  const RESOLUTIONS = ['1080p', '720p', '480p', '240p'];
+  const bestUrl = (url: string) => url.replace('.240p.', `.${RESOLUTIONS[0]}.`);
+  const handleImgError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    const src = img.src;
+    const current = RESOLUTIONS.find(r => src.includes(`.${r}.`));
+    const idx = current ? RESOLUTIONS.indexOf(current) : -1;
+    if (idx >= 0 && idx < RESOLUTIONS.length - 1) {
+      img.src = src.replace(`.${RESOLUTIONS[idx]}.`, `.${RESOLUTIONS[idx + 1]}.`);
+    }
+  };
   const allImages = game.screenshotImages?.filter(Boolean) || [];
   const torrentStatsImage = allImages.find(u => u.includes('torrent-stats.info')) || null;
-  const screenshots = allImages.filter(u => !u.includes('torrent-stats.info')).map(upscaleUrl);
+  const screenshots = allImages.filter(u => !u.includes('torrent-stats.info')).map(bestUrl);
   const downloads = game.downloadCollections?.filter(c => c.urls?.length > 0) || [];
   const torrents = game.torrentLinks?.filter(t => t.url) || [];
-  const allMedia = screenshots.length > 0 ? screenshots : (game.postImage ? [upscaleUrl(game.postImage)] : []);
+  const allMedia = screenshots.length > 0 ? screenshots : (game.postImage ? [bestUrl(game.postImage)] : []);
 
   return (
     <div className="flex flex-col gap-5 min-h-0 flex-1 overflow-y-auto scrollbar-hide pb-10">
@@ -95,9 +105,10 @@ export default function GameDetailPage() {
                 className="aspect-video rounded-[12px] overflow-hidden bg-bg-dark cursor-pointer"
               >
                 <img
-                  src={upscaleUrl(allMedia[activeScreenshot])}
+                  src={allMedia[activeScreenshot]}
                   alt={`Screenshot ${activeScreenshot + 1}`}
                   className="w-full h-full object-cover"
+                  onError={handleImgError}
                 />
               </button>
 
@@ -118,6 +129,7 @@ export default function GameDetailPage() {
                         alt={`Thumb ${i + 1}`}
                         className="w-full h-full object-cover"
                         loading="lazy"
+                        onError={handleImgError}
                       />
                     </button>
                   ))}
@@ -131,9 +143,10 @@ export default function GameDetailPage() {
           {game.postImage && (
             <div className="rounded-[10px] overflow-hidden bg-bg-dark">
               <img
-                src={upscaleUrl(game.postImage)}
+                src={bestUrl(game.postImage)}
                 alt={game.title}
                 className="w-full object-cover"
+                onError={handleImgError}
               />
             </div>
           )}
@@ -163,21 +176,6 @@ export default function GameDetailPage() {
               </div>
             )}
           </div>
-
-          {game.features && game.features.length > 0 && (
-            <div className="pt-2 border-t border-white/5">
-              <div className="flex flex-wrap gap-1.5">
-                {game.features.slice(0, 6).map((feature, i) => (
-                  <span
-                    key={i}
-                    className="bg-bg-dark/80 text-text-secondary text-[11px] px-2.5 py-1 rounded-[6px] border border-white/5"
-                  >
-                    {feature.length > 30 ? feature.slice(0, 30) + '…' : feature}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
 
           {(downloads.length > 0 || torrents.length > 0) && (
             <div className="pt-3 border-t border-white/5">
@@ -263,7 +261,7 @@ export default function GameDetailPage() {
         </div>
       </div>
 
-      {game.features && game.features.length > 6 && (
+      {game.features && game.features.length > 0 && (
         <div className="bg-card-bg rounded-[16px] p-5">
           <h2 className="text-base font-semibold mb-3">Tính năng Repack</h2>
           <ul className="flex flex-col gap-1.5">

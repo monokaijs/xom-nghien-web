@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { FG_CDN_BASE } from '@/config/cdn';
 import { FgCatalogEntry, FgCatalog } from '@/types/fg-game';
-import { IconSearch, IconLoader2, IconAlertTriangle, IconGamepad } from '@tabler/icons-react';
+import { IconSearch, IconLoader2, IconAlertTriangle, IconDeviceGamepad2 } from '@tabler/icons-react';
 
 const PER_PAGE = 24;
 
@@ -67,7 +67,7 @@ export default function GamesPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-accent-primary to-[#ff8c42] flex items-center justify-center">
-            <IconGamepad size={22} />
+            <IconDeviceGamepad2 size={22} />
           </div>
           <div>
             <h1 className="text-2xl font-bold">Kho Game</h1>
@@ -110,7 +110,7 @@ export default function GamesPage() {
                   />
                 ) : (
                   <div className="w-full h-full bg-bg-dark flex items-center justify-center">
-                    <IconGamepad size={40} className="text-text-secondary/30" />
+                    <IconDeviceGamepad2 size={40} className="text-text-secondary/30" />
                   </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />

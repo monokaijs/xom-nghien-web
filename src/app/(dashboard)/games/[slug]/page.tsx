@@ -89,14 +89,16 @@ export default function GameDetailPage() {
   const downloads = game.downloadCollections?.filter(c => c.urls?.length > 0) || [];
   const torrents = game.torrentLinks?.filter(t => t.url) || [];
   const allMedia = screenshots.length > 0 ? screenshots : (game.postImage ? [bestUrl(game.postImage)] : []);
+  const hasDownloads = downloads.length > 0 || torrents.length > 0;
 
   return (
-    <div className="flex flex-col gap-5 min-h-0 flex-1 overflow-y-auto scrollbar-hide pb-10">
+    <div className="flex flex-col min-h-0 flex-1 overflow-y-auto scrollbar-hide pb-10">
       <div className="max-w-[1100px] w-full mx-auto flex flex-col gap-5">
 
       <h1 className="text-3xl font-bold max-md:text-xl leading-tight">{game.title}</h1>
 
-      <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1">
+      <div className="grid grid-cols-[1fr_340px] gap-5 max-lg:grid-cols-1">
+
         <div className="flex flex-col gap-2 min-w-0">
           {allMedia.length > 0 && (
             <>
@@ -137,6 +139,34 @@ export default function GameDetailPage() {
               )}
             </>
           )}
+
+          {game.description && (
+            <div className="bg-card-bg rounded-[16px] p-5 mt-2">
+              <h2 className="text-base font-semibold mb-3">Giới thiệu</h2>
+              <p className="text-text-secondary text-sm leading-relaxed whitespace-pre-line">{game.description}</p>
+            </div>
+          )}
+
+          {game.features && game.features.length > 0 && (
+            <div className="bg-card-bg rounded-[16px] p-5">
+              <h2 className="text-base font-semibold mb-3">Tính năng Repack</h2>
+              <ul className="flex flex-col gap-1.5">
+                {game.features.map((feature, i) => (
+                  <li key={i} className="text-text-secondary text-sm flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent-primary mt-1.5 flex-shrink-0" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {game.additionalNotes && (
+            <div className="bg-card-bg rounded-[16px] p-5">
+              <h2 className="text-base font-semibold mb-3">Ghi chú</h2>
+              <p className="text-text-secondary text-sm leading-relaxed">{game.additionalNotes}</p>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-4 min-w-0">
@@ -145,7 +175,7 @@ export default function GameDetailPage() {
               <img
                 src={bestUrl(game.postImage)}
                 alt={game.title}
-                className="w-full object-cover"
+                className="w-full aspect-[2/3] object-cover"
                 onError={handleImgError}
               />
             </div>
@@ -177,7 +207,7 @@ export default function GameDetailPage() {
             )}
           </div>
 
-          {(downloads.length > 0 || torrents.length > 0) && (
+          {hasDownloads && (
             <div className="pt-3 border-t border-white/5">
               <div className="flex items-center gap-2 mb-3">
                 <IconDownload size={18} className="text-accent-primary" />
@@ -186,11 +216,7 @@ export default function GameDetailPage() {
 
               {torrentStatsImage && (
                 <div className="rounded-[8px] overflow-hidden mb-3">
-                  <img
-                    src={torrentStatsImage}
-                    alt="Torrent stats"
-                    className="w-full"
-                  />
+                  <img src={torrentStatsImage} alt="Torrent stats" className="w-full" />
                 </div>
               )}
 
@@ -260,34 +286,6 @@ export default function GameDetailPage() {
           )}
         </div>
       </div>
-
-      {game.features && game.features.length > 0 && (
-        <div className="bg-card-bg rounded-[16px] p-5">
-          <h2 className="text-base font-semibold mb-3">Tính năng Repack</h2>
-          <ul className="flex flex-col gap-1.5">
-            {game.features.map((feature, i) => (
-              <li key={i} className="text-text-secondary text-sm flex items-start gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-primary mt-1.5 flex-shrink-0" />
-                {feature}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {game.description && game.description.length > 200 && (
-        <div className="bg-card-bg rounded-[16px] p-5">
-          <h2 className="text-base font-semibold mb-3">Giới thiệu</h2>
-          <p className="text-text-secondary text-sm leading-relaxed whitespace-pre-line">{game.description}</p>
-        </div>
-      )}
-
-      {game.additionalNotes && (
-        <div className="bg-card-bg rounded-[16px] p-5">
-          <h2 className="text-base font-semibold mb-3">Ghi chú</h2>
-          <p className="text-text-secondary text-sm leading-relaxed">{game.additionalNotes}</p>
-        </div>
-      )}
 
       </div>
 

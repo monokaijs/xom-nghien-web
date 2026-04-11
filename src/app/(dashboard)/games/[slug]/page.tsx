@@ -24,6 +24,12 @@ const decodeHtml = (html: string) => {
   return el.value;
 };
 
+const parseGameName = (title: string) => {
+  const decoded = decodeHtml(title);
+  const idx = decoded.search(/\s[–—-]\s/);
+  return idx > 0 ? decoded.slice(0, idx) : decoded;
+};
+
 export default function GameDetailPage() {
   const params = useParams<{ slug: string }>();
   const [game, setGame] = useState<FgGameDetail | null>(null);
@@ -48,6 +54,13 @@ export default function GameDetailPage() {
         setLoading(false);
       });
   }, [params.slug]);
+
+  useEffect(() => {
+    if (game) {
+      document.title = `${parseGameName(game.title)} | Kho Game`;
+    }
+    return () => { document.title = 'Xom Nghien'; };
+  }, [game]);
 
   if (loading) {
     return (
@@ -101,7 +114,7 @@ export default function GameDetailPage() {
     <div className="flex flex-col min-h-0 flex-1 overflow-y-auto scrollbar-hide pb-10">
       <div className="max-w-[1100px] w-full mx-auto flex flex-col gap-5">
 
-      <h1 className="text-3xl font-bold max-md:text-xl leading-tight">{decodeHtml(game.title)}</h1>
+      <h1 className="text-3xl font-bold max-md:text-xl leading-tight">{parseGameName(game.title)}</h1>
 
       <div className="grid grid-cols-[1fr_340px] gap-5 max-lg:grid-cols-1">
 

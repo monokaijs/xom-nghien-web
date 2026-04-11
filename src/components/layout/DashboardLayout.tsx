@@ -17,6 +17,7 @@ import {
   IconShield,
   IconAward,
   IconUsers,
+  IconGamepad2,
 } from '@tabler/icons-react';
 import IconSolid from "@/components/IconSolid";
 import { usePathname } from 'next/navigation';
@@ -177,6 +178,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <IconUsers size={24} />
                 <span>Lobbies</span>
               </Link>
+              <Link href="/games"
+                className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/games' || pathname?.startsWith('/games/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
+                  }`}>
+                <IconGamepad2 size={24} />
+                <span>Kho Game</span>
+              </Link>
               {session?.user && (
                 <>
                   <Link href="/inventory"
@@ -268,6 +275,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               title="Lobbies"
             >
               <IconUsers size={24} />
+            </Link>
+            <Link
+              href="/games"
+              className={`transition-colors duration-300 flex items-center justify-center ${pathname === '/games' || pathname?.startsWith('/games/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
+                }`}
+              title="Kho Game"
+            >
+              <IconGamepad2 size={24} />
             </Link>
             {session?.user && (
               <Link

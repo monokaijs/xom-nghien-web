@@ -20,6 +20,18 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'cdn.xomnghien.com',
       },
+      {
+        protocol: 'https',
+        hostname: '**.fitgirl-repacks.site',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.imgur.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.wp.com',
+      },
     ],
   },
 };

@@ -73,7 +73,9 @@ export default function GameDetailPage() {
     : null;
 
   const upscaleUrl = (url: string) => url.replace('.240p.', '.1080p.');
-  const screenshots = game.screenshotImages?.filter(Boolean).filter(u => !u.includes('torrent-stats.info')).map(upscaleUrl) || [];
+  const allImages = game.screenshotImages?.filter(Boolean) || [];
+  const torrentStatsImage = allImages.find(u => u.includes('torrent-stats.info')) || null;
+  const screenshots = allImages.filter(u => !u.includes('torrent-stats.info')).map(upscaleUrl);
   const downloads = game.downloadCollections?.filter(c => c.urls?.length > 0) || [];
   const torrents = game.torrentLinks?.filter(t => t.url) || [];
   const allMedia = screenshots.length > 0 ? screenshots : (game.postImage ? [upscaleUrl(game.postImage)] : []);
@@ -176,66 +178,90 @@ export default function GameDetailPage() {
               </div>
             </div>
           )}
+
+          {(downloads.length > 0 || torrents.length > 0) && (
+            <div className="pt-3 border-t border-white/5">
+              <div className="flex items-center gap-2 mb-3">
+                <IconDownload size={18} className="text-accent-primary" />
+                <h2 className="text-sm font-semibold">Tải xuống</h2>
+              </div>
+
+              {torrentStatsImage && (
+                <div className="rounded-[8px] overflow-hidden mb-3">
+                  <img
+                    src={torrentStatsImage}
+                    alt="Torrent stats"
+                    className="w-full"
+                  />
+                </div>
+              )}
+
+              {downloads.length > 0 && (
+                <div className="flex flex-col gap-2 mb-2">
+                  {downloads.map((collection, i) => (
+                    <div key={i}>
+                      <p className="text-[11px] text-text-secondary/60 font-medium uppercase tracking-wider mb-1.5">
+                        {collection.host}
+                      </p>
+                      <div className="flex flex-col gap-1">
+                        {collection.urls.map((url, j) => (
+                          <a
+                            key={j}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 bg-bg-dark hover:bg-bg-panel rounded-[8px] px-3 py-2 text-text-secondary hover:text-white transition-all text-sm truncate"
+                          >
+                            <IconDownload size={14} className="flex-shrink-0 text-accent-primary" />
+                            <span className="truncate">Part {j + 1}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {torrents.length > 0 && (
+                <div className={downloads.length > 0 ? 'pt-2 border-t border-white/5' : ''}>
+                  <p className="text-[11px] text-text-secondary/60 font-medium uppercase tracking-wider mb-1.5">
+                    Torrent
+                  </p>
+                  <div className="flex flex-col gap-1">
+                    {torrents.map((t, i) => (
+                      <a
+                        key={i}
+                        href={t.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 bg-bg-dark hover:bg-bg-panel rounded-[8px] px-3 py-2 text-text-secondary hover:text-white transition-all text-sm truncate"
+                      >
+                        <IconMagnet size={14} className="flex-shrink-0 text-accent-primary" />
+                        <span className="truncate">
+                          {t.type === 'magnet' ? 'Magnet Link' : 'Torrent File'}
+                          {torrents.length > 1 ? ` #${i + 1}` : ''}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {game.link && (
+            <a
+              href={game.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 bg-bg-dark border border-white/10 hover:border-accent-primary text-text-secondary hover:text-white rounded-[10px] py-2.5 px-4 transition-all text-sm"
+            >
+              <IconExternalLink size={16} />
+              Xem bài gốc
+            </a>
+          )}
         </div>
       </div>
-
-      {(downloads.length > 0 || torrents.length > 0) && (
-        <div className="bg-card-bg rounded-[16px] p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <IconDownload size={20} className="text-accent-primary" />
-            <h2 className="text-base font-semibold">Tải xuống</h2>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
-            {downloads.map((collection, i) => (
-              <div key={i}>
-                <p className="text-[11px] text-text-secondary/60 font-medium uppercase tracking-wider mb-2">
-                  {collection.host}
-                </p>
-                <div className="flex flex-col gap-1">
-                  {collection.urls.map((url, j) => (
-                    <a
-                      key={j}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 bg-bg-dark hover:bg-bg-panel rounded-[8px] px-3 py-2 text-text-secondary hover:text-white transition-all text-sm truncate"
-                    >
-                      <IconDownload size={14} className="flex-shrink-0 text-accent-primary" />
-                      <span className="truncate">Part {j + 1}</span>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            ))}
-
-            {torrents.length > 0 && (
-              <div>
-                <p className="text-[11px] text-text-secondary/60 font-medium uppercase tracking-wider mb-2">
-                  Torrent
-                </p>
-                <div className="flex flex-col gap-1">
-                  {torrents.map((t, i) => (
-                    <a
-                      key={i}
-                      href={t.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 bg-bg-dark hover:bg-bg-panel rounded-[8px] px-3 py-2 text-text-secondary hover:text-white transition-all text-sm truncate"
-                    >
-                      <IconMagnet size={14} className="flex-shrink-0 text-accent-primary" />
-                      <span className="truncate">
-                        {t.type === 'magnet' ? 'Magnet Link' : 'Torrent File'}
-                        {torrents.length > 1 ? ` #${i + 1}` : ''}
-                      </span>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {game.features && game.features.length > 6 && (
         <div className="bg-card-bg rounded-[16px] p-5">

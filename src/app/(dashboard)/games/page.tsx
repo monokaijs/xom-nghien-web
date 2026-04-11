@@ -93,14 +93,14 @@ export default function GamesPage() {
           <span>Không tìm thấy game nào</span>
         </div>
       ) : (
-        <div className="grid grid-cols-4 gap-4 max-xl:grid-cols-3 max-lg:grid-cols-2 max-sm:grid-cols-1">
+        <div className="grid grid-cols-6 gap-3 max-xl:grid-cols-5 max-lg:grid-cols-4 max-md:grid-cols-3 max-sm:grid-cols-2">
           {paginated.map(game => (
             <Link
               key={game.id}
               href={`/games/${game.slug}`}
-              className="group bg-card-bg rounded-[20px] overflow-hidden hover:ring-2 hover:ring-accent-primary/50 transition-all duration-300"
+              className="group relative rounded-[12px] overflow-hidden hover:ring-2 hover:ring-accent-primary/50 transition-all duration-300 hover:scale-[1.03]"
             >
-              <div className="aspect-[16/9] relative overflow-hidden">
+              <div className="aspect-[2/3] relative overflow-hidden bg-bg-dark">
                 {game.postImage ? (
                   <img
                     src={game.postImage}
@@ -109,21 +109,16 @@ export default function GamesPage() {
                     loading="lazy"
                   />
                 ) : (
-                  <div className="w-full h-full bg-bg-dark flex items-center justify-center">
-                    <IconDeviceGamepad2 size={40} className="text-text-secondary/30" />
+                  <div className="w-full h-full flex items-center justify-center">
+                    <IconDeviceGamepad2 size={36} className="text-text-secondary/30" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              </div>
-              <div className="p-4">
-                <h3 className="text-sm font-semibold line-clamp-2 group-hover:text-accent-primary transition-colors leading-snug">
-                  {game.title}
-                </h3>
-                {game.date && (
-                  <p className="text-text-secondary text-xs mt-2">
-                    {new Date(game.date).toLocaleDateString('vi-VN')}
-                  </p>
-                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute bottom-0 left-0 right-0 p-3">
+                  <h3 className="text-xs font-semibold line-clamp-2 leading-snug drop-shadow-lg">
+                    {game.title}
+                  </h3>
+                </div>
               </div>
             </Link>
           ))}

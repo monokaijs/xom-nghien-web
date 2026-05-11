@@ -1,0 +1,63 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Ian Lucas. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+import { fail } from "@ianlucas/cs2-lib";
+import type {
+  ActionShape,
+  ApiActionSyncData
+} from "~/routes/api.action.sync._index";
+import { ApiActionSyncUrl } from "./data/sync";
+import { postJson } from "./utils/fetch";
+
+export const sync = new (class Sync extends EventTarget {
+  isSyncing = false;
+  queue: ActionShape[] = [];
+  syncedAt = 0;
+})();
+
+export function pushToSync(data: ActionShape) {
+  sync.queue.push(data);
+}
+
+export function dispatchSyncError() {
+  while (sync.queue[0]) {
+    sync.queue.pop();
+  }
+  sync.dispatchEvent(new Event("syncerror"));
+}
+
+async function doSync() {
+  const actions = [] as typeof sync.queue;
+  while (sync.queue[0]) {
+    const action = sync.queue.shift();
+    if (action !== undefined) {
+      actions.push(action);
+    }
+  }
+  sync.dispatchEvent(new Event("syncstart"));
+  if (actions.length > 0) {
+    try {
+      sync.isSyncing = true;
+      const response = await postJson<ApiActionSyncData>(ApiActionSyncUrl, {
+        actions,
+        syncedAt: sync.syncedAt
+      });
+      if (typeof response?.syncedAt !== "number") {
+        fail("Sync error.");
+      }
+      sync.syncedAt = response.syncedAt;
+    } catch {
+      dispatchSyncError();
+    }
+  }
+  sync.dispatchEvent(new Event("syncend"));
+  if (sync.queue.length === 0) {
+    sync.isSyncing = false;
+    sync.dispatchEvent(new Event("syncidle"));
+  }
+  setTimeout(doSync, 1000 / 3);
+}
+
+doSync();

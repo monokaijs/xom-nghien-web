@@ -1,0 +1,30 @@
+:root {
+  --xn-accent: #ff4d5a;
+  --xn-panel: rgba(20, 20, 20, 0.92);
+}
+
+body {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255, 77, 90, 0.16), transparent 32rem),
+    #171717;
+}
+
+#splash {
+  background:
+    radial-gradient(circle at center top, rgba(255, 77, 90, 0.2), transparent 28rem),
+    #121212 !important;
+}
+
+#splash-progress {
+  background: var(--xn-accent) !important;
+}
+
+a,
+button {
+  accent-color: var(--xn-accent);
+}
+
+header img,
+#splash img {
+  object-fit: contain;
+}

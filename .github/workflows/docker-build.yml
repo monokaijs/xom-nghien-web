@@ -1,4 +1,4 @@
-name: Build Docker Image
+name: Build and Deploy Docker Images
 
 on:
   push:
@@ -45,6 +45,15 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix={{branch}}-
 
+      - name: Extract inventory simulator metadata
+        id: meta-inventory-simulator
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-inventory-simulator
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix={{branch}}-
+
       - name: Build and push web image
         uses: docker/build-push-action@v5
         with:
@@ -66,3 +75,406 @@ jobs:
           labels: ${{ steps.meta-spawner.outputs.labels }}
           cache-from: type=gha,scope=spawner
           cache-to: type=gha,mode=max,scope=spawner
+
+      - name: Build and push inventory simulator image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.inventory-simulator
+          push: true
+          tags: ${{ steps.meta-inventory-simulator.outputs.tags }}
+          labels: ${{ steps.meta-inventory-simulator.outputs.labels }}
+          cache-from: type=gha,scope=inventory-simulator
+          cache-to: type=gha,mode=max,scope=inventory-simulator
+          build-args: |
+            SOURCE_COMMIT=${{ github.sha }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: read
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        run: |
+          set -euo pipefail
+          test -n "${DEPLOY_HOST}"
+          test -n "${DEPLOY_PATH}"
+          test -n "${DEPLOY_SSH_KEY}"
+          test -n "${DEPLOY_USER}"
+          mkdir -p ~/.ssh
+          printf '%s\n' "${DEPLOY_SSH_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${DEPLOY_HOST}" >> ~/.ssh/known_hosts
+
+      - name: Prepare compose and nginx on server
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            DEPLOY_PATH="${DEPLOY_PATH}" \
+            WEB_IMAGE="ghcr.io/${{ github.repository }}-web:latest" \
+            INVENTORY_IMAGE="ghcr.io/${{ github.repository }}-inventory-simulator:latest" \
+            'bash -s' <<'REMOTE'
+          set -euo pipefail
+          mkdir -p "${DEPLOY_PATH}/nginx/conf.d"
+          cd "${DEPLOY_PATH}"
+
+          if [ ! -f .env ]; then
+            python3 - <<'PY'
+          import os
+          import secrets
+          import subprocess
+
+          def container_env(container):
+              try:
+                  output = subprocess.check_output(
+                      [
+                          "docker",
+                          "inspect",
+                          "--format",
+                          "{{range .Config.Env}}{{println .}}{{end}}",
+                          container,
+                      ],
+                      text=True,
+                      stderr=subprocess.DEVNULL,
+                  )
+              except subprocess.CalledProcessError:
+                  return {}
+              values = {}
+              for line in output.splitlines():
+                  if "=" in line:
+                      key, value = line.split("=", 1)
+                      values[key] = value
+              return values
+
+          def dotenv_quote(value):
+              return '"' + value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n") + '"'
+
+          web = container_env("xn-web")
+          inventory = container_env("inventory")
+          mysql = container_env("cs2-mysql")
+          postgres = container_env("postgres")
+
+          api_key = (
+              web.get("XN_INV_API_AUTH_KEY")
+              or inventory.get("XN_INV_API_AUTH_KEY")
+              or web.get("THIRD_PARTY_SECRET")
+              or inventory.get("THIRD_PARTY_SECRET")
+              or secrets.token_urlsafe(32)
+          )
+
+          values = {
+              "WEB_IMAGE": os.environ["WEB_IMAGE"],
+              "INVENTORY_IMAGE": os.environ["INVENTORY_IMAGE"],
+              "NEXTAUTH_URL": web.get("NEXTAUTH_URL", "https://xomnghien.com"),
+              "NEXTAUTH_SECRET": web.get("NEXTAUTH_SECRET", secrets.token_urlsafe(32)),
+              "SESSION_SECRET": web.get("SESSION_SECRET") or web.get("NEXTAUTH_SECRET") or secrets.token_urlsafe(32),
+              "STEAM_API_KEY": web.get("STEAM_API_KEY") or inventory.get("STEAM_API_KEY", ""),
+              "DB_HOST": "mysql",
+              "DB_PORT": web.get("DB_PORT") or mysql.get("MYSQL_TCP_PORT") or "3306",
+              "DB_USER": web.get("DB_USER") or mysql.get("MYSQL_USER", "cs2"),
+              "DB_PASSWORD": web.get("DB_PASSWORD") or mysql.get("MYSQL_PASSWORD", ""),
+              "DB_NAME": web.get("DB_NAME") or mysql.get("MYSQL_DATABASE", "cs2db"),
+              "MYSQL_ROOT_PASSWORD": mysql.get("MYSQL_ROOT_PASSWORD", secrets.token_urlsafe(32)),
+              "POSTGRES_USER": postgres.get("POSTGRES_USER", "postgres"),
+              "POSTGRES_PASSWORD": postgres.get("POSTGRES_PASSWORD", "postgres"),
+              "POSTGRES_DB": postgres.get("POSTGRES_DB", "postgres"),
+              "INVENTORY_DATABASE_URL": inventory.get(
+                  "DATABASE_URL",
+                  "postgres://postgres:postgres@postgres:5432/postgres?schema=public",
+              ),
+              "INVENTORY_SESSION_SECRET": inventory.get("SESSION_SECRET", secrets.token_urlsafe(32)),
+              "INVENTORY_PUBLIC_URL": "https://inventory.xomnghien.com",
+              "INVENTORY_INTERNAL_URL": "http://inventory:3000",
+              "INVENTORY_STEAM_CALLBACK_URL": "https://inventory.xomnghien.com/sign-in/steam/callback",
+              "INVENTORY_ASSETS_BASE_URL": inventory.get("ASSETS_BASE_URL", ""),
+              "CLOUDFLARE_ANALYTICS_TOKEN": inventory.get("CLOUDFLARE_ANALYTICS_TOKEN", ""),
+              "XN_INV_API_AUTH_KEY": api_key,
+          }
+
+          with open(".env", "w", encoding="utf-8") as env_file:
+              for key, value in values.items():
+                  env_file.write(f"{key}={dotenv_quote(str(value))}\n")
+          PY
+            chmod 600 .env
+          fi
+
+          if [ -f nginx.conf ]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          import json
+          import os
+          import re
+          import shutil
+          import time
+          import subprocess
+
+          source = Path("nginx.conf")
+          conf_dir = Path("nginx/conf.d")
+          backup_dir = Path("nginx/backups")
+          backup_dir.mkdir(parents=True, exist_ok=True)
+          marker = Path("nginx/.split-from-monolith")
+          if not marker.exists():
+              shutil.copy2(source, backup_dir / f"nginx.conf.{int(time.time())}.bak")
+
+          def docker_network_aliases():
+              try:
+                  raw = subprocess.check_output(
+                      ["docker", "network", "inspect", "shared-network"],
+                      text=True,
+                      stderr=subprocess.DEVNULL,
+                  )
+              except subprocess.CalledProcessError:
+                  return set()
+              aliases = {"127.0.0.1", "localhost"}
+              for network in json.loads(raw):
+                  for container in network.get("Containers", {}).values():
+                      name = container.get("Name")
+                      if name:
+                          aliases.add(name)
+                      for alias in container.get("Aliases") or []:
+                          aliases.add(alias)
+              return aliases
+
+          available_aliases = docker_network_aliases()
+
+          text = source.read_text(encoding="utf-8")
+          blocks = []
+          current = []
+          depth = 0
+          started = False
+
+          for line in text.splitlines(keepends=True):
+              stripped = line.lstrip()
+              if not started and re.match(r"(upstream|map|server)\b", stripped):
+                  started = True
+              if started:
+                  current.append(line)
+                  depth += line.count("{") - line.count("}")
+                  if depth == 0:
+                      block = "".join(current).strip() + "\n"
+                      if block:
+                          blocks.append(block)
+                      current = []
+                      started = False
+
+          for existing in conf_dir.glob("legacy-*.conf"):
+              existing.unlink()
+
+          skipped = re.compile(r"server_name\s+[^;]*(?:xomnghien\.com|inventory\.xomnghien\.com)", re.I)
+          upstream_name = re.compile(r"^\s*upstream\s+([A-Za-z0-9_.-]+)\s*{")
+          upstream_server = re.compile(r"^\s*server\s+([^:;\s]+)", re.M)
+          proxy_pass = re.compile(r"proxy_pass\s+http://([A-Za-z0-9_.-]+)")
+          bad_upstreams = set()
+          kept_blocks = []
+
+          for block in blocks:
+              match = upstream_name.search(block)
+              if match is None:
+                  kept_blocks.append(block)
+                  continue
+              hosts = upstream_server.findall(block)
+              if hosts and any(host not in available_aliases for host in hosts):
+                  bad_upstreams.add(match.group(1))
+                  continue
+              kept_blocks.append(block)
+
+          index = 10
+          for block in kept_blocks:
+              if skipped.search(block):
+                  continue
+              if any(name in bad_upstreams for name in proxy_pass.findall(block)):
+                  continue
+              (conf_dir / f"legacy-{index:03d}.conf").write_text(block, encoding="utf-8")
+              index += 10
+
+          marker.write_text("ok\n", encoding="utf-8")
+          PY
+          fi
+
+          cat > nginx/conf.d/20-xomnghien.conf <<'NGINX'
+          upstream xn_web_upstream {
+              server xn-web:3000 fail_timeout=5s max_fails=3;
+              keepalive 16;
+          }
+
+          upstream xn_inventory_upstream {
+              server inventory:3000 fail_timeout=5s max_fails=3;
+              keepalive 16;
+          }
+
+          server {
+              listen 80;
+              server_name xomnghien.com;
+
+              location / {
+                  proxy_pass http://xn_web_upstream;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection $connection_upgrade;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto https;
+                  proxy_connect_timeout 1s;
+                  proxy_send_timeout 60s;
+                  proxy_read_timeout 65s;
+                  proxy_buffering off;
+                  proxy_next_upstream error timeout invalid_header http_502 http_503 http_504;
+              }
+          }
+
+          server {
+              listen 80;
+              server_name inventory.xomnghien.com;
+
+              location / {
+                  proxy_pass http://xn_inventory_upstream;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection $connection_upgrade;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto https;
+                  proxy_connect_timeout 1s;
+                  proxy_send_timeout 60s;
+                  proxy_read_timeout 65s;
+                  proxy_buffering off;
+                  proxy_next_upstream error timeout invalid_header http_502 http_503 http_504;
+              }
+          }
+          NGINX
+
+          cat > compose.yml <<'COMPOSE'
+          services:
+            web:
+              image: ${WEB_IMAGE:-ghcr.io/monokaijs/xom-nghien-web-web:latest}
+              container_name: xn-web
+              restart: unless-stopped
+              depends_on:
+                - mysql
+                - inventory
+              networks:
+                - shared-network
+              environment:
+                NEXTAUTH_URL: ${NEXTAUTH_URL:-https://xomnghien.com}
+                NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+                SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+                STEAM_API_KEY: ${STEAM_API_KEY:?STEAM_API_KEY is required}
+                INVENTORY_PUBLIC_URL: ${INVENTORY_PUBLIC_URL:-https://inventory.xomnghien.com}
+                INVENTORY_INTERNAL_URL: ${INVENTORY_INTERNAL_URL:-http://inventory:3000}
+                INVENTORY_SERVICE_URL: ${INVENTORY_PUBLIC_URL:-https://inventory.xomnghien.com}
+                XN_INV_API_AUTH_KEY: ${XN_INV_API_AUTH_KEY:?XN_INV_API_AUTH_KEY is required}
+                DB_HOST: mysql
+                DB_PORT: ${DB_PORT:-3306}
+                DB_USER: ${DB_USER:?DB_USER is required}
+                DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+                DB_NAME: ${DB_NAME:?DB_NAME is required}
+
+            postgres:
+              image: postgres:16
+              container_name: postgres
+              restart: unless-stopped
+              environment:
+                POSTGRES_USER: ${POSTGRES_USER:-postgres}
+                POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+                POSTGRES_DB: ${POSTGRES_DB:-postgres}
+                PGDATA: /var/lib/postgresql/data/pgdata
+              ports:
+                - "5443:5432"
+              volumes:
+                - postgres_data:/var/lib/postgresql/data
+              networks:
+                - shared-network
+
+            inventory:
+              image: ${INVENTORY_IMAGE:-ghcr.io/monokaijs/xom-nghien-web-inventory-simulator:latest}
+              container_name: inventory
+              restart: unless-stopped
+              depends_on:
+                - postgres
+              networks:
+                - shared-network
+              environment:
+                DATABASE_URL: ${INVENTORY_DATABASE_URL:?INVENTORY_DATABASE_URL is required}
+                SESSION_SECRET: ${INVENTORY_SESSION_SECRET:?INVENTORY_SESSION_SECRET is required}
+                STEAM_API_KEY: ${STEAM_API_KEY:?STEAM_API_KEY is required}
+                STEAM_CALLBACK_URL: ${INVENTORY_STEAM_CALLBACK_URL:-https://inventory.xomnghien.com/sign-in/steam/callback}
+                CLOUDFLARE_ANALYTICS_TOKEN: ${CLOUDFLARE_ANALYTICS_TOKEN:-}
+                ASSETS_BASE_URL: ${INVENTORY_ASSETS_BASE_URL:-}
+                XN_INV_API_AUTH_KEY: ${XN_INV_API_AUTH_KEY:?XN_INV_API_AUTH_KEY is required}
+                XN_INV_PUBLIC_URL: ${INVENTORY_PUBLIC_URL:-https://inventory.xomnghien.com}
+
+            mysql:
+              image: mysql:8.0-debian
+              container_name: cs2-mysql
+              command: --default-authentication-plugin=mysql_native_password
+              restart: unless-stopped
+              environment:
+                MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+                MYSQL_DATABASE: ${DB_NAME:?DB_NAME is required}
+                MYSQL_USER: ${DB_USER:?DB_USER is required}
+                MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+              volumes:
+                - ./mysql_data:/var/lib/mysql
+              healthcheck:
+                test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+                interval: 10s
+                timeout: 5s
+                retries: 10
+              networks:
+                - shared-network
+              cap_add:
+                - SYS_NICE
+              ports:
+                - "27044:3306"
+
+            nginx:
+              image: nginx:stable
+              container_name: xn-nginx
+              restart: unless-stopped
+              depends_on:
+                - web
+                - inventory
+              ports:
+                - "80:80"
+                - "443:443"
+              volumes:
+                - ./nginx/conf.d:/etc/nginx/conf.d:ro
+                - /var/www:/var/www:ro
+                - /etc/letsencrypt:/etc/letsencrypt:ro
+              networks:
+                - shared-network
+
+          volumes:
+            postgres_data:
+
+          networks:
+            shared-network:
+              external: true
+          COMPOSE
+          REMOTE
+
+      - name: Pull and restart services
+        run: |
+          set -euo pipefail
+          printf '%s' "${GHCR_TOKEN}" | ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker network inspect shared-network >/dev/null 2>&1 || docker network create shared-network"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml config >/dev/null"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker run --rm --network shared-network -v \"\$PWD/nginx/conf.d:/etc/nginx/conf.d:ro\" -v /var/www:/var/www:ro -v /etc/letsencrypt:/etc/letsencrypt:ro nginx:stable nginx -t"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml pull"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml up -d --remove-orphans"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "docker image prune -f"

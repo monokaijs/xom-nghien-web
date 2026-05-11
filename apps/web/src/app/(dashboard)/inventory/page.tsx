@@ -26,7 +26,6 @@ export default function InventoryPage() {
         const response = await fetch('/api/auth/inventory-token');
         if (response.ok) {
           const data = await response.json();
-          console.log(data);
           setInventoryUrl(data.url);
         } else {
           const errorData = await response.json();
@@ -106,4 +105,3 @@ export default function InventoryPage() {
     </div>
   );
 }
-

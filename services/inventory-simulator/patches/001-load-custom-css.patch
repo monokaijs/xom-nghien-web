@@ -1,0 +1,11 @@
+diff --git a/app/root.tsx b/app/root.tsx
+index 8f5ed79..9b11b46 100644
+--- a/app/root.tsx
++++ b/app/root.tsx
+@@ -62,6 +62,7 @@ export const links: LinksFunction = () => [
+   { rel: "stylesheet", href: displayFontUrl },
+   { rel: "stylesheet", href: displayFontIAmPayingFor },
+   { rel: "stylesheet", href: styles },
++  { rel: "stylesheet", href: "/xn/custom.css" },
+   { rel: "manifest", href: "/app.webmanifest" }
+ ];

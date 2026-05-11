@@ -1,0 +1,110 @@
+//---------------------------------------------------------------------------------------------
+//  Copyright (c) Ian Lucas. All rights reserved.
+//  Licensed under the MIT License. See License.txt in the project root for license information.
+//--------------------------------------------------------------------------------------------*/
+
+generator client {
+  provider = "prisma-client"
+  previewFeatures = ["fullTextSearchPostgres"]
+  output = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  authTokens ApiAuthToken[]
+  avatar String
+  caches UserCache[]
+  createdAt DateTime @default(now())
+  groups UserGroup[]
+  id String @id
+  inventory String?
+  inventoryVersion Int @default(0)
+  name String
+  overwrites UserRule[]
+  preferences UserPreference?
+  syncedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserCache {
+  @@id([url, userId])
+  args String?
+  body String
+  timestamp DateTime
+  url String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+}
+
+model UserPreference {
+  background String?
+  hideFilters String?
+  hideFreeItems String?
+  hideNewItemLabel String?
+  language String?
+  statsForNerds String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @id
+}
+
+model ApiCredential {
+  apiKey String @id
+  authTokens ApiAuthToken[]
+  comment String?
+  createdAt DateTime @default(now())
+  scope String?
+  updatedAt DateTime @updatedAt
+}
+
+model ApiAuthToken {
+  apiKey String
+  createdAt DateTime @default(now())
+  credential ApiCredential @relation(fields: [apiKey], references: [apiKey], onDelete: Cascade)
+  token String @id @default(uuid())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+}
+
+model Rule {
+  groupOverwrites GroupRule[]
+  name String @id @unique
+  type String @default("string")
+  userOverwrites UserRule[]
+  value String
+}
+
+model UserRule {
+  @@id([name, userId])
+  name String
+  rule Rule @relation(fields: [name], references: [name], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  value String
+}
+
+model Group {
+  id String @id
+  overwrites GroupRule[]
+  priority Int @default(0)
+  users UserGroup[]
+}
+
+model UserGroup {
+  @@id([groupId, userId])
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+}
+
+model GroupRule {
+  @@id([groupId, name])
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId String
+  name String
+  rule Rule @relation(fields: [name], references: [name], onDelete: Cascade)
+  value String
+}

@@ -1,0 +1,102 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Ian Lucas. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+@import "tailwindcss";
+
+@theme {
+  --font-display: "stratum-2-web", "Exo 2", sans-serif;
+  --font-sans: "Noto Sans", sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Cascadia Code, Consolas,
+    Liberation Mono, Courier New, monospace;
+
+  --text-sm: 0.9rem;
+  --text-base: 1.1rem;
+  --text-xl: 1.35rem;
+  --text-2xl: 1.663rem;
+  --text-3xl: 2.053rem;
+  --text-4xl: 2.541rem;
+  --text-5xl: 3.152rem;
+}
+
+/*
+  The default border color has changed to `currentColor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+@keyframes fill-spinner {
+  0% {
+    transform: scaleX(-1) rotate(45deg);
+    clip-path: polygon(50% 50%, 0 0, 0 0, 0 0, 0 0, 0 0);
+  }
+  11.1% {
+    transform: scaleX(-1) rotate(45deg);
+    clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 0, 100% 0, 100% 0);
+  }
+  22.2% {
+    transform: scaleX(-1) rotate(45deg);
+    clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 100% 100%, 100% 100%);
+  }
+  33.3% {
+    transform: scaleX(-1) rotate(45deg);
+    clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 0 100%, 0 100%);
+  }
+  44.4% {
+    transform: scaleX(-1) rotate(45deg);
+    clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 0 100%, 0 0);
+  }
+  55.4999% {
+    transform: scaleX(-1) rotate(45deg);
+    clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 0 100%, 0 0);
+  }
+  55.5% {
+    clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 0 100%, 0 0);
+    transform: scaleX(1) rotate(45deg);
+  }
+  66.6% {
+    clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 0 100%, 0 100%);
+    transform: scaleX(1) rotate(45deg);
+  }
+  77.7% {
+    clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 100% 100%, 100% 100%);
+    transform: scaleX(1) rotate(45deg);
+  }
+  88.8% {
+    clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 0, 100% 0, 100% 0);
+    transform: scaleX(1) rotate(45deg);
+  }
+  100% {
+    clip-path: polygon(50% 50%, 0 0, 0 0, 0 0, 0 0, 0 0);
+    transform: scaleX(1) rotate(45deg);
+  }
+}
+
+.text-outline-1 {
+  text-shadow:
+    #000 1px 0px 0px,
+    #000 0.540302px 0.841471px 0px,
+    #000 -0.416147px 0.909297px 0px,
+    #000 -0.989992px 0.14112px 0px,
+    #000 -0.653644px -0.756802px 0px,
+    #000 0.283662px -0.958924px 0px,
+    #000 0.96017px -0.279415px 0px;
+}

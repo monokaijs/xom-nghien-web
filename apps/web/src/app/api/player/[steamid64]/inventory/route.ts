@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { INVENTORY_SERVICE_URL } from '@/config/app';
+import { INVENTORY_INTERNAL_URL } from '@/config/app';
 
 export async function GET(
   request: NextRequest,
@@ -8,7 +8,7 @@ export async function GET(
   try {
     const { steamid64 } = await params;
 
-    const inventoryUrl = `${INVENTORY_SERVICE_URL}/api/inventory/${steamid64}.json`;
+    const inventoryUrl = `${INVENTORY_INTERNAL_URL}/api/inventory/${steamid64}.json`;
     const response = await fetch(inventoryUrl);
 
     if (!response.ok) {
@@ -28,4 +28,3 @@ export async function GET(
     );
   }
 }
-

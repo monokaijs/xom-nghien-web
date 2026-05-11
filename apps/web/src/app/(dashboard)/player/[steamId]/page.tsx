@@ -7,7 +7,7 @@ import {matchzyStatsPlayers, matchzyStatsMatches, matchzyStatsMaps, userInfo} fr
 import {sql, eq} from '@xom/db';
 import Link from 'next/link';
 import PlayerTabs from './PlayerTabs';
-import {INVENTORY_SERVICE_URL} from '@/config/app';
+import {INVENTORY_INTERNAL_URL} from '@/config/app';
 
 interface PlayerData {
   stats: any;
@@ -63,7 +63,7 @@ async function getPlayerData(steamId: string): Promise<PlayerData | null> {
 
     let inventory = null;
     try {
-      const inventoryUrl = `${INVENTORY_SERVICE_URL}/api/inventory/${steamId}.json`;
+      const inventoryUrl = `${INVENTORY_INTERNAL_URL}/api/inventory/${steamId}.json`;
       const inventoryResponse = await fetch(inventoryUrl, {
         next: { revalidate: 60 }
       });
@@ -198,4 +198,3 @@ export default async function PlayerProfilePage({params}: {params: Promise<{stea
     </div>
   );
 }
-

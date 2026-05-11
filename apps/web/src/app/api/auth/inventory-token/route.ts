@@ -1,34 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createCipheriv, randomBytes } from 'crypto';
 import { decode } from 'next-auth/jwt';
-import {INVENTORY_SERVICE_URL, THIRD_PARTY_SECRET} from "@/config/app";
+import {
+  INVENTORY_INTERNAL_URL,
+  INVENTORY_PUBLIC_URL,
+  XN_INV_API_AUTH_KEY,
+} from "@/config/app";
 
-
-function generateThirdPartyToken(userId: string, expiresInMinutes: number = 5): string {
-  if (!THIRD_PARTY_SECRET) {
-    throw new Error('THIRD_PARTY_SECRET not configured');
-  }
-
-  const payload = {
-    userId,
-    exp: Date.now() + expiresInMinutes * 60 * 1000
-  };
-
-  const iv = randomBytes(16);
-  const keyBuffer = Buffer.from(THIRD_PARTY_SECRET, 'utf-8');
-  const key = Buffer.alloc(32);
-  keyBuffer.copy(key, 0, 0, Math.min(keyBuffer.length, 32));
-
-  const cipher = createCipheriv('aes-256-cbc', key, iv);
-
-  let encrypted = cipher.update(JSON.stringify(payload), 'utf-8');
-  encrypted = Buffer.concat([encrypted, cipher.final()]);
-
-  return `${iv.toString('hex')}:${encrypted.toString('hex')}`;
+function inventoryInternalUrl(path: string) {
+  return `${INVENTORY_INTERNAL_URL}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
 export async function GET(request: NextRequest) {
   try {
+    if (!XN_INV_API_AUTH_KEY) {
+      return NextResponse.json(
+        { error: 'XN_INV_API_AUTH_KEY not configured' },
+        { status: 500 }
+      );
+    }
+
     const sessionToken = request.cookies.get('next-auth.session-token')?.value ||
                          request.cookies.get('__Secure-next-auth.session-token')?.value;
 
@@ -45,12 +35,43 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized - Invalid session' }, { status: 401 });
     }
 
-    const inventoryToken = generateThirdPartyToken(token.steamId as string, 5);
-    const inventoryUrl = `${INVENTORY_SERVICE_URL}/auth/third-party?access_token=${encodeURIComponent(inventoryToken)}`;
+    const userId = token.steamId as string;
+    const signInResponse = await fetch(inventoryInternalUrl('/api/sign-in'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        apiKey: XN_INV_API_AUTH_KEY,
+        userId,
+        avatar: typeof token.avatar === 'string' ? token.avatar : undefined,
+        name: typeof token.personaname === 'string' ? token.personaname : undefined,
+      }),
+    });
+
+    if (!signInResponse.ok) {
+      return NextResponse.json(
+        { error: 'Failed to create inventory sign-in token' },
+        { status: signInResponse.status }
+      );
+    }
+
+    const { token: inventoryToken } = await signInResponse.json() as { token?: string };
+    if (!inventoryToken) {
+      return NextResponse.json(
+        { error: 'Inventory service returned an invalid sign-in response' },
+        { status: 502 }
+      );
+    }
+
+    const callbackUrl = new URL(
+      `${INVENTORY_PUBLIC_URL}/api/sign-in/callback`
+    );
+    callbackUrl.searchParams.set('token', inventoryToken);
 
     return NextResponse.json({
       success: true,
-      url: inventoryUrl,
+      url: callbackUrl.toString(),
       token: inventoryToken,
     });
   } catch (error) {
@@ -61,4 +82,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

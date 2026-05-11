@@ -1,0 +1,41 @@
+{
+  "name": "@xom/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "start": "next start",
+    "build": "next build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "next lint",
+    "clean": "rm -rf .next"
+  },
+  "dependencies": {
+    "@auth/core": "^0.34.3",
+    "@ianlucas/cs2-lib": "^7.15.0",
+    "@tabler/icons-react": "^3.35.0",
+    "@xom/db": "workspace:*",
+    "@xom/game-config": "workspace:*",
+    "@xom/queue": "workspace:*",
+    "clsx": "^2.1.1",
+    "next": "16.0.7",
+    "next-auth": "^4.24.13",
+    "next-auth-steam": "github:monokaijs/next-auth-steam#fix/peer-legacy-deps",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "tailwind-merge": "^3.4.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^22.18.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
+    "@xom/tsconfig": "workspace:*",
+    "tailwindcss": "^4",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.51.0"
+  }
+}

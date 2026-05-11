@@ -1,0 +1,20 @@
+packages:
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - cpu-features
+  - esbuild
+  - msgpackr-extract
+  - sharp
+  - ssh2
+  - workerd
+allowBuilds:
+  '@nestjs/core': true
+  cpu-features: true
+  esbuild: true
+  msgpackr-extract: true
+  sharp: true
+  ssh2: true
+  workerd: true

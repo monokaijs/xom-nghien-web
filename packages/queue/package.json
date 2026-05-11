@@ -1,0 +1,22 @@
+{
+  "name": "@xom/queue",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "bullmq": "^5.64.1"
+  },
+  "devDependencies": {
+    "@xom/tsconfig": "workspace:*",
+    "typescript": "^5.9.3"
+  }
+}

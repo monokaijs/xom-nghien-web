@@ -27,22 +27,42 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
+      - name: Extract web metadata
+        id: meta-web
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.repository }}-web
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix={{branch}}-
 
-      - name: Build and push Docker image
+      - name: Extract spawner metadata
+        id: meta-spawner
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-spawner
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push web image
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: Dockerfile.web
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
 
+      - name: Build and push spawner image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.spawner
+          push: true
+          tags: ${{ steps.meta-spawner.outputs.tags }}
+          labels: ${{ steps.meta-spawner.outputs.labels }}
+          cache-from: type=gha,scope=spawner
+          cache-to: type=gha,mode=max,scope=spawner

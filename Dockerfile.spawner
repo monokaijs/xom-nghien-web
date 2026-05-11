@@ -1,0 +1,37 @@
+ARG NODE_VERSION=22.13.1
+FROM node:${NODE_VERSION}-slim AS base
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+WORKDIR /app
+RUN npm install -g pnpm@11.0.9
+
+FROM base AS deps
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3 && \
+    rm -rf /var/lib/apt/lists/*
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.json ./
+COPY apps/spawner/package.json ./apps/spawner/package.json
+COPY apps/web/package.json ./apps/web/package.json
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/game-config/package.json ./packages/game-config/package.json
+COPY packages/queue/package.json ./packages/queue/package.json
+COPY packages/tsconfig/package.json ./packages/tsconfig/package.json
+RUN pnpm install --frozen-lockfile --filter @xom/spawner...
+
+FROM deps AS build
+COPY . .
+RUN pnpm --filter @xom/spawner build
+
+FROM node:${NODE_VERSION}-slim AS runner
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+WORKDIR /app
+RUN npm install -g pnpm@11.0.9
+
+COPY --from=build /app ./
+
+ENV NODE_ENV=production
+ENV PORT=3002
+EXPOSE 3002
+CMD ["pnpm", "--filter", "@xom/spawner", "start"]

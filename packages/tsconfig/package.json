@@ -1,0 +1,11 @@
+{
+  "name": "@xom/tsconfig",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./base.json": "./base.json",
+    "./next.json": "./next.json",
+    "./nest.json": "./nest.json",
+    "./package.json": "./package.json"
+  }
+}

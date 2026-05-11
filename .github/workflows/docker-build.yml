@@ -476,5 +476,6 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml config >/dev/null"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker run --rm --network shared-network -v \"\$PWD/nginx/conf.d:/etc/nginx/conf.d:ro\" -v /var/www:/var/www:ro -v /etc/letsencrypt:/etc/letsencrypt:ro nginx:stable nginx -t"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml pull"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "if [ \"\$(docker inspect xn-web --format '{{ index .Config.Labels \"com.docker.compose.project\" }}' 2>/dev/null || true)\" = \"\" ]; then docker rm -f xn-web; fi"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml up -d --remove-orphans"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "docker image prune -f"

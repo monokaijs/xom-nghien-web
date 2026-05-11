@@ -166,6 +166,18 @@ jobs:
           inventory = container_env("inventory")
           mysql = container_env("cs2-mysql")
           postgres = container_env("postgres")
+          mysql_root_password = mysql.get("MYSQL_ROOT_PASSWORD", secrets.token_urlsafe(32))
+          db_name = mysql.get("MYSQL_DATABASE") or web.get("DB_NAME") or "cs2db"
+          if db_name == "cs2_skins" and not mysql.get("MYSQL_DATABASE"):
+              db_name = "cs2db"
+          db_user = mysql.get("MYSQL_USER") or web.get("DB_USER") or "cs2"
+          if db_user == "root":
+              db_user = "cs2"
+          db_password = (
+              mysql.get("MYSQL_PASSWORD")
+              or (web.get("DB_PASSWORD") if web.get("DB_USER") == db_user else "")
+              or secrets.token_hex(24)
+          )
 
           api_key = (
               web.get("XN_INV_API_AUTH_KEY")
@@ -184,10 +196,10 @@ jobs:
               "STEAM_API_KEY": web.get("STEAM_API_KEY") or inventory.get("STEAM_API_KEY", ""),
               "DB_HOST": "mysql",
               "DB_PORT": web.get("DB_PORT") or mysql.get("MYSQL_TCP_PORT") or "3306",
-              "DB_USER": web.get("DB_USER") or mysql.get("MYSQL_USER", "cs2"),
-              "DB_PASSWORD": web.get("DB_PASSWORD") or mysql.get("MYSQL_PASSWORD", ""),
-              "DB_NAME": web.get("DB_NAME") or mysql.get("MYSQL_DATABASE", "cs2db"),
-              "MYSQL_ROOT_PASSWORD": mysql.get("MYSQL_ROOT_PASSWORD", secrets.token_urlsafe(32)),
+              "DB_USER": db_user,
+              "DB_PASSWORD": db_password,
+              "DB_NAME": db_name,
+              "MYSQL_ROOT_PASSWORD": mysql_root_password,
               "POSTGRES_USER": postgres.get("POSTGRES_USER", "postgres"),
               "POSTGRES_PASSWORD": postgres.get("POSTGRES_PASSWORD", "postgres"),
               "POSTGRES_DB": postgres.get("POSTGRES_DB", "postgres"),
@@ -210,6 +222,68 @@ jobs:
           PY
             chmod 600 .env
           fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import ast
+          import os
+          import secrets
+
+          path = Path(".env")
+          values = {}
+          order = []
+
+          if path.exists():
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  stripped = line.strip()
+                  if not stripped or stripped.startswith("#") or "=" not in line:
+                      continue
+                  key, value = line.split("=", 1)
+                  key = key.strip()
+                  value = value.strip()
+                  try:
+                      parsed = ast.literal_eval(value) if value[:1] in {"'", '"'} else value
+                  except Exception:
+                      parsed = value.strip('"').strip("'")
+                  if key not in values:
+                      order.append(key)
+                  values[key] = str(parsed)
+
+          def quote(value):
+              return '"' + str(value).replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n") + '"'
+
+          def set_value(key, value):
+              if key not in values:
+                  order.append(key)
+              values[key] = str(value)
+
+          set_value("WEB_IMAGE", os.environ["WEB_IMAGE"])
+          set_value("INVENTORY_IMAGE", os.environ["INVENTORY_IMAGE"])
+
+          if values.get("DB_NAME") in {"", None, "cs2_skins"}:
+              set_value("DB_NAME", "cs2db")
+          if values.get("DB_USER") in {"", None, "root"}:
+              set_value("DB_USER", "cs2")
+              set_value("DB_PASSWORD", secrets.token_hex(24))
+          elif not values.get("DB_PASSWORD"):
+              set_value("DB_PASSWORD", secrets.token_hex(24))
+          if not values.get("MYSQL_ROOT_PASSWORD"):
+              set_value("MYSQL_ROOT_PASSWORD", secrets.token_hex(24))
+
+          defaults = {
+              "DB_HOST": "mysql",
+              "DB_PORT": "3306",
+              "INVENTORY_PUBLIC_URL": "https://inventory.xomnghien.com",
+              "INVENTORY_INTERNAL_URL": "http://inventory:3000",
+              "INVENTORY_STEAM_CALLBACK_URL": "https://inventory.xomnghien.com/sign-in/steam/callback",
+          }
+          for key, value in defaults.items():
+              if not values.get(key):
+                  set_value(key, value)
+
+          path.write_text("".join(f"{key}={quote(values[key])}\n" for key in order if key in values), encoding="utf-8")
+          path.chmod(0o600)
+          PY
 
           if [ -f nginx.conf ]; then
             python3 - <<'PY'
@@ -478,4 +552,87 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml pull"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "if [ \"\$(docker inspect xn-web --format '{{ index .Config.Labels \"com.docker.compose.project\" }}' 2>/dev/null || true)\" = \"\" ]; then docker rm -f xn-web; fi"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml up -d --remove-orphans"
+          tar -C packages/db/migrations -cz . | ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && rm -rf mysql-migrations && mkdir -p mysql-migrations && tar -xz -C mysql-migrations"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && bash -s" <<'REMOTE'
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import ast
+          import re
+          import subprocess
+
+          values = {}
+          for line in Path(".env").read_text(encoding="utf-8").splitlines():
+              stripped = line.strip()
+              if not stripped or stripped.startswith("#") or "=" not in line:
+                  continue
+              key, value = line.split("=", 1)
+              value = value.strip()
+              try:
+                  parsed = ast.literal_eval(value) if value[:1] in {"'", '"'} else value
+              except Exception:
+                  parsed = value.strip('"').strip("'")
+              values[key.strip()] = str(parsed)
+
+          db_name = values.get("DB_NAME", "")
+          db_user = values.get("DB_USER", "")
+          db_password = values.get("DB_PASSWORD", "")
+          if not re.fullmatch(r"[A-Za-z0-9_]+", db_name):
+              raise SystemExit("Invalid DB_NAME")
+          if not re.fullmatch(r"[A-Za-z0-9_]+", db_user):
+              raise SystemExit("Invalid DB_USER")
+
+          def run_mysql(sql, capture=False):
+              return subprocess.run(
+                  [
+                      "docker", "compose", "-f", "compose.yml", "exec", "-T", "mysql", "sh", "-lc",
+                      'mysql --batch --raw --skip-column-names -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"',
+                  ],
+                  input=sql,
+                  text=True,
+                  check=True,
+                  capture_output=capture,
+              )
+
+          subprocess.run(
+              [
+                  "docker", "compose", "-f", "compose.yml", "exec", "-T", "mysql", "sh", "-lc",
+                  'for i in $(seq 1 30); do mysqladmin ping -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" --silent && exit 0; sleep 2; done; exit 1',
+              ],
+              check=True,
+          )
+
+          escaped_password = db_password.replace("\\", "\\\\").replace("'", "\\'")
+          sql = f"CREATE DATABASE IF NOT EXISTS `{db_name}`;\n"
+          if db_user != "root":
+              sql += (
+                  f"CREATE USER IF NOT EXISTS '{db_user}'@'%' IDENTIFIED BY '{escaped_password}';\n"
+                  f"ALTER USER '{db_user}'@'%' IDENTIFIED BY '{escaped_password}';\n"
+                  f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{db_user}'@'%';\n"
+                  "FLUSH PRIVILEGES;\n"
+              )
+
+          run_mysql(sql)
+
+          migrations_dir = Path("mysql-migrations")
+          if migrations_dir.exists():
+              run_mysql(
+                  "CREATE TABLE IF NOT EXISTS schema_migrations ("
+                  "filename VARCHAR(255) PRIMARY KEY, "
+                  "applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL"
+                  ");\n"
+              )
+              applied = set(
+                  run_mysql("SELECT filename FROM schema_migrations;\n", capture=True).stdout.splitlines()
+              )
+              for migration in sorted(migrations_dir.glob("*.sql")):
+                  if migration.name in applied:
+                      continue
+                  filename = migration.name.replace("\\", "\\\\").replace("'", "\\'")
+                  run_mysql(
+                      migration.read_text(encoding="utf-8").rstrip()
+                      + f"\nINSERT INTO schema_migrations (filename) VALUES ('{filename}');\n"
+                  )
+          PY
+          REMOTE
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "docker image prune -f"

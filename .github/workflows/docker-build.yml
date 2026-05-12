@@ -125,6 +125,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
             DEPLOY_PATH="${DEPLOY_PATH}" \
             WEB_IMAGE="ghcr.io/${{ github.repository }}-web:latest" \
+            SPAWNER_IMAGE="ghcr.io/${{ github.repository }}-spawner:latest" \
             INVENTORY_IMAGE="ghcr.io/${{ github.repository }}-inventory-simulator:latest" \
             'bash -s' <<'REMOTE'
           set -euo pipefail
@@ -163,9 +164,11 @@ jobs:
               return '"' + value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n") + '"'
 
           web = container_env("xn-web")
+          spawner = container_env("xn-spawner")
           inventory = container_env("inventory")
           mysql = container_env("cs2-mysql")
           postgres = container_env("postgres")
+          redis = container_env("xn-redis")
           mysql_root_password = mysql.get("MYSQL_ROOT_PASSWORD", secrets.token_urlsafe(32))
           db_name = mysql.get("MYSQL_DATABASE") or web.get("DB_NAME") or "cs2db"
           if db_name == "cs2_skins" and not mysql.get("MYSQL_DATABASE"):
@@ -178,6 +181,17 @@ jobs:
               or (web.get("DB_PASSWORD") if web.get("DB_USER") == db_user else "")
               or secrets.token_hex(24)
           )
+          server_secret = (
+              web.get("SERVER_SECRET_KEY")
+              or spawner.get("SERVER_SECRET_KEY")
+              or secrets.token_urlsafe(32)
+          )
+          redis_password = redis.get("REDIS_PASSWORD") or secrets.token_hex(24)
+          redis_url = (
+              web.get("REDIS_URL")
+              or spawner.get("REDIS_URL")
+              or f"redis://:{redis_password}@redis:6379/0"
+          )
 
           api_key = (
               web.get("XN_INV_API_AUTH_KEY")
@@ -189,10 +203,12 @@ jobs:
 
           values = {
               "WEB_IMAGE": os.environ["WEB_IMAGE"],
+              "SPAWNER_IMAGE": os.environ["SPAWNER_IMAGE"],
               "INVENTORY_IMAGE": os.environ["INVENTORY_IMAGE"],
               "NEXTAUTH_URL": web.get("NEXTAUTH_URL", "https://xomnghien.com"),
               "NEXTAUTH_SECRET": web.get("NEXTAUTH_SECRET", secrets.token_urlsafe(32)),
               "SESSION_SECRET": web.get("SESSION_SECRET") or web.get("NEXTAUTH_SECRET") or secrets.token_urlsafe(32),
+              "SERVER_SECRET_KEY": server_secret,
               "STEAM_API_KEY": web.get("STEAM_API_KEY") or inventory.get("STEAM_API_KEY", ""),
               "DB_HOST": "mysql",
               "DB_PORT": web.get("DB_PORT") or mysql.get("MYSQL_TCP_PORT") or "3306",
@@ -200,6 +216,8 @@ jobs:
               "DB_PASSWORD": db_password,
               "DB_NAME": db_name,
               "MYSQL_ROOT_PASSWORD": mysql_root_password,
+              "REDIS_PASSWORD": redis_password,
+              "REDIS_URL": redis_url,
               "POSTGRES_USER": postgres.get("POSTGRES_USER", "postgres"),
               "POSTGRES_PASSWORD": postgres.get("POSTGRES_PASSWORD", "postgres"),
               "POSTGRES_DB": postgres.get("POSTGRES_DB", "postgres"),
@@ -258,6 +276,7 @@ jobs:
               values[key] = str(value)
 
           set_value("WEB_IMAGE", os.environ["WEB_IMAGE"])
+          set_value("SPAWNER_IMAGE", os.environ["SPAWNER_IMAGE"])
           set_value("INVENTORY_IMAGE", os.environ["INVENTORY_IMAGE"])
 
           if values.get("DB_NAME") in {"", None, "cs2_skins"}:
@@ -269,20 +288,180 @@ jobs:
               set_value("DB_PASSWORD", secrets.token_hex(24))
           if not values.get("MYSQL_ROOT_PASSWORD"):
               set_value("MYSQL_ROOT_PASSWORD", secrets.token_hex(24))
+          if not values.get("SERVER_SECRET_KEY"):
+              set_value("SERVER_SECRET_KEY", secrets.token_urlsafe(32))
+          if not values.get("REDIS_PASSWORD"):
+              set_value("REDIS_PASSWORD", secrets.token_hex(24))
+          if not values.get("REDIS_URL") or values.get("REDIS_URL") == "redis://redis:6379/0":
+              set_value("REDIS_URL", f"redis://:{values['REDIS_PASSWORD']}@redis:6379/0")
+          if not values.get("NEXTAUTH_SECRET"):
+              set_value("NEXTAUTH_SECRET", secrets.token_urlsafe(32))
+          if not values.get("SESSION_SECRET"):
+              set_value("SESSION_SECRET", values["NEXTAUTH_SECRET"])
+          if not values.get("INVENTORY_SESSION_SECRET"):
+              set_value("INVENTORY_SESSION_SECRET", secrets.token_urlsafe(32))
+          if not values.get("XN_INV_API_AUTH_KEY"):
+              set_value("XN_INV_API_AUTH_KEY", secrets.token_urlsafe(32))
+          if not values.get("POSTGRES_USER"):
+              set_value("POSTGRES_USER", "postgres")
+          if not values.get("POSTGRES_PASSWORD"):
+              set_value("POSTGRES_PASSWORD", secrets.token_hex(24))
+          if not values.get("POSTGRES_DB"):
+              set_value("POSTGRES_DB", "postgres")
+          if not values.get("STEAM_WEB_API_KEY") and values.get("STEAM_API_KEY"):
+              set_value("STEAM_WEB_API_KEY", values["STEAM_API_KEY"])
 
           defaults = {
+              "NODE_ENV": "production",
               "DB_HOST": "mysql",
               "DB_PORT": "3306",
+              "SPAWNER_PORT": "3002",
+              "PGDATA": "/var/lib/postgresql/data/pgdata",
               "INVENTORY_PUBLIC_URL": "https://inventory.xomnghien.com",
               "INVENTORY_INTERNAL_URL": "http://inventory:3000",
               "INVENTORY_STEAM_CALLBACK_URL": "https://inventory.xomnghien.com/sign-in/steam/callback",
+              "INVENTORY_SERVICE_URL": "https://inventory.xomnghien.com",
           }
           for key, value in defaults.items():
               if not values.get(key):
                   set_value(key, value)
+          if not values.get("INVENTORY_DATABASE_URL"):
+              set_value(
+                  "INVENTORY_DATABASE_URL",
+                  f"postgres://{values['POSTGRES_USER']}:{values['POSTGRES_PASSWORD']}@postgres:5432/{values['POSTGRES_DB']}?schema=public",
+              )
+
+          required = [
+              "NEXTAUTH_SECRET",
+              "SESSION_SECRET",
+              "SERVER_SECRET_KEY",
+              "STEAM_API_KEY",
+              "DB_HOST",
+              "DB_PORT",
+              "DB_USER",
+              "DB_PASSWORD",
+              "DB_NAME",
+              "MYSQL_ROOT_PASSWORD",
+              "POSTGRES_PASSWORD",
+              "INVENTORY_DATABASE_URL",
+              "INVENTORY_SESSION_SECRET",
+              "XN_INV_API_AUTH_KEY",
+              "REDIS_PASSWORD",
+              "REDIS_URL",
+          ]
+          missing = [key for key in required if not values.get(key)]
+          if missing:
+              raise SystemExit("Missing required deploy env keys: " + ", ".join(missing))
 
           path.write_text("".join(f"{key}={quote(values[key])}\n" for key in order if key in values), encoding="utf-8")
           path.chmod(0o600)
+
+          env_dir = Path("env")
+          env_dir.mkdir(mode=0o700, exist_ok=True)
+
+          def write_env(filename, keys):
+              lines = []
+              for key, source in keys:
+                  env_key = key
+                  value_key = source or key
+                  if value_key in values:
+                      lines.append(f"{env_key}={quote(values[value_key])}\n")
+              target = env_dir / filename
+              target.write_text("".join(lines), encoding="utf-8")
+              target.chmod(0o600)
+
+          oauth_keys = [
+              ("GOOGLE_CLIENT_ID", None),
+              ("GOOGLE_CLIENT_SECRET", None),
+              ("DISCORD_CLIENT_ID", None),
+              ("DISCORD_CLIENT_SECRET", None),
+              ("GITHUB_CLIENT_ID", None),
+              ("GITHUB_CLIENT_SECRET", None),
+              ("STEAM_WEB_API_KEY", None),
+          ]
+
+          write_env(
+              "web.env",
+              [
+                  ("NODE_ENV", None),
+                  ("NEXTAUTH_URL", None),
+                  ("NEXTAUTH_SECRET", None),
+                  ("SESSION_SECRET", None),
+                  ("SERVER_SECRET_KEY", None),
+                  ("STEAM_API_KEY", None),
+                  ("REDIS_URL", None),
+                  ("DB_HOST", None),
+                  ("DB_PORT", None),
+                  ("DB_USER", None),
+                  ("DB_PASSWORD", None),
+                  ("DB_NAME", None),
+                  ("INVENTORY_PUBLIC_URL", None),
+                  ("INVENTORY_INTERNAL_URL", None),
+                  ("INVENTORY_SERVICE_URL", "INVENTORY_PUBLIC_URL"),
+                  ("XN_INV_API_AUTH_KEY", None),
+                  *oauth_keys,
+              ],
+          )
+
+          write_env(
+              "spawner.env",
+              [
+                  ("NODE_ENV", None),
+                  ("PORT", "SPAWNER_PORT"),
+                  ("SPAWNER_PORT", None),
+                  ("SERVER_SECRET_KEY", None),
+                  ("STEAM_API_KEY", None),
+                  ("STEAM_WEB_API_KEY", None),
+                  ("REDIS_URL", None),
+                  ("DB_HOST", None),
+                  ("DB_PORT", None),
+                  ("DB_USER", None),
+                  ("DB_PASSWORD", None),
+                  ("DB_NAME", None),
+              ],
+          )
+
+          write_env(
+              "inventory.env",
+              [
+                  ("NODE_ENV", None),
+                  ("DATABASE_URL", "INVENTORY_DATABASE_URL"),
+                  ("SESSION_SECRET", "INVENTORY_SESSION_SECRET"),
+                  ("STEAM_API_KEY", None),
+                  ("STEAM_CALLBACK_URL", "INVENTORY_STEAM_CALLBACK_URL"),
+                  ("CLOUDFLARE_ANALYTICS_TOKEN", None),
+                  ("ASSETS_BASE_URL", "INVENTORY_ASSETS_BASE_URL"),
+                  ("XN_INV_API_AUTH_KEY", None),
+                  ("XN_INV_PUBLIC_URL", "INVENTORY_PUBLIC_URL"),
+              ],
+          )
+
+          write_env(
+              "mysql.env",
+              [
+                  ("MYSQL_ROOT_PASSWORD", None),
+                  ("MYSQL_DATABASE", "DB_NAME"),
+                  ("MYSQL_USER", "DB_USER"),
+                  ("MYSQL_PASSWORD", "DB_PASSWORD"),
+              ],
+          )
+
+          write_env(
+              "postgres.env",
+              [
+                  ("POSTGRES_USER", None),
+                  ("POSTGRES_PASSWORD", None),
+                  ("POSTGRES_DB", None),
+                  ("PGDATA", None),
+              ],
+          )
+
+          write_env(
+              "redis.env",
+              [
+                  ("REDIS_PASSWORD", None),
+              ],
+          )
           PY
 
           if [ -f nginx.conf ]; then
@@ -438,39 +617,47 @@ jobs:
               image: ${WEB_IMAGE:-ghcr.io/monokaijs/xom-nghien-web-web:latest}
               container_name: xn-web
               restart: unless-stopped
+              env_file:
+                - ./env/web.env
               depends_on:
-                - mysql
-                - inventory
+                mysql:
+                  condition: service_healthy
+                redis:
+                  condition: service_healthy
+                inventory:
+                  condition: service_started
               networks:
                 - shared-network
-              environment:
-                NEXTAUTH_URL: ${NEXTAUTH_URL:-https://xomnghien.com}
-                NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
-                SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
-                STEAM_API_KEY: ${STEAM_API_KEY:?STEAM_API_KEY is required}
-                INVENTORY_PUBLIC_URL: ${INVENTORY_PUBLIC_URL:-https://inventory.xomnghien.com}
-                INVENTORY_INTERNAL_URL: ${INVENTORY_INTERNAL_URL:-http://inventory:3000}
-                INVENTORY_SERVICE_URL: ${INVENTORY_PUBLIC_URL:-https://inventory.xomnghien.com}
-                XN_INV_API_AUTH_KEY: ${XN_INV_API_AUTH_KEY:?XN_INV_API_AUTH_KEY is required}
-                DB_HOST: mysql
-                DB_PORT: ${DB_PORT:-3306}
-                DB_USER: ${DB_USER:?DB_USER is required}
-                DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
-                DB_NAME: ${DB_NAME:?DB_NAME is required}
+
+            spawner:
+              image: ${SPAWNER_IMAGE:-ghcr.io/monokaijs/xom-nghien-web-spawner:latest}
+              container_name: xn-spawner
+              restart: unless-stopped
+              env_file:
+                - ./env/spawner.env
+              depends_on:
+                mysql:
+                  condition: service_healthy
+                redis:
+                  condition: service_healthy
+              networks:
+                - shared-network
 
             postgres:
               image: postgres:16
               container_name: postgres
               restart: unless-stopped
-              environment:
-                POSTGRES_USER: ${POSTGRES_USER:-postgres}
-                POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-                POSTGRES_DB: ${POSTGRES_DB:-postgres}
-                PGDATA: /var/lib/postgresql/data/pgdata
+              env_file:
+                - ./env/postgres.env
               ports:
                 - "5443:5432"
               volumes:
                 - postgres_data:/var/lib/postgresql/data
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+                interval: 10s
+                timeout: 5s
+                retries: 10
               networks:
                 - shared-network
 
@@ -478,30 +665,21 @@ jobs:
               image: ${INVENTORY_IMAGE:-ghcr.io/monokaijs/xom-nghien-web-inventory-simulator:latest}
               container_name: inventory
               restart: unless-stopped
+              env_file:
+                - ./env/inventory.env
               depends_on:
-                - postgres
+                postgres:
+                  condition: service_healthy
               networks:
                 - shared-network
-              environment:
-                DATABASE_URL: ${INVENTORY_DATABASE_URL:?INVENTORY_DATABASE_URL is required}
-                SESSION_SECRET: ${INVENTORY_SESSION_SECRET:?INVENTORY_SESSION_SECRET is required}
-                STEAM_API_KEY: ${STEAM_API_KEY:?STEAM_API_KEY is required}
-                STEAM_CALLBACK_URL: ${INVENTORY_STEAM_CALLBACK_URL:-https://inventory.xomnghien.com/sign-in/steam/callback}
-                CLOUDFLARE_ANALYTICS_TOKEN: ${CLOUDFLARE_ANALYTICS_TOKEN:-}
-                ASSETS_BASE_URL: ${INVENTORY_ASSETS_BASE_URL:-}
-                XN_INV_API_AUTH_KEY: ${XN_INV_API_AUTH_KEY:?XN_INV_API_AUTH_KEY is required}
-                XN_INV_PUBLIC_URL: ${INVENTORY_PUBLIC_URL:-https://inventory.xomnghien.com}
 
             mysql:
               image: mysql:8.0-debian
               container_name: cs2-mysql
               command: --default-authentication-plugin=mysql_native_password
               restart: unless-stopped
-              environment:
-                MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
-                MYSQL_DATABASE: ${DB_NAME:?DB_NAME is required}
-                MYSQL_USER: ${DB_USER:?DB_USER is required}
-                MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+              env_file:
+                - ./env/mysql.env
               volumes:
                 - ./mysql_data:/var/lib/mysql
               healthcheck:
@@ -515,6 +693,23 @@ jobs:
                 - SYS_NICE
               ports:
                 - "27044:3306"
+
+            redis:
+              image: ghcr.io/valkey-io/valkey:8-alpine
+              container_name: xn-redis
+              command: ["sh", "-c", "exec valkey-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\""]
+              restart: unless-stopped
+              env_file:
+                - ./env/redis.env
+              volumes:
+                - redis_data:/data
+              healthcheck:
+                test: ["CMD-SHELL", "valkey-cli -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG"]
+                interval: 10s
+                timeout: 5s
+                retries: 10
+              networks:
+                - shared-network
 
             nginx:
               image: nginx:stable
@@ -535,6 +730,7 @@ jobs:
 
           volumes:
             postgres_data:
+            redis_data:
 
           networks:
             shared-network:
@@ -550,7 +746,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml config >/dev/null"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker run --rm --network shared-network -v \"\$PWD/nginx/conf.d:/etc/nginx/conf.d:ro\" -v /var/www:/var/www:ro -v /etc/letsencrypt:/etc/letsencrypt:ro nginx:stable nginx -t"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml pull"
-          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "if [ \"\$(docker inspect xn-web --format '{{ index .Config.Labels \"com.docker.compose.project\" }}' 2>/dev/null || true)\" = \"\" ]; then docker rm -f xn-web; fi"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "for name in xn-web xn-spawner xn-redis; do if [ \"\$(docker inspect \"\$name\" --format '{{ index .Config.Labels \"com.docker.compose.project\" }}' 2>/dev/null || true)\" = \"\" ]; then docker rm -f \"\$name\"; fi; done"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml up -d --remove-orphans"
           tar -C packages/db/migrations -cz . | ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && rm -rf mysql-migrations && mkdir -p mysql-migrations && tar -xz -C mysql-migrations"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && bash -s" <<'REMOTE'

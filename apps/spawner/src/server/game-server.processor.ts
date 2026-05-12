@@ -183,6 +183,11 @@ export class GameServerProcessor {
       });
 
       await remote.exec(`mkdir -p ${shellQuote(instancePath)}`);
+      await remote.exec([
+        'rm -rf',
+        shellQuote(remotePathJoin(instancePath, 'custom_files')),
+        shellQuote(remotePathJoin(instancePath, 'docker-compose.yml')),
+      ].join(' '));
       if (adapter.key === 'cs2') {
         await remote.exec('docker network inspect cs2_game-net >/dev/null 2>&1 || docker network create cs2_game-net');
       }

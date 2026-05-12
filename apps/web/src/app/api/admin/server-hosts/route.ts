@@ -11,6 +11,31 @@ function sanitizeHost(host: typeof serverHosts.$inferSelect) {
   return safeHost;
 }
 
+function isDuplicateHostError(error: any) {
+  const cause = error?.cause;
+  const message = String(cause?.sqlMessage || cause?.message || '');
+  return cause?.code === 'ER_DUP_ENTRY' && message.includes('unique_server_host_ssh');
+}
+
+function logServerHostWriteError(action: string, error: any) {
+  const cause = error?.cause;
+  console.error(`Error ${action} server host`, {
+    code: cause?.code,
+    sqlState: cause?.sqlState,
+    sqlMessage: cause?.sqlMessage,
+  });
+}
+
+async function queueValidationSafely(hostId: number) {
+  try {
+    return await queueHostValidation(hostId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Error queueing server host validation', { message });
+    return null;
+  }
+}
+
 function readBody(body: any) {
   const name = String(body.name || '').trim();
   const publicAddress = String(body.publicAddress || '').trim();
@@ -87,11 +112,17 @@ export const POST = requireAdmin(async (request: NextRequest) => {
       lastCheckedAt: null,
     });
     const hostId = result[0].insertId;
-    const validationJob = await queueHostValidation(hostId);
+    const validationJob = await queueValidationSafely(hostId);
 
     return NextResponse.json({ success: true, hostId, validationJob });
   } catch (error: any) {
-    console.error('Error creating server host:', error);
-    return NextResponse.json({ error: error.message || 'Failed to create server host' }, { status: 400 });
+    logServerHostWriteError('creating', error);
+    if (isDuplicateHostError(error)) {
+      return NextResponse.json(
+        { error: 'A server host with this SSH host and port already exists' },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json({ error: 'Failed to create server host' }, { status: 400 });
   }
 });

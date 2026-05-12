@@ -15,12 +15,19 @@ import { recordServerEvent } from '../server/events';
 
 @Processor(SERVER_QUEUE_NAME)
 export class ServerQueueProcessor extends WorkerHost {
+  private readonly hostProcessor: HostProcessor;
+  private readonly gameServerProcessor: GameServerProcessor;
+  private readonly rconProcessor: RconProcessor;
+
   constructor(
-    private readonly hostProcessor: HostProcessor,
-    private readonly gameServerProcessor: GameServerProcessor,
-    private readonly rconProcessor: RconProcessor,
+    hostProcessor?: HostProcessor,
+    gameServerProcessor?: GameServerProcessor,
+    rconProcessor?: RconProcessor,
   ) {
     super();
+    this.hostProcessor = hostProcessor ?? new HostProcessor();
+    this.gameServerProcessor = gameServerProcessor ?? new GameServerProcessor();
+    this.rconProcessor = rconProcessor ?? new RconProcessor();
   }
 
   async process(job: Job<ServerJobPayload, unknown, string>) {

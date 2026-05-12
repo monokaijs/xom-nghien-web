@@ -110,6 +110,7 @@ export default function GameConfigurationsPage() {
     setLoading(true);
     const params = new URLSearchParams();
     if (search) params.set('search', search);
+    params.set('gameKey', 'cs2');
     const response = await fetch(`/api/admin/game-configurations?${params}`);
     const data = await response.json();
     setConfigs(data.configurations || []);
@@ -225,7 +226,7 @@ export default function GameConfigurationsPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold mb-1">Game Configurations</h2>
+          <h2 className="text-xl font-bold mb-1">CS2 Configurations</h2>
           <p className="text-white/50 text-sm">Versioned CS2 bundles rendered by the system during deployment.</p>
         </div>
         <button onClick={openCreate} className="bg-accent-primary hover:bg-accent-primary/80 text-white px-4 py-2 rounded-lg flex items-center gap-2">

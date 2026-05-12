@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { desc, eq, like, or } from '@xom/db';
+import { and, desc, eq, like, or } from '@xom/db';
 import { requireAdmin } from '@/lib/auth';
 import { db } from '@xom/db';
 import { gameCredentials } from '@xom/db';
@@ -11,15 +11,23 @@ function sanitizeCredential(credential: typeof gameCredentials.$inferSelect) {
 }
 
 export const GET = requireAdmin(async (request: NextRequest) => {
-  const search = new URL(request.url).searchParams.get('search') || '';
+  const params = new URL(request.url).searchParams;
+  const search = params.get('search') || '';
+  const gameKey = params.get('gameKey') || '';
+  const gameKeyCondition = gameKey ? eq(gameCredentials.gameKey, gameKey) : undefined;
+  const searchCondition = search ? or(
+    like(gameCredentials.name, `%${search}%`),
+    like(gameCredentials.gameKey, `%${search}%`),
+    like(gameCredentials.type, `%${search}%`),
+  ) : undefined;
+  const whereClause = gameKeyCondition && searchCondition
+    ? and(gameKeyCondition, searchCondition)
+    : gameKeyCondition || searchCondition;
+
   const rows = await db
     .select()
     .from(gameCredentials)
-    .where(search ? or(
-      like(gameCredentials.name, `%${search}%`),
-      like(gameCredentials.gameKey, `%${search}%`),
-      like(gameCredentials.type, `%${search}%`),
-    ) : undefined)
+    .where(whereClause)
     .orderBy(desc(gameCredentials.created_at));
 
   return NextResponse.json({ credentials: rows.map(sanitizeCredential) });

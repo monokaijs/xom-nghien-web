@@ -6,6 +6,7 @@ import { ServerQueueProcessor } from './queue/server-queue.processor';
 import { HostProcessor } from './server/host.processor';
 import { GameServerProcessor } from './server/game-server.processor';
 import { RconProcessor } from './rcon/rcon.processor';
+import { GameServerLogsController } from './server/logs.controller';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { RconProcessor } from './rcon/rcon.processor';
       name: SERVER_QUEUE_NAME,
     }),
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, GameServerLogsController],
   providers: [ServerQueueProcessor, HostProcessor, GameServerProcessor, RconProcessor],
 })
 export class AppModule {}

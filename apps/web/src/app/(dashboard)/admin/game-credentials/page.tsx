@@ -26,6 +26,7 @@ export default function GameCredentialsPage() {
     setLoading(true);
     const params = new URLSearchParams();
     if (search) params.set('search', search);
+    params.set('gameKey', 'cs2');
     const response = await fetch(`/api/admin/game-credentials?${params}`);
     const data = await response.json();
     setCredentials(data.credentials || []);
@@ -79,7 +80,7 @@ export default function GameCredentialsPage() {
     <div className="flex flex-col h-full">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-xl font-bold mb-1">Game Credentials</h2>
+          <h2 className="text-xl font-bold mb-1">CS2 Credentials</h2>
           <p className="text-white/50 text-sm">CS2 GSLT pool used one-per-running-instance.</p>
         </div>
         <button onClick={openCreate} className="bg-accent-primary hover:bg-accent-primary/80 text-white px-4 py-2 rounded-lg flex items-center gap-2">

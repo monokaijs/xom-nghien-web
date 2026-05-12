@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { desc, eq, like, or } from '@xom/db';
+import { and, desc, eq, like, or } from '@xom/db';
 import { requireAdmin } from '@/lib/auth';
 import { db } from '@xom/db';
 import { gameConfigurationVersions, gameConfigurations } from '@xom/db';
 import { getGameDefinition, listGameDefinitions } from '@xom/game-config';
 
 export const GET = requireAdmin(async (request: NextRequest) => {
-  const search = new URL(request.url).searchParams.get('search') || '';
+  const params = new URL(request.url).searchParams;
+  const search = params.get('search') || '';
+  const gameKey = params.get('gameKey') || '';
+  const gameKeyCondition = gameKey ? eq(gameConfigurations.gameKey, gameKey) : undefined;
+  const searchCondition = search ? or(
+    like(gameConfigurations.name, `%${search}%`),
+    like(gameConfigurations.gameKey, `%${search}%`),
+  ) : undefined;
+  const whereClause = gameKeyCondition && searchCondition
+    ? and(gameKeyCondition, searchCondition)
+    : gameKeyCondition || searchCondition;
+
   const rows = await db
     .select({
       configuration: gameConfigurations,
@@ -14,10 +25,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
     })
     .from(gameConfigurations)
     .leftJoin(gameConfigurationVersions, eq(gameConfigurations.currentVersionId, gameConfigurationVersions.id))
-    .where(search ? or(
-      like(gameConfigurations.name, `%${search}%`),
-      like(gameConfigurations.gameKey, `%${search}%`),
-    ) : undefined)
+    .where(whereClause)
     .orderBy(desc(gameConfigurations.created_at));
 
   return NextResponse.json({

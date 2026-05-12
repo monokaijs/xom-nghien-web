@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { IconDashboard, IconSettings, IconUsers, IconTrophy, IconServer, IconTerminal, IconCloud, IconKey, IconAdjustments } from '@tabler/icons-react';
+import { IconDashboard, IconSettings, IconUsers, IconTrophy, IconServer } from '@tabler/icons-react';
 
 export default function AdminLayout({
                                       children,
@@ -63,29 +63,9 @@ export default function AdminLayout({
       icon: <IconTrophy size={20}/>,
     },
     {
-      label: 'Game Servers',
-      href: '/admin/game-servers',
+      label: 'CS2 Servers',
+      href: '/admin/cs2-servers',
       icon: <IconServer size={20}/>,
-    },
-    {
-      label: 'Server Hosts',
-      href: '/admin/server-hosts',
-      icon: <IconCloud size={20}/>,
-    },
-    {
-      label: 'Game Configurations',
-      href: '/admin/game-configurations',
-      icon: <IconAdjustments size={20}/>,
-    },
-    {
-      label: 'Game Credentials',
-      href: '/admin/game-credentials',
-      icon: <IconKey size={20}/>,
-    },
-    {
-      label: 'RCON Console',
-      href: '/admin/rcon',
-      icon: <IconTerminal size={20}/>,
     },
     {
       label: 'Cài Đặt Hệ Thống',

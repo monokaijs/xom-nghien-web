@@ -114,7 +114,7 @@ export default function ServerHostsPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold mb-1">Server Hosts</h2>
+          <h2 className="text-xl font-bold mb-1">CS2 Hosts</h2>
           <p className="text-white/50 text-sm">SSH Docker hosts available for game server deployment.</p>
         </div>
         <button onClick={openCreate} className="bg-accent-primary hover:bg-accent-primary/80 text-white px-4 py-2 rounded-lg flex items-center gap-2">

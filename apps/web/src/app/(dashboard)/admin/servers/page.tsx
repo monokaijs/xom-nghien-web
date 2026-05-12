@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function LegacyServersRedirectPage() {
-  redirect('/admin/game-servers');
+  redirect('/admin/cs2-servers');
 }

@@ -19,7 +19,7 @@
     "@xom/game-config": "workspace:*",
     "@xom/queue": "workspace:*",
     "clsx": "^2.1.1",
-    "next": "16.0.7",
+    "next": "16.2.6",
     "next-auth": "^4.24.13",
     "next-auth-steam": "github:monokaijs/next-auth-steam#fix/peer-legacy-deps",
     "react": "19.2.0",

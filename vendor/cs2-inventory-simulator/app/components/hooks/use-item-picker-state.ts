@@ -17,6 +17,8 @@ import { useCraftFilterRules } from "./use-craft-filter-rules";
 import { useInput } from "./use-input";
 import { useIsItemCraftable } from "./use-is-item-craftable";
 
+export type ItemPickerState = ReturnType<typeof useItemPickerState>;
+
 export function useItemPickerState({
   onPickItem
 }: {
@@ -53,7 +55,7 @@ export function useItemPickerState({
   }
 
   function handleItemClick(item: CS2EconomyItem) {
-    if (!filter.hasModel || model !== undefined) {
+    if (!filter.hasModel || model !== undefined || !item.base) {
       return onPickItem(item);
     }
     setQuery("");

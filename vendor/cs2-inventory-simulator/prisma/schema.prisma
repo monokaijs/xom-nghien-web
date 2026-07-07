@@ -22,6 +22,7 @@ model User {
   id String @id
   inventory String?
   inventoryVersion Int @default(0)
+  lastSeen DateTime @default(now())
   name String
   overwrites UserRule[]
   preferences UserPreference?
@@ -45,6 +46,7 @@ model UserPreference {
   hideFreeItems String?
   hideNewItemLabel String?
   language String?
+  prefer2dStickerEditor String?
   statsForNerds String?
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @id

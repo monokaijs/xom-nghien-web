@@ -124,20 +124,30 @@ export function markViewerUnsupported(reason: ViewerUnsupportedReason) {
  * render that specific item and every sticker it already carries. The decision
  * is a synchronous read — callers never await — so opening the editor is instant.
  *
- * Pass the item being crafted/edited/stickered to gate on it (a viewer-unknown
+ * Pass the item being inspected/crafted/edited/stickered to gate on it (a kind the
+ * viewer never renders — music kit, collectible, agent, ... — or a viewer-unknown
  * weapon or existing sticker falls back to 2D). Omit it for a global check, and
  * use `isStickerSupported(id)` to filter per-sticker (e.g. the sticker modal).
+ *
+ * `prefer2dStickerEditor` is named for (and scoped to) the sticker editors, so the
+ * read-only 3D inspect view opts out of it with `respectStickerEditorPreference: false`
+ * — it still shares every other signal (master rule, budget, cooldown, catalog).
  */
-export function useViewerAvailability(item?: ViewerItemInput) {
+export function useViewerAvailability(
+  item?: ViewerItemInput,
+  {
+    respectStickerEditorPreference = true
+  }: { respectStickerEditorPreference?: boolean } = {}
+) {
   const { appEnable3dViewer, can3dViewerOrigin, viewerCatalog } = useRules();
   const { prefer2dStickerEditor } = usePreferences();
   const until = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  // The global gate: feature on, origin within budget, no active rate-limit cooldown, and the user
-  // hasn't opted into the 2D editors.
+  // The global gate: feature on, origin within budget, no active rate-limit cooldown, and — unless the
+  // caller opts out — the user hasn't opted into the 2D editors.
   const globalAvailable =
     appEnable3dViewer === true &&
     can3dViewerOrigin === true &&
-    !prefer2dStickerEditor &&
+    (!respectStickerEditorPreference || !prefer2dStickerEditor) &&
     Date.now() >= until;
   // Item-aware: 3D-eligible only if the viewer can render this item AND all its current stickers.
   const canUse3d =

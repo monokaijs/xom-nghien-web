@@ -33,6 +33,7 @@ import { InspectItem } from "./inspect-item";
 import { InventoryGridPlaceholder } from "./inventory-grid-placeholder";
 import { InventorySelectedItem } from "./inventory-selected-item";
 import { useItemSelector } from "./item-selector-context";
+import { Presence } from "./presence";
 import { RemoveItemPatch } from "./remove-item-patch";
 import { RenameItem } from "./rename-item";
 import { RenameStorageUnit } from "./rename-storage-unit";
@@ -280,27 +281,33 @@ export function Inventory() {
       {isRemovingItemPatch(removeItemPatch) && (
         <RemoveItemPatch {...removeItemPatch} onClose={closeRemoveItemPatch} />
       )}
-      {isApplyingItemSticker(applyItemSticker) && (
-        <ApplyItemSticker
-          {...applyItemSticker}
-          onClose={closeApplyItemSticker}
-        />
-      )}
-      {isScrapingItemSticker(scrapeItemSticker) && (
-        <ScrapeItemSticker
-          {...scrapeItemSticker}
-          onClose={closeScrapeItemSticker}
-        />
-      )}
+      <Presence present={isApplyingItemSticker(applyItemSticker)}>
+        {isApplyingItemSticker(applyItemSticker) ? (
+          <ApplyItemSticker
+            {...applyItemSticker}
+            onClose={closeApplyItemSticker}
+          />
+        ) : null}
+      </Presence>
+      <Presence present={isScrapingItemSticker(scrapeItemSticker)}>
+        {isScrapingItemSticker(scrapeItemSticker) ? (
+          <ScrapeItemSticker
+            {...scrapeItemSticker}
+            onClose={closeScrapeItemSticker}
+          />
+        ) : null}
+      </Presence>
       {isSwapingItemsStatTrak(swapItemsStatTrak) && (
         <SwapItemsStatTrak
           {...swapItemsStatTrak}
           onClose={closeSwapItemsStatTrak}
         />
       )}
-      {isInspectingItem(inspectItem) && (
-        <InspectItem {...inspectItem} onClose={closeInspectItem} />
-      )}
+      <Presence present={isInspectingItem(inspectItem)}>
+        {isInspectingItem(inspectItem) ? (
+          <InspectItem {...inspectItem} onClose={closeInspectItem} />
+        ) : null}
+      </Presence>
     </>
   );
 }

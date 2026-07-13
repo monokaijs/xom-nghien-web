@@ -8,12 +8,13 @@
     "pnpm": ">=11.0.9"
   },
   "scripts": {
-    "dev": "turbo run dev --parallel",
+    "dev": "turbo run dev",
+    "dev:services": "docker compose -f compose.dev.yml up -d",
+    "dev:services:down": "docker compose -f compose.dev.yml down",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
-    "clean": "turbo run clean",
-    "worker:servers": "pnpm --filter @xom/spawner start"
+    "clean": "turbo run clean"
   },
   "devDependencies": {
     "turbo": "^2.6.1",

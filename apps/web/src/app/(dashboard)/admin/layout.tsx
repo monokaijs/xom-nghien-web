@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { IconDashboard, IconSettings, IconUsers, IconTrophy, IconServer } from '@tabler/icons-react';
+import { IconDashboard, IconSettings, IconUsers, IconServer } from '@tabler/icons-react';
 
 export default function AdminLayout({
                                       children,
@@ -53,18 +53,8 @@ export default function AdminLayout({
       icon: <IconUsers size={20}/>,
     },
     {
-      label: 'Quản Lý Trận Đấu',
-      href: '/admin/matches',
-      icon: <IconTrophy size={20}/>,
-    },
-    {
-      label: 'Giải Đấu CS2',
-      href: '/admin/tournaments',
-      icon: <IconTrophy size={20}/>,
-    },
-    {
-      label: 'CS2 Servers',
-      href: '/admin/cs2-servers',
+      label: 'Game Servers',
+      href: '/admin/game-servers',
       icon: <IconServer size={20}/>,
     },
     {

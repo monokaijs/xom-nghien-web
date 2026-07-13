@@ -18,17 +18,12 @@ export interface PlayerInfo {
 export interface ServerStatus {
   id: string;
   name: string;
-  ip: string;
-  port: number;
-  type: string;
-  online: boolean;
-  players: {
-    current: number;
-    max: number;
-    list?: PlayerInfo[];
-  };
-  map?: string;
-  ping?: number;
-  lastUpdated: string;
-  error?: string;
+  game: string;
+  gameName: string;
+  gameImage: string;
+  connectionMethod: 'direct' | 'guidance';
+  connectionLink: string | null;
+  connectionGuide: string | null;
+  description: string | null;
+  metadataUrl: string | null;
 }

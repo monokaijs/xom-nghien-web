@@ -1,214 +1,195 @@
 "use client";
 
-import React, {useEffect, useState} from 'react';
-import {IconPlayerPlayFilled, IconX} from '@tabler/icons-react';
-import {ServerStatus} from '@/types/server';
-import {connectToServer} from '@/lib/connectToServer';
-import {getMapImage} from "@/lib/utils/mapImage";
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { IconBook, IconLink, IconPlayerPlayFilled, IconServer, IconX } from '@tabler/icons-react';
+import { ServerStatus } from '@/types/server';
+import { openConnectionLink, type ConnectionMethod } from '@/lib/game-servers';
 
 interface GameServersCardProps {
   title?: string;
-  seeAllLink?: string;
   initialServers?: ServerStatus[];
+  layout?: 'carousel' | 'grid';
 }
 
-export default function GameServersCard({title = "Máy Chủ Game", seeAllLink = "#", initialServers = []}: GameServersCardProps) {
-  const [servers, setServers] = useState<ServerStatus[]>(initialServers);
-  const [selectedServer, setSelectedServer] = useState<ServerStatus | null>(null);
+export default function GameServersCard({
+  title = 'Máy Chủ Game',
+  initialServers = [],
+  layout = 'carousel',
+}: GameServersCardProps) {
+  return (
+    <section id="servers" className="flex scroll-mt-6 flex-col gap-3">
+      <div className="flex items-center gap-2.5">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        {initialServers.length > 0 && (
+          <span className="rounded-full bg-white/5 px-2 py-0.5 text-xs text-text-secondary">
+            {initialServers.length}
+          </span>
+        )}
+      </div>
 
-  const getStatusColor = (online: boolean) => {
-    if (!online) return 'border-red-500/30 bg-red-500/20 text-red-300';
-    return 'border-green-500/30 bg-green-500/20 text-green-300';
-  };
+      {initialServers.length === 0 ? (
+        <div className="bg-card-bg rounded-[20px] p-8 text-center text-text-secondary">
+          <IconServer size={30} className="mx-auto mb-3 opacity-40" />
+          Chưa có máy chủ
+        </div>
+      ) : (
+        <div className={layout === 'grid'
+          ? 'grid grid-cols-2 gap-4 max-xl:grid-cols-1'
+          : 'flex gap-4 overflow-x-auto pb-2 scrollbar-hide'
+        }>
+          {initialServers.map((server) => (
+            <GameServerItem key={server.id} server={server} layout={layout} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
-  const getStatusText = (online: boolean) => {
-    return online ? 'Hoạt Động' : 'Offline';
-  };
+function GameServerItem({ server, layout }: { server: ServerStatus; layout: 'carousel' | 'grid' }) {
+  const hasDirect = Boolean(server.connectionLink);
+  const hasGuidance = Boolean(server.connectionGuide);
+  const preferredMethod = server.connectionMethod === 'guidance' && hasGuidance
+    ? 'guidance'
+    : hasDirect
+      ? 'direct'
+      : 'guidance';
+  const [selectedMethod, setSelectedMethod] = useState<ConnectionMethod>(preferredMethod);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const availableMethods = [
+    hasDirect ? 'direct' : null,
+    hasGuidance ? 'guidance' : null,
+  ].filter(Boolean) as ConnectionMethod[];
+  const activeMethod = availableMethods.includes(selectedMethod)
+    ? selectedMethod
+    : availableMethods[0] || 'direct';
+  const canConnect = availableMethods.length > 0;
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const connect = () => {
+    if (activeMethod === 'guidance') {
+      setIsGuideOpen(true);
+      return;
+    }
+
+    if (server.connectionLink) {
+      openConnectionLink(server.connectionLink, server.game);
+    }
   };
 
   return (
-    <>
-      {selectedServer && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setSelectedServer(null)}>
-          <div className="bg-bg-sidebar rounded-[30px] max-w-4xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="relative h-64 bg-cover bg-center" style={{
-              backgroundImage: `url(${getMapImage(selectedServer.map)}), url(https://images.gamebanana.com/img/ss/mods/647fce8887e89.jpg)`
-            }}>
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
-              <button
-                onClick={() => setSelectedServer(null)}
-                className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/10 backdrop-blur-xl flex items-center justify-center hover:bg-white/20 transition-colors"
-              >
-                <IconX size={20} />
-              </button>
-              <div className="absolute bottom-5 left-5 right-5">
-                <h2 className="text-3xl font-bold mb-2">{selectedServer.name}</h2>
-                <div className="flex gap-3 items-center flex-wrap">
-                  <div className={`backdrop-blur-xl px-3 py-1.5 border rounded-full text-sm font-medium ${getStatusColor(selectedServer.online)}`}>
-                    {getStatusText(selectedServer.online)}
-                  </div>
-                  <div className="backdrop-blur-xl px-3 py-1.5 border border-white/10 rounded-full text-sm">
-                    {selectedServer.ip}:{selectedServer.port}
-                  </div>
-                  {selectedServer.map && (
-                    <div className="backdrop-blur-xl px-3 py-1.5 border border-white/10 rounded-full text-sm">
-                      {selectedServer.map}
-                    </div>
-                  )}
-                  {selectedServer.ping !== undefined && (
-                    <div className="backdrop-blur-xl px-3 py-1.5 border border-white/10 rounded-full text-sm">
-                      5ms
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+    <article className={`${layout === 'grid' ? 'min-w-0 w-full' : 'min-w-[300px] w-[300px]'} bg-card-bg rounded-[20px] p-4 flex flex-col gap-4 border border-white/5`}>
+      <div className="flex items-center gap-3 min-w-0">
+        {server.gameImage ? (
+          <img src={server.gameImage} alt={server.gameName} className="w-12 h-12 rounded-xl object-cover" />
+        ) : (
+          <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center"><IconServer size={22} /></div>
+        )}
+        <div className="min-w-0">
+          <h3 className="font-semibold truncate">{server.gameName}</h3>
+          <p className="text-xs text-text-secondary truncate">
+            {server.connectionLink || (server.connectionGuide ? 'Hướng dẫn kết nối' : 'Chưa cấu hình kết nối')}
+          </p>
+        </div>
+      </div>
 
-            <div className="p-6 max-h-[calc(90vh-16rem)] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-semibold">
-                  Người Chơi ({selectedServer.players.current}/{selectedServer.players.max})
-                </h3>
-                <button
-                  onClick={() => {
-                    connectToServer(selectedServer.ip, selectedServer.port);
-                    setSelectedServer(null);
-                  }}
-                  disabled={!selectedServer.online}
-                  className="bg-accent-primary px-6 py-2.5 rounded-full text-white font-medium flex items-center gap-2 hover:bg-[#ff6b76] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <IconPlayerPlayFilled size={18} />
-                  Tham Gia
-                </button>
-              </div>
+      <p className="text-sm text-text-secondary leading-relaxed line-clamp-2 min-h-10">
+        {server.description || 'Sẵn sàng tham gia cùng cộng đồng.'}
+      </p>
 
-              {selectedServer.players.list && selectedServer.players.list.length > 0 ? (
-                <div className="space-y-2">
-                  {selectedServer.players.list.map((player, index) => (
-                    <div key={index} className="bg-white/5 rounded-xl p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-accent-primary/20 text-accent-primary flex items-center justify-center font-semibold text-sm">
-                          {index + 1}
-                        </div>
-                        <span className="font-medium">{player.name}</span>
-                      </div>
-                      <div className="flex gap-6 text-sm">
-                        {player.raw?.score !== undefined && (
-                          <div className="text-center">
-                            <div className="text-white/50 text-xs mb-1">Điểm</div>
-                            <div className="font-semibold">{player.raw.score}</div>
-                          </div>
-                        )}
-                        {player.raw?.time !== undefined && (
-                          <div className="text-center">
-                            <div className="text-white/50 text-xs mb-1">Thời Gian</div>
-                            <div className="font-semibold">{formatTime(player.raw.time)}</div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-10 text-white/50">
-                  Không có người chơi
-                </div>
-              )}
-            </div>
-          </div>
+      {availableMethods.length > 1 && (
+        <div className="grid grid-cols-2 gap-2 rounded-xl bg-white/5 p-1">
+          <ConnectionMethodButton
+            active={activeMethod === 'direct'}
+            icon={<IconLink size={15} />}
+            label="Liên kết"
+            onClick={() => setSelectedMethod('direct')}
+          />
+          <ConnectionMethodButton
+            active={activeMethod === 'guidance'}
+            icon={<IconBook size={15} />}
+            label="Hướng dẫn"
+            onClick={() => setSelectedMethod('guidance')}
+          />
         </div>
       )}
 
-      <div className="flex justify-between items-center -mb-2.5">
-        <h3 className="text-lg font-semibold">{title}</h3>
-        <a href={seeAllLink} className="text-text-secondary no-underline text-sm hover:text-white transition-colors">Xem Thêm</a>
-      </div>
-      <div className="relative">
-        <div
-          className="flex gap-5 overflow-x-auto pb-2 scrollbar-hide relative z-0"
-          onScroll={(e) => {
-            const target = e.currentTarget;
-            const fadeElement = target.parentElement?.querySelector('.fade-gradient') as HTMLElement;
-            if (fadeElement) {
-              const isScrolledToEnd = target.scrollLeft + target.clientWidth >= target.scrollWidth - 10;
-              fadeElement.style.opacity = isScrolledToEnd ? '0' : '1';
-            }
-          }}
-        >
-          {servers.length > 0 ? (
-            servers.map((server) => (
-              <div
-                key={server.id}
-                className="group rounded-[25px] min-w-[350px] w-[350px] bg-cover bg-center aspect-video relative overflow-hidden bg-[#333] group flex-shrink-0 cursor-pointer transition-transform duration-300"
-                style={{
-                  backgroundImage: `url(${getMapImage(server.map)}), url(https://images.gamebanana.com/img/ss/mods/647fce8887e89.jpg)`,
-                }}
-                onClick={() => server.online && setSelectedServer(server)}
-              >
-                <div className="absolute inset-0 transition-all duration-300 bg-bg-dark/60 group-hover:bg-bg-dark/40 to-transparent z-10"></div>
-                <div className="absolute top-5 left-5 right-5 z-20">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="text-lg font-semibold flex-1">{server.name}</h4>
-                    <div
-                      className={`backdrop-blur-xl px-2.5 py-1 border rounded-full text-xs font-medium ${getStatusColor(server.online)}`}>
-                      {getStatusText(server.online)}
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mb-3 text-xs flex-wrap">
-                    <div className="backdrop-blur-xl px-2.5 py-1 border border-white/10 rounded-full text-white/80">
-                      {server.ip}:{server.port}
-                    </div>
-                    {server.map && (
-                      <div className="backdrop-blur-xl px-2.5 py-1 border border-white/10 rounded-full text-white/80">
-                        {server.map}
-                      </div>
-                    )}
-                    {server.ping !== undefined && (
-                      <div className="backdrop-blur-xl px-2.5 py-1 border border-white/10 rounded-full text-white/80">
-                        5ms
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="absolute bottom-5 left-5 right-5 z-20">
+      <button
+        type="button"
+        disabled={!canConnect}
+        onClick={connect}
+        className="bg-accent-primary hover:bg-accent-primary/80 disabled:bg-white/10 disabled:text-white/35 disabled:cursor-not-allowed rounded-xl px-4 py-2.5 flex items-center justify-center gap-2 font-medium transition-colors"
+      >
+        {activeMethod === 'guidance' ? <IconBook size={16} /> : <IconPlayerPlayFilled size={16} />}
+        {canConnect ? (activeMethod === 'guidance' ? 'Xem Hướng Dẫn' : 'Tham Gia') : 'Chưa Sẵn Sàng'}
+      </button>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs text-white/70 mb-1">Người Chơi</div>
-                      <div className="text-xl font-bold">
-                        {server.online ? `${server.players.current} / ${server.players.max}` : '-- / --'}
-                      </div>
-                    </div>
-                    <button
-                      className="w-10 h-10 rounded-full bg-accent-primary text-white flex items-center justify-center hover:bg-[#ff6b76] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={!server.online}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (server.online) {
-                          setSelectedServer(server);
-                        }
-                      }}
-                    >
-                      <IconPlayerPlayFilled size={16}/>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-white/50 text-center py-10">Không có máy chủ</div>
-          )}
+      {isGuideOpen && server.connectionGuide && (
+        <GuideModal
+          gameName={server.gameName}
+          guide={server.connectionGuide}
+          onClose={() => setIsGuideOpen(false)}
+        />
+      )}
+    </article>
+  );
+}
+
+function ConnectionMethodButton({
+  active,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`min-h-9 rounded-lg px-2 text-xs font-medium transition-colors flex items-center justify-center gap-1.5 ${
+        active ? 'bg-accent-primary text-white' : 'text-white/55 hover:text-white hover:bg-white/5'
+      }`}
+    >
+      {icon}
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
+
+function GuideModal({ gameName, guide, onClose }: { gameName: string; guide: string; onClose: () => void }) {
+  const headingId = useId();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby={headingId}>
+      <div className="w-full max-w-xl max-h-[80vh] bg-bg-sidebar border border-white/10 rounded-[20px] shadow-2xl flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between gap-4 p-5 border-b border-white/10">
+          <div className="min-w-0">
+            <h3 id={headingId} className="font-semibold truncate">{gameName}</h3>
+            <p className="text-sm text-text-secondary">Hướng dẫn kết nối</p>
+          </div>
+          <button ref={closeButtonRef} type="button" onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white" aria-label="Đóng hướng dẫn kết nối">
+            <IconX size={20} />
+          </button>
         </div>
-        <div
-          className="fade-gradient absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-bg-dark to-transparent pointer-events-none transition-opacity duration-300 z-10"
-          style={{opacity: 1}}
-        ></div>
+        <div className="p-5 overflow-y-auto text-sm leading-6 text-white/80 whitespace-pre-wrap break-words">
+          {guide}
+        </div>
       </div>
-    </>
+    </div>
   );
 }

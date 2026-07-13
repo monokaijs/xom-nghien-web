@@ -1,30 +1,30 @@
 import { NextResponse } from 'next/server';
-import { and, eq, inArray } from '@xom/db';
-import { db } from '@xom/db';
-import { gameConfigurations, gameServerInstances, serverHosts } from '@xom/db';
+import { db, desc, servers } from '@xom/db';
+import { getGame } from '@/config/games';
 
 export async function GET() {
-  const rows = await db
-    .select({
-      id: gameServerInstances.id,
-      name: gameServerInstances.name,
-      gameKey: gameServerInstances.gameKey,
-      status: gameServerInstances.status,
-      connectAddress: gameServerInstances.connectAddress,
-      queryPort: gameServerInstances.queryPort,
-      configSnapshot: gameServerInstances.configSnapshot,
-      created_at: gameServerInstances.created_at,
-      hostName: serverHosts.name,
-      hostPublicAddress: serverHosts.publicAddress,
-      configurationName: gameConfigurations.name,
-    })
-    .from(gameServerInstances)
-    .innerJoin(serverHosts, eq(gameServerInstances.hostId, serverHosts.id))
-    .innerJoin(gameConfigurations, eq(gameServerInstances.configurationId, gameConfigurations.id))
-    .where(and(
-      eq(gameServerInstances.visibility, 'public'),
-      inArray(gameServerInstances.status, ['online', 'offline', 'provisioning', 'queued', 'failed']),
-    ));
+  const rows = await db.select({
+    id: servers.id,
+    name: servers.name,
+    game: servers.game,
+    connectionLink: servers.address,
+    connectionMethod: servers.connectionMethod,
+    connectionGuide: servers.connectionGuide,
+    description: servers.description,
+    metadataUrl: servers.metadataUrl,
+    created_at: servers.created_at,
+  }).from(servers).orderBy(desc(servers.created_at));
 
-  return NextResponse.json({ servers: rows });
+  return NextResponse.json({
+    servers: rows.map((server) => {
+      const game = getGame(server.game);
+      return {
+        ...server,
+        gameName: server.name || game?.name || server.game,
+        gameImage: game?.image || null,
+        connectionMethod: server.connectionMethod === 'guidance' ? 'guidance' : 'direct',
+        connectionGuide: server.connectionGuide || null,
+      };
+    }),
+  });
 }

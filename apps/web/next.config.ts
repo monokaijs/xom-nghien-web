@@ -4,36 +4,7 @@ import path from "path";
 const nextConfig: NextConfig = {
   output: 'standalone',
   outputFileTracingRoot: path.join(process.cwd(), '../..'),
-  transpilePackages: ['@xom/db', '@xom/game-config', '@xom/queue'],
-  async redirects() {
-    return [
-      {
-        source: '/admin/game-servers',
-        destination: '/admin/cs2-servers',
-        permanent: false,
-      },
-      {
-        source: '/admin/game-configurations',
-        destination: '/admin/cs2-servers?tab=configurations',
-        permanent: false,
-      },
-      {
-        source: '/admin/server-hosts',
-        destination: '/admin/cs2-servers?tab=hosts',
-        permanent: false,
-      },
-      {
-        source: '/admin/game-credentials',
-        destination: '/admin/cs2-servers?tab=credentials',
-        permanent: false,
-      },
-      {
-        source: '/admin/rcon',
-        destination: '/admin/cs2-servers',
-        permanent: false,
-      },
-    ];
-  },
+  transpilePackages: ['@xom/db'],
   images: {
     remotePatterns: [
       {

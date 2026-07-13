@@ -1,228 +1,153 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import {useRouter} from 'next/navigation';
-import { IconFlame, IconTarget, IconTrophy, IconAward } from '@tabler/icons-react';
-import { LeaderboardPlayer, LeaderboardPlayerRaw, LeaderboardResponse, LeaderboardType } from '@/types/leaderboard';
+import React, { useEffect, useId, useState } from 'react';
+import Link from 'next/link';
+import {
+  LeaderboardPlayer,
+  LeaderboardResponse,
+} from '@/types/leaderboard';
 
 interface LeaderboardCardProps {
   title?: string;
 }
 
-export default function LeaderboardCard({ title = "Bảng Xếp Hạng" }: LeaderboardCardProps) {
-  const router = useRouter();
-  const [activeType, setActiveType] = useState<LeaderboardType>('kills');
-  const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
+const fallbackAvatar = 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg';
+
+function processTopKillers(data: LeaderboardResponse | null): LeaderboardPlayer[] {
+  if (!data) return [];
+
+  return (data.topKillers || []).map((player, index) => ({
+    rank: index + 1,
+    steamId: player.steamid64,
+    name: player.name,
+    avatar: player.avatar,
+    value: Number.parseInt(player.total_kills, 10) || 0,
+    kills: Number.parseInt(player.total_kills, 10) || 0,
+    deaths: Number.parseInt(player.total_deaths, 10) || 0,
+  }));
+}
+
+export default function LeaderboardCard({ title = 'Top Sát Thủ' }: LeaderboardCardProps) {
+  const headingId = useId();
   const [data, setData] = useState<LeaderboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchLeaderboard = async () => {
       try {
-        const response = await fetch('/api/leaderboard');
-        if (response.ok) {
-          const result = await response.json();
-          setData(result);
+        const response = await fetch('/api/leaderboard', { signal: controller.signal });
+        if (!response.ok) throw new Error(`Leaderboard request failed with ${response.status}`);
+
+        const result: LeaderboardResponse = await response.json();
+        setData(result);
+      } catch (fetchError) {
+        if ((fetchError as Error).name !== 'AbortError') {
+          console.error('Error fetching leaderboard:', fetchError);
+          setError(true);
         }
-      } catch (error) {
-        console.error('Error fetching leaderboard:', error);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
-    fetchLeaderboard();
+    void fetchLeaderboard();
+    return () => controller.abort();
   }, []);
 
-  useEffect(() => {
-    if (!data) {
-      setPlayers([]);
-      return;
-    }
-
-    let rawPlayers: LeaderboardPlayerRaw[] = [];
-    let valueField: keyof LeaderboardPlayerRaw = 'total_kills';
-
-    switch (activeType) {
-      case 'kills':
-        rawPlayers = data.topKillers || [];
-        valueField = 'total_kills';
-        break;
-      case 'headshots':
-        rawPlayers = data.topHeadshot || [];
-        valueField = 'total_headshots';
-        break;
-      case 'damage':
-        rawPlayers = data.topDamage || [];
-        valueField = 'total_damage';
-        break;
-      case 'kda':
-        rawPlayers = data.topKDA || [];
-        valueField = 'kda_ratio';
-        break;
-    }
-
-    const processedPlayers: LeaderboardPlayer[] = rawPlayers.map((player, index) => ({
-      rank: index + 1,
-      steamId: player.steamid64,
-      name: player.name,
-      avatar: player.avatar,
-      value: activeType === 'kda' ? parseFloat(player[valueField] as string) || 0 : parseInt(player[valueField] as string) || 0,
-      kills: parseInt(player.total_kills) || 0,
-      deaths: parseInt(player.total_deaths) || 0,
-      damage: parseInt(player.total_damage) || 0,
-      headshots: parseInt(player.total_headshots) || 0,
-      assists: parseInt(player.total_assists || '0') || 0,
-      headshotPercentage: player.headshot_percentage ? parseFloat(player.headshot_percentage) : undefined,
-      kdaRatio: player.kda_ratio ? parseFloat(player.kda_ratio) : undefined,
-    }));
-
-    setPlayers(processedPlayers);
-  }, [data, activeType]);
-
-  const getTypeLabel = (type: LeaderboardType) => {
-    switch (type) {
-      case 'kills':
-        return 'Sát Thủ';
-      case 'headshots':
-        return 'Bắn Đầu';
-      case 'damage':
-        return 'Sát Thương';
-      case 'kda':
-        return 'KDA';
-    }
-  };
-
-  const getTypeIcon = (type: LeaderboardType) => {
-    switch (type) {
-      case 'kills':
-        return <IconTrophy size={16} />;
-      case 'headshots':
-        return <IconTarget size={16} />;
-      case 'damage':
-        return <IconFlame size={16} />;
-      case 'kda':
-        return <IconAward size={16} />;
-    }
-  };
-
-  const formatValue = (value: number, type: LeaderboardType) => {
-    if (type === 'damage') {
-      return value.toLocaleString();
-    }
-    if (type === 'kda') {
-      return value.toFixed(2);
-    }
-    return value.toString();
-  };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col gap-5">
-        <div className="flex justify-between items-center -mb-2.5">
-          <h3 className="text-lg font-semibold">{title}</h3>
-        </div>
-        <div className="bg-gradient-to-br from-[#2b161b] to-[#1a0f12] rounded-[30px] p-5 flex flex-col">
-          <div className="flex gap-2 mb-5">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="flex-1 h-9 rounded-xl bg-white/5 animate-pulse" />
-            ))}
-          </div>
-          <div className="flex flex-col gap-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 rounded-xl bg-white/5 animate-pulse" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const players = processTopKillers(data);
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex justify-between items-center -mb-2.5">
-        <h3 className="text-lg font-semibold">{title}</h3>
+    <section className="flex flex-col gap-3" aria-labelledby={headingId}>
+      <div className="flex items-center justify-between gap-4">
+        <h3 id={headingId} className="text-lg font-semibold">{title}</h3>
+        <Link
+          href="/cs2/leaderboard"
+          className="text-sm text-text-secondary transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-primary"
+        >
+          Xem tất cả
+        </Link>
       </div>
 
-      <div className="bg-gradient-to-br from-[#2b161b] to-[#1a0f12] rounded-[30px] p-5 flex flex-col">
-        {/* Type Selector */}
-        <div className="flex gap-2 mb-5">
-          {(['kills', 'headshots', 'damage', 'kda'] as LeaderboardType[]).map((type) => (
-            <button
-              key={type}
-              onClick={() => setActiveType(type)}
-              className={`flex-1 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-300 flex items-center justify-center gap-1.5 ${activeType === type
-                ? 'bg-accent-primary text-white'
-                : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80'
-                }`}
-            >
-              {getTypeIcon(type)}
-              <span className="max-sm:hidden">{getTypeLabel(type)}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Leaderboard List */}
-        <div className="flex flex-col gap-3">
-          {players.length > 0 ? (
-            players.slice(0, 5).map((player, index) => (
-              <div
-                key={player.steamId}
-                onClick={() => router.push(`/player/${player.steamId}`)}
-                className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-300 hover:bg-white/10 cursor-pointer ${index < 3 ? 'bg-white/5' : 'bg-transparent'
+      <div
+        className="flex flex-col rounded-[30px] bg-gradient-to-br from-[#2b161b] to-[#1a0f12] p-5"
+        aria-busy={loading}
+      >
+        {loading ? (
+          <div role="status" aria-live="polite">
+            <span className="sr-only">Đang tải bảng xếp hạng...</span>
+            <div className="flex flex-col gap-3" aria-hidden="true">
+              {Array.from({ length: 5 }, (_, index) => (
+                <div key={index} className="h-16 animate-pulse rounded-xl bg-white/5" />
+              ))}
+            </div>
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-10 text-center text-sm text-white/50" role="status">
+            Chưa thể tải bảng xếp hạng
+          </div>
+        ) : players.length === 0 ? (
+          <div className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-10 text-center text-sm text-white/50" role="status">
+            Chưa có dữ liệu xếp hạng
+          </div>
+        ) : (
+          <ol className="flex flex-col gap-3" aria-label={title}>
+            {players.slice(0, 5).map((player, index) => (
+              <li key={player.steamId}>
+                <Link
+                  href={`/player/${player.steamId}`}
+                  className={`flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-primary ${
+                    index < 3 ? 'bg-white/5' : 'bg-transparent'
                   }`}
-              >
-                {/* Rank */}
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${index === 0 ? 'bg-yellow-500/20 text-yellow-400' :
-                    index === 1 ? 'bg-gray-400/20 text-gray-300' :
-                      index === 2 ? 'bg-orange-600/20 text-orange-400' :
-                        'bg-white/5 text-white/60'
-                    }`}>
-                  {player.rank}
-                </div>
+                >
+                  <span
+                    className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                      index === 0
+                        ? 'bg-yellow-500/20 text-yellow-400'
+                        : index === 1
+                          ? 'bg-gray-400/20 text-gray-300'
+                          : index === 2
+                            ? 'bg-orange-600/20 text-orange-400'
+                            : 'bg-white/5 text-white/60'
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {player.rank}
+                  </span>
 
-                {/* Avatar */}
-                <div className="w-10 h-10 rounded-full overflow-hidden bg-[#555] flex-shrink-0">
-                  <img
-                    src={player.avatar}
-                    alt={player.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.src = 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg';
-                    }}
-                  />
-                </div>
+                  <span className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[#555]">
+                    <img
+                      src={player.avatar || fallbackAvatar}
+                      alt=""
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                      onError={(event) => {
+                        event.currentTarget.src = fallbackAvatar;
+                      }}
+                    />
+                  </span>
 
-                {/* Name & Stats */}
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{player.name}</div>
-                  <div className="text-xs text-white/50">
-                    {activeType === 'headshots' && player.headshotPercentage
-                      ? `${player.headshotPercentage.toFixed(1)}% accuracy`
-                      : activeType === 'kda'
-                        ? `${player.kills}K / ${player.deaths}D / ${player.assists}A`
-                        : `${player.kills}K / ${player.deaths}D`
-                    }
-                  </div>
-                </div>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{player.name}</span>
+                    <span className="block text-xs text-white/50">
+                      {player.kills}K / {player.deaths}D
+                    </span>
+                  </span>
 
-                {/* Value */}
-                <div className="text-right flex-shrink-0">
-                  <div className="text-lg font-bold text-accent-primary">
-                    {formatValue(player.value, activeType)}
-                  </div>
-                  <div className="text-xs text-white/50">
-                    {activeType === 'damage' ? 'DMG' : activeType === 'headshots' ? 'HS' : activeType === 'kda' ? 'KDA' : 'K'}
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-10 text-white/50">No data available</div>
-          )}
-        </div>
+                  <span className="flex-shrink-0 text-right">
+                    <span className="block text-lg font-bold text-accent-primary">
+                      {player.value.toLocaleString('vi-VN')}
+                    </span>
+                    <span className="block text-xs text-white/50">K</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
-    </div>
+    </section>
   );
 }

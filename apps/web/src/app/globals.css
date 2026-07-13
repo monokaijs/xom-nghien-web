@@ -19,11 +19,57 @@
   --foreground: #ffffff;
 }
 
+/* Route-scoped Valheim palette. */
+.theme-valheim {
+  --color-bg-dark: #061b20;
+  --color-bg-panel: #245653;
+  --color-bg-sidebar: #031318;
+  --color-accent-primary: #f06a2c;
+  --color-accent-gradient-start: #ff873d;
+  --color-accent-gradient-end: #66b7ae;
+  --color-text-secondary: #9cb8b4;
+  --color-card-bg: #10343a;
+}
+
+.theme-valheim main {
+  background-image:
+    radial-gradient(circle at 88% 8%, rgb(54 132 124 / 22%), transparent 34%),
+    linear-gradient(145deg, rgb(4 24 29 / 20%), transparent 55%);
+}
+
+body:has(.theme-valheim) {
+  background-color: #061619;
+}
+
+/* Route-scoped Palworld palette. */
+.theme-palworld {
+  --color-bg-dark: #0a2233;
+  --color-bg-panel: #285a72;
+  --color-bg-sidebar: #061724;
+  --color-accent-primary: #1684aa;
+  --color-accent-gradient-start: #56c8e5;
+  --color-accent-gradient-end: #f1c84a;
+  --color-text-secondary: #a4c1cd;
+  --color-card-bg: #15384b;
+}
+
+.theme-palworld main {
+  background-image:
+    radial-gradient(circle at 88% 8%, rgb(73 190 220 / 22%), transparent 34%),
+    radial-gradient(circle at 12% 92%, rgb(241 200 74 / 9%), transparent 28%);
+}
+
+body:has(.theme-palworld) {
+  background-color: #04131f;
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-manrope);
-  height: 100vh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   justify-content: center;
   align-items: center;

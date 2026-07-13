@@ -1,45 +1,39 @@
-import { db } from '@xom/db';
-import { gameConfigurations, gameServerInstances, serverHosts } from '@xom/db';
-import { desc, eq, inArray } from '@xom/db';
+import { db, desc, servers } from '@xom/db';
+import { getGame } from '@/config/games';
 
-export async function getServersWithStatus() {
+export async function getServersWithStatus(gameId?: string) {
   try {
-    const rows = await db
-      .select({
-        instance: gameServerInstances,
-        host: serverHosts,
-        configurationName: gameConfigurations.name,
-      })
-      .from(gameServerInstances)
-      .innerJoin(serverHosts, eq(gameServerInstances.hostId, serverHosts.id))
-      .innerJoin(gameConfigurations, eq(gameServerInstances.configurationId, gameConfigurations.id))
-      .where(inArray(gameServerInstances.status, ['online', 'offline', 'provisioning', 'queued', 'failed']))
-      .orderBy(desc(gameServerInstances.created_at));
+    const rows = await db.select({
+      id: servers.id,
+      name: servers.name,
+      game: servers.game,
+      connectionLink: servers.address,
+      connectionMethod: servers.connectionMethod,
+      connectionGuide: servers.connectionGuide,
+      description: servers.description,
+      metadataUrl: servers.metadataUrl,
+    }).from(servers).orderBy(desc(servers.created_at));
 
-    return rows.map(({ instance, host, configurationName }) => {
-      const address = instance.connectAddress || `${host.publicAddress}:${instance.queryPort || 27015}`;
-      const [ip, portText] = address.split(':');
-      const maxPlayers = Number((instance.configSnapshot as any)?.maxPlayers || 0);
-
-      return {
-        id: instance.id.toString(),
-        name: configurationName || instance.name,
-        type: instance.gameKey,
-        ip,
-        port: Number(portText || instance.queryPort || 27015),
-        online: instance.status === 'online',
-        map: String((instance.configSnapshot as any)?.map || ''),
-        players: {
-          current: 0,
-          max: maxPlayers,
-          list: [],
-        },
-        lastUpdated: new Date().toISOString(),
-        error: instance.lastError || undefined,
-      };
-    });
+    return rows
+      .filter((server) => !gameId || server.game === gameId)
+      .map((server) => {
+        const game = getGame(server.game);
+        const connectionMethod: 'direct' | 'guidance' = server.connectionMethod === 'guidance' ? 'guidance' : 'direct';
+        return {
+          id: server.id.toString(),
+          name: server.name,
+          game: server.game,
+          gameName: server.name || game?.name || server.game,
+          gameImage: game?.image || '',
+          connectionMethod,
+          connectionLink: server.connectionLink,
+          connectionGuide: server.connectionGuide || null,
+          description: server.description,
+          metadataUrl: server.metadataUrl,
+        };
+      });
   } catch (error) {
-    console.error('Error fetching deployed servers:', error);
+    console.error('Error fetching game servers:', error);
     return [];
   }
 }

@@ -4,7 +4,7 @@ import AuthProvider from "@/components/providers/AuthProvider";
 
 export const metadata: Metadata = {
   title: "Xóm Nghiện",
-  description: "Xóm Nghiện CS2 Panel - Powered by Community",
+  description: "Cộng đồng game Xóm Nghiện - máy chủ, trận đấu và hoạt động dành cho game thủ.",
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="vi">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

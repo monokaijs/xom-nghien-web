@@ -1,12 +1,9 @@
-"use client";
-
 import React from 'react';
-import { useRouter } from 'next/navigation';
-import { IconTrophy, IconClock, IconChevronRight } from '@tabler/icons-react';
-import Image from 'next/image';
-import {getMapImage} from "@/lib/utils/mapImage";
+import Link from 'next/link';
+import { IconChevronRight, IconClock, IconTrophy } from '@tabler/icons-react';
+import { getMapImage } from '@/lib/utils/mapImage';
 
-interface Map {
+export interface MatchMapSummary {
   matchid: number;
   mapnumber: number;
   mapname: string;
@@ -15,7 +12,7 @@ interface Map {
   winner: string;
 }
 
-interface Match {
+export interface MatchSummary {
   matchid: number;
   start_time: string;
   end_time: string | null;
@@ -26,31 +23,33 @@ interface Match {
   series_type: string;
   winner: string;
   maps_played: number;
-  maps?: Map[];
+  maps?: MatchMapSummary[];
 }
 
 interface MatchCardProps {
-  match: Match;
+  match: MatchSummary;
   variant?: 'default' | 'compact';
 }
 
-
-const formatTime = (dateString: string) => {
+function formatRelativeTime(dateString: string) {
   const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
+  if (Number.isNaN(date.getTime())) return 'Không rõ thời gian';
 
-  if (diffDays > 0) return `${diffDays}d ago`;
-  if (diffHours > 0) return `${diffHours}h ago`;
-  if (diffMins > 0) return `${diffMins}m ago`;
-  return 'Just now';
-};
+  const elapsedMilliseconds = Math.max(0, Date.now() - date.getTime());
+  const minutes = Math.floor(elapsedMilliseconds / 60_000);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
 
-const formatDate = (dateString: string) => {
+  if (days > 0) return `${days} ngày trước`;
+  if (hours > 0) return `${hours} giờ trước`;
+  if (minutes > 0) return `${minutes} phút trước`;
+  return 'Vừa xong';
+}
+
+function formatDate(dateString: string) {
   const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return 'Không rõ thời gian';
+
   return date.toLocaleDateString('vi-VN', {
     day: '2-digit',
     month: '2-digit',
@@ -58,133 +57,128 @@ const formatDate = (dateString: string) => {
     hour: '2-digit',
     minute: '2-digit',
   });
-};
+}
 
 export default function MatchCard({ match, variant = 'default' }: MatchCardProps) {
-  const router = useRouter();
-  const isTeam1Winner = match.winner === match.team1_name || (match.team1_score > match.team2_score);
-  const isTeam2Winner = match.winner === match.team2_name || (match.team2_score > match.team1_score);
-  const firstMap = match.maps && match.maps.length > 0 ? match.maps[0] : null;
+  const isTeam1Winner = match.winner === match.team1_name || match.team1_score > match.team2_score;
+  const isTeam2Winner = match.winner === match.team2_name || match.team2_score > match.team1_score;
+  const winningTeam = isTeam1Winner ? match.team1_name : isTeam2Winner ? match.team2_name : 'Hòa';
+  const firstMap = match.maps?.[0];
+  const mapImage = getMapImage(firstMap?.mapname);
 
   if (variant === 'compact') {
     return (
-      <div
-        onClick={() => router.push(`/matches/${match.matchid}`)}
-        className="bg-card-bg rounded-[25px] p-5 hover:bg-bg-panel transition-all duration-300 cursor-pointer"
+      <Link
+        href={`/cs2/matches/${match.matchid}`}
+        className="block rounded-[25px] bg-card-bg p-5 transition-colors hover:bg-bg-panel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-primary"
       >
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <IconTrophy size={20} className="text-accent-primary" />
-            <span className="text-sm text-text-secondary">{match.series_type}</span>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <IconTrophy size={20} className="flex-shrink-0 text-accent-primary" aria-hidden="true" />
+            <span className="truncate text-sm text-text-secondary">{match.series_type || 'Trận đấu'}</span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-text-secondary">
-            <IconClock size={16} />
-            <span>{formatTime(match.start_time)}</span>
+          <time dateTime={match.start_time} className="flex flex-shrink-0 items-center gap-2 text-xs text-text-secondary">
+            <IconClock size={16} aria-hidden="true" />
+            {formatRelativeTime(match.start_time)}
+          </time>
+        </div>
+
+        <div className="space-y-2">
+          <div className={`flex items-center justify-between gap-4 ${isTeam1Winner ? 'font-semibold text-white' : 'text-text-secondary'}`}>
+            <span className="truncate">{match.team1_name}</span>
+            <span>{match.team1_score}</span>
+          </div>
+          <div className={`flex items-center justify-between gap-4 ${isTeam2Winner ? 'font-semibold text-white' : 'text-text-secondary'}`}>
+            <span className="truncate">{match.team2_name}</span>
+            <span>{match.team2_score}</span>
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <div className={`flex items-center justify-between mb-2 ${isTeam1Winner ? 'text-white font-semibold' : 'text-text-secondary'}`}>
-              <span className="truncate max-w-[150px]">{match.team1_name}</span>
-              <span className="ml-2">{match.team1_score}</span>
-            </div>
-            <div className={`flex items-center justify-between ${!isTeam1Winner ? 'text-white font-semibold' : 'text-text-secondary'}`}>
-              <span className="truncate max-w-[150px]">{match.team2_name}</span>
-              <span className="ml-2">{match.team2_score}</span>
-            </div>
-          </div>
+        <div className="mt-3 flex items-center justify-between gap-4 border-t border-white/10 pt-3 text-xs">
+          <span className="text-text-secondary">Chiến thắng</span>
+          <span className="truncate font-medium text-accent-primary">{winningTeam}</span>
         </div>
-
-        <div className="mt-3 pt-3 border-t border-white/10">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-text-secondary">Chiến Thắng</span>
-            <span className="text-accent-primary font-medium truncate max-w-[150px]">
-              {isTeam1Winner ? match.team1_name : match.team2_name}
-            </span>
-          </div>
-        </div>
-      </div>
+      </Link>
     );
   }
 
   return (
-    <div
-      onClick={() => router.push(`/matches/${match.matchid}`)}
-      className="relative rounded-[25px] overflow-hidden transition-all duration-300 cursor-pointer group"
+    <Link
+      href={`/cs2/matches/${match.matchid}`}
+      className="group relative block overflow-hidden rounded-[25px] bg-card-bg transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-primary"
     >
-      <div className="absolute inset-0 z-0">
-        <img
-          src={getMapImage(firstMap?.mapname)}
-          alt={firstMap?.mapname || 'Map'}
-          className="object-cover opacity-50 group-hover:opacity-60 transition-opacity duration-300 w-full h-full"
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-[#2b161b]/60 to-[#1a0f12]/70" />
-      </div>
+      {mapImage && (
+        <div className="absolute inset-0" aria-hidden="true">
+          <img
+            src={mapImage}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover opacity-50 transition-opacity duration-300 group-hover:opacity-60"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#2b161b]/60 to-[#1a0f12]/70" />
+        </div>
+      )}
 
       <div className="relative z-10 p-6 max-md:p-4">
         <div className="flex items-center justify-between gap-4 max-md:flex-col max-md:items-start max-md:gap-2">
-          <div className="flex items-center gap-4 max-md:gap-2 max-md:flex-wrap">
+          <div className="flex items-center gap-4 max-md:flex-wrap max-md:gap-2">
             <div className="flex items-center gap-2 text-sm text-white/70 max-md:text-xs">
-              <IconTrophy size={16} className="text-accent-primary max-md:w-4 max-md:h-4" />
-              <span>{match.series_type}</span>
+              <IconTrophy size={16} className="text-accent-primary" aria-hidden="true" />
+              <span>{match.series_type || 'Trận đấu'}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-white/70 max-md:text-xs">
-              <IconClock size={16} className="max-md:w-4 max-md:h-4" />
+            <time dateTime={match.start_time} className="flex items-center gap-2 text-sm text-white/70 max-md:text-xs">
+              <IconClock size={16} aria-hidden="true" />
               <span className="max-md:hidden">{formatDate(match.start_time)}</span>
-              <span className="md:hidden">{formatTime(match.start_time)}</span>
-            </div>
-            {firstMap && (
-              <div className="px-3 py-1 bg-white/10 rounded-lg text-xs text-white/80 font-medium max-md:px-2 max-md:py-0.5">
-                {firstMap.mapname.replace('de_', '').toUpperCase()}
-              </div>
+              <span className="md:hidden">{formatRelativeTime(match.start_time)}</span>
+            </time>
+            {firstMap?.mapname && (
+              <span className="rounded-lg bg-white/10 px-3 py-1 text-xs font-medium text-white/80 max-md:px-2 max-md:py-0.5">
+                {firstMap.mapname.replace(/^de_/, '').toUpperCase()}
+              </span>
             )}
           </div>
-          <IconChevronRight size={20} className="text-white/50 max-md:hidden" />
+          <IconChevronRight size={20} className="text-white/50 max-md:hidden" aria-hidden="true" />
         </div>
 
-        {/* Desktop Layout */}
-        <div className="mt-4 hidden md:flex items-center justify-between gap-8">
-          <div className={`flex-1 min-w-0 text-right ${isTeam1Winner ? 'text-white font-bold' : 'text-white/60'}`}>
-            <div className="text-lg truncate">{match.team1_name}</div>
+        <div className="mt-4 hidden items-center justify-between gap-8 md:flex">
+          <div className={`min-w-0 flex-1 text-right ${isTeam1Winner ? 'font-bold text-white' : 'text-white/60'}`}>
+            <div className="truncate text-lg">{match.team1_name}</div>
           </div>
-          <div className="flex items-center gap-4 px-6 py-2 bg-white/10 backdrop-blur-sm rounded-xl">
+          <div className="flex items-center gap-4 rounded-xl bg-white/10 px-6 py-2 backdrop-blur-sm">
             <span className={`text-2xl font-bold ${isTeam1Winner ? 'text-accent-primary' : 'text-white/60'}`}>
               {match.team1_score}
             </span>
-            <span className="text-white/50">-</span>
+            <span className="text-white/50" aria-hidden="true">-</span>
             <span className={`text-2xl font-bold ${isTeam2Winner ? 'text-accent-primary' : 'text-white/60'}`}>
               {match.team2_score}
             </span>
           </div>
-          <div className={`flex-1 min-w-0 text-left ${isTeam2Winner ? 'text-white font-bold' : 'text-white/60'}`}>
-            <div className="text-lg truncate">{match.team2_name}</div>
+          <div className={`min-w-0 flex-1 text-left ${isTeam2Winner ? 'font-bold text-white' : 'text-white/60'}`}>
+            <div className="truncate text-lg">{match.team2_name}</div>
           </div>
         </div>
 
-        {/* Mobile Layout */}
         <div className="mt-3 flex flex-col gap-2 md:hidden">
-          <div className={`flex items-center justify-between ${isTeam1Winner ? 'text-white font-bold' : 'text-white/60'}`}>
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="text-base truncate">{match.team1_name}</span>
-              {isTeam1Winner && <IconTrophy size={14} className="text-accent-primary shrink-0" />}
-            </div>
+          <div className={`flex items-center justify-between gap-4 ${isTeam1Winner ? 'font-bold text-white' : 'text-white/60'}`}>
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="truncate text-base">{match.team1_name}</span>
+              {isTeam1Winner && <IconTrophy size={14} className="flex-shrink-0 text-accent-primary" aria-label="Đội thắng" />}
+            </span>
             <span className={`text-xl font-bold ${isTeam1Winner ? 'text-accent-primary' : 'text-white/60'}`}>
               {match.team1_score}
             </span>
           </div>
-          <div className={`flex items-center justify-between ${isTeam2Winner ? 'text-white font-bold' : 'text-white/60'}`}>
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="text-base truncate">{match.team2_name}</span>
-              {isTeam2Winner && <IconTrophy size={14} className="text-accent-primary shrink-0" />}
-            </div>
+          <div className={`flex items-center justify-between gap-4 ${isTeam2Winner ? 'font-bold text-white' : 'text-white/60'}`}>
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="truncate text-base">{match.team2_name}</span>
+              {isTeam2Winner && <IconTrophy size={14} className="flex-shrink-0 text-accent-primary" aria-label="Đội thắng" />}
+            </span>
             <span className={`text-xl font-bold ${isTeam2Winner ? 'text-accent-primary' : 'text-white/60'}`}>
               {match.team2_score}
             </span>
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
-

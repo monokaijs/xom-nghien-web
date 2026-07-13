@@ -9,12 +9,17 @@ import { userInfo } from "@xom/db";
 import { eq, or } from "@xom/db";
 
 const getProviders = (req: NextRequest) => {
-  const providers: any[] = [
-    Steam(req, {
-      clientSecret: process.env.STEAM_API_KEY!,
-      callbackUrl: process.env.NEXTAUTH_URL + '/api/auth/callback',
-    }),
-  ];
+  const providers: any[] = [];
+
+  const steamApiKey = process.env.STEAM_API_KEY || process.env.STEAM_WEB_API_KEY;
+  if (steamApiKey) {
+    providers.push(
+      Steam(req, {
+        clientSecret: steamApiKey,
+        callbackUrl: process.env.NEXTAUTH_URL + '/api/auth/callback',
+      })
+    );
+  }
 
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     providers.push(

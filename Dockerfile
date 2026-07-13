@@ -10,10 +10,7 @@ FROM base AS deps
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.json ./
 COPY apps/web/package.json ./apps/web/package.json
-COPY apps/spawner/package.json ./apps/spawner/package.json
 COPY packages/db/package.json ./packages/db/package.json
-COPY packages/game-config/package.json ./packages/game-config/package.json
-COPY packages/queue/package.json ./packages/queue/package.json
 COPY packages/tsconfig/package.json ./packages/tsconfig/package.json
 RUN pnpm install --frozen-lockfile --filter @xom/web...
 

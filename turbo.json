@@ -7,7 +7,29 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": [
+        "NEXTAUTH_URL",
+        "NEXTAUTH_SECRET",
+        "SESSION_SECRET",
+        "STEAM_API_KEY",
+        "STEAM_WEB_API_KEY",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "DISCORD_CLIENT_ID",
+        "DISCORD_CLIENT_SECRET",
+        "GITHUB_CLIENT_ID",
+        "GITHUB_CLIENT_SECRET",
+        "DB_HOST",
+        "DB_PORT",
+        "DB_USER",
+        "DB_PASSWORD",
+        "DB_NAME",
+        "INVENTORY_PUBLIC_URL",
+        "INVENTORY_INTERNAL_URL",
+        "INVENTORY_SERVICE_URL",
+        "XN_INV_API_AUTH_KEY"
+      ]
     },
     "typecheck": {
       "dependsOn": ["^build"],

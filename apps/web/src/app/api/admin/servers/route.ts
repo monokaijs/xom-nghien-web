@@ -1,9 +1,47 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { db, desc, servers } from '@xom/db';
+import { requireAdmin } from '@/lib/auth';
+import { parseGameServerInput } from '@/lib/game-servers';
 
-export async function GET() {
-  return NextResponse.json({ error: 'Static server management has been replaced by game server instances' }, { status: 410 });
+function toResponse(server: typeof servers.$inferSelect) {
+  const { address, rcon_password, ...rest } = server;
+  return {
+    ...rest,
+    gameName: server.name,
+    connectionLink: address,
+    connectionMethod: server.connectionMethod === 'guidance' ? 'guidance' : 'direct',
+    connectionGuide: server.connectionGuide || null,
+  };
 }
 
-export async function POST() {
-  return NextResponse.json({ error: 'Static server management has been replaced by game server instances' }, { status: 410 });
+function isDuplicateConnection(error: any) {
+  return error?.cause?.code === 'ER_DUP_ENTRY';
 }
+
+export const GET = requireAdmin(async () => {
+  const rows = await db.select().from(servers).orderBy(desc(servers.created_at));
+  return NextResponse.json({ servers: rows.map(toResponse) });
+});
+
+export const POST = requireAdmin(async (request: NextRequest) => {
+  try {
+    const input = parseGameServerInput(await request.json());
+    const result = await db.insert(servers).values({
+      name: input.name,
+      game: input.game,
+      address: input.connectionLink,
+      connectionMethod: input.connectionMethod,
+      connectionGuide: input.connectionGuide,
+      description: input.description,
+      metadataUrl: input.metadataUrl,
+      rcon_password: null,
+    });
+
+    return NextResponse.json({ success: true, serverId: result[0].insertId }, { status: 201 });
+  } catch (error: any) {
+    if (isDuplicateConnection(error)) {
+      return NextResponse.json({ error: 'This connection link is already in use' }, { status: 409 });
+    }
+    return NextResponse.json({ error: error.message || 'Failed to create server' }, { status: 400 });
+  }
+});

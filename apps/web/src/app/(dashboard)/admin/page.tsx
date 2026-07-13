@@ -1,7 +1,7 @@
 import React from 'react';
-import {IconActivity, IconServer, IconTrophy, IconUsers} from '@tabler/icons-react';
+import {IconServer, IconTrophy, IconUsers} from '@tabler/icons-react';
 import {db} from '@xom/db';
-import {gameServerInstances, matchzyStatsMatches, userInfo} from '@xom/db';
+import {servers as gameServers, userInfo} from '@xom/db';
 import {desc, sql} from '@xom/db';
 import {getServersWithStatus} from '@/lib/utils/servers';
 import Image from 'next/image';
@@ -35,17 +35,11 @@ function StatCard({title, value, icon, trend, color}: {
 }
 
 async function getAdminStats() {
-  const [totalUsersResult, totalServersResult, todayMatchesResult, recentUsersResult] = await Promise.all([
+  const [totalUsersResult, totalServersResult, metadataServersResult, recentUsersResult] = await Promise.all([
     db.execute(sql`SELECT COUNT(*) as count
                    FROM ${userInfo}`),
-    db.execute(sql`SELECT COUNT(*) as count
-                   FROM ${gameServerInstances}
-                   WHERE status != 'deleted'`),
-    db.execute(sql`
-        SELECT COUNT(*) as count
-        FROM ${matchzyStatsMatches}
-        WHERE DATE (start_time) = CURDATE()
-    `),
+    db.execute(sql`SELECT COUNT(*) as count FROM ${gameServers}`),
+    db.execute(sql`SELECT COUNT(*) as count FROM ${gameServers} WHERE metadata_url IS NOT NULL`),
     db.select({
       steamid64: userInfo.steamid64,
       name: userInfo.name,
@@ -59,12 +53,12 @@ async function getAdminStats() {
 
   const totalUsers = (totalUsersResult[0] as any)[0]?.count || 0;
   const totalServers = (totalServersResult[0] as any)[0]?.count || 0;
-  const todayMatches = (todayMatchesResult[0] as any)[0]?.count || 0;
+  const metadataServers = (metadataServersResult[0] as any)[0]?.count || 0;
 
   return {
     totalUsers,
     totalServers,
-    todayMatches,
+    metadataServers,
     recentUsers: recentUsersResult,
   };
 }
@@ -95,7 +89,7 @@ export default async function AdminDashboardPage() {
         <p className="text-white/50">Theo dõi hoạt động và trạng thái của hệ thống.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
           title="Tổng Người Dùng"
           value={stats.totalUsers.toLocaleString()}
@@ -108,14 +102,8 @@ export default async function AdminDashboardPage() {
           color="bg-blue-500/20 text-blue-500"
         />
         <StatCard
-          title="Trận Đấu Hôm Nay"
-          value={stats.todayMatches.toString()}
-          icon={<IconActivity size={24}/>}
-          color="bg-purple-500/20 text-purple-500"
-        />
-        <StatCard
-          title="Server Online"
-          value={serversWithStatus.filter(s => s.online).length.toString()}
+          title="Server Có Metadata"
+          value={stats.metadataServers.toString()}
           icon={<IconTrophy size={24}/>}
           color="bg-green-500/20 text-green-500"
         />
@@ -151,7 +139,7 @@ export default async function AdminDashboardPage() {
         </div>
 
         <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
-          <h3 className="font-bold mb-4">Trạng Thái Server</h3>
+          <h3 className="font-bold mb-4">Danh Sách Server</h3>
           <div className="space-y-4">
             {serversWithStatus.length === 0 ? (
               <div className="text-white/40 text-center py-8">Chưa có server</div>
@@ -160,12 +148,12 @@ export default async function AdminDashboardPage() {
                 <div key={server.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-2 h-2 rounded-full ${server.online ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`}></div>
-                    <span className="font-medium">{server.name}</span>
-                  </div>
-                  <span className="text-sm text-white/50">
-                                        {server.online ? `${server.players.current}/${server.players.max} Players` : 'Offline'}
-                                    </span>
+                      className="w-2 h-2 rounded-full bg-accent-primary"></div>
+                  <span className="font-medium">{server.name}</span>
+                </div>
+                <span className="text-sm text-white/50">
+                  {server.connectionLink || (server.connectionGuide ? 'Hướng dẫn kết nối' : 'Chưa cấu hình')}
+                </span>
                 </div>
               ))
             )}

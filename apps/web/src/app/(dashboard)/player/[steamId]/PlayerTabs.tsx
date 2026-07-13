@@ -86,9 +86,8 @@ function MatchHistoryItem({match, playerTeam}: { match: MatchHistory; playerTeam
   const playerWon = Number(match.player_won) === 1;
 
   return (
-    <a
-      href={`/matches/${match.matchid}`}
-      className="relative rounded-xl overflow-hidden hover:scale-[1.02] transition-transform block group"
+    <div
+      className="relative rounded-xl overflow-hidden block"
       style={{
         backgroundImage: `url(${getMapImage(match.mapname)})`,
         backgroundSize: 'cover',
@@ -97,7 +96,7 @@ function MatchHistoryItem({match, playerTeam}: { match: MatchHistory; playerTeam
     >
       {/* Gradient overlay */}
       <div
-        className="absolute inset-0 bg-gradient-to-br from-[#2b161b]/95 to-[#1a0f12]/95 group-hover:from-[#2b161b]/90 group-hover:to-[#1a0f12]/90 transition-colors"/>
+        className="absolute inset-0 bg-gradient-to-br from-[#2b161b]/95 to-[#1a0f12]/95"/>
 
       {/* Content */}
       <div className="relative z-10 p-4 max-md:p-3">
@@ -183,7 +182,7 @@ function MatchHistoryItem({match, playerTeam}: { match: MatchHistory; playerTeam
             className="text-white font-medium">{match.damage.toLocaleString()}</span></div>
         </div>
       </div>
-    </a>
+    </div>
   );
 }
 
@@ -334,4 +333,3 @@ export default function PlayerTabs({stats, steamId}: PlayerTabsProps) {
     </div>
   );
 }
-

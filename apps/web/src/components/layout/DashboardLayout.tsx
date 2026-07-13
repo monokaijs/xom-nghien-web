@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { signIn, signOut, useSession } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 import {
   IconBell,
   IconHome,
@@ -10,14 +10,9 @@ import {
   IconMenu2,
   IconPackage,
   IconSearch,
-  IconTrophy,
   IconX,
-  IconSwords,
   IconSettings,
   IconShield,
-  IconAward,
-  IconDeviceGamepad2,
-  IconServer,
 } from '@tabler/icons-react';
 import IconSolid from "@/components/IconSolid";
 import { usePathname } from 'next/navigation';
@@ -43,7 +38,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [greeting, setGreeting] = useState(getGreeting());
   const pathname = usePathname();
+  const dashboardThemeClass = pathname === '/valheim' || pathname.startsWith('/valheim/')
+    ? 'theme-valheim'
+    : pathname === '/palworld' || pathname.startsWith('/palworld/')
+      ? 'theme-palworld'
+      : '';
   const mainRef = useRef<HTMLElement>(null);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileDrawerRef = useRef<HTMLElement>(null);
+  const mobileCloseButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setGreeting(getGreeting());
@@ -69,9 +72,49 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => mainElement.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    mobileCloseButtonRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setIsMobileMenuOpen(false);
+        return;
+      }
+
+      if (event.key !== 'Tab' || !mobileDrawerRef.current) return;
+
+      const focusableElements = Array.from(
+        mobileDrawerRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (!firstElement || !lastElement) return;
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      mobileMenuButtonRef.current?.focus();
+    };
+  }, [isMobileMenuOpen]);
+
   return (
     <>
-      <div className={`fixed top-5 left-1/2 -translate-x-1/2 z-[100] transition-all duration-300 max-md:hidden ${showFloatingNav ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none invisible'}`}>
+      <div className={`${dashboardThemeClass} fixed top-5 left-1/2 -translate-x-1/2 z-[100] transition-all duration-300 max-md:hidden ${showFloatingNav ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none invisible'}`}>
         <div className="bg-bg-sidebar/95 backdrop-blur-md px-6 py-3 rounded-[20px] flex items-center gap-5 shadow-2xl border border-white/10 w-max">
           <div className="text-base font-normal text-[#aaa] whitespace-nowrap">
             {isLoading ? (
@@ -112,17 +155,32 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       <header
-        className="hidden max-md:flex fixed top-0 left-0 right-0 z-50 bg-bg-sidebar h-16 items-center justify-between px-5 border-b border-white/5">
+        className={`${dashboardThemeClass} hidden max-md:flex fixed top-0 left-0 right-0 z-50 bg-bg-sidebar h-16 items-center justify-between px-5 border-b border-white/5`}>
         <button
+          ref={mobileMenuButtonRef}
           onClick={() => setIsMobileMenuOpen(true)}
           className="w-10 h-10 flex items-center justify-center text-white"
+          aria-label="Mở menu điều hướng"
+          aria-expanded={isMobileMenuOpen}
+          aria-controls="mobile-navigation"
         >
           <IconMenu2 size={24} />
         </button>
         <div className="w-8 h-8 bg-white text-black font-black text-lg flex items-center justify-center rounded-lg">
           <IconSolid className={'w-5 h-5'} />
         </div>
-        <div className="w-10 h-10"></div>
+        {!isLoading && !session?.user ? (
+          <button
+            type="button"
+            onClick={() => setIsLoginModalOpen(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors hover:bg-white/5"
+            aria-label="Đăng nhập"
+          >
+            <IconLogin size={22} />
+          </button>
+        ) : (
+          <div className="w-10 h-10" aria-hidden="true" />
+        )}
       </header>
       {isMobileMenuOpen && (
         <>
@@ -133,15 +191,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           ></div>
 
           {/* Drawer */}
-          <aside className="hidden max-md:flex fixed left-0 top-0 bottom-0 w-64 bg-bg-sidebar z-[70] flex-col p-5">
+          <aside
+            ref={mobileDrawerRef}
+            id="mobile-navigation"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu điều hướng"
+            className={`${dashboardThemeClass} hidden max-md:flex fixed left-0 top-0 bottom-0 w-64 bg-bg-sidebar z-[70] flex-col overflow-y-auto p-5`}
+          >
             <div className="flex items-center justify-between mb-10">
               <div
                 className="w-10 h-10 bg-white text-black font-black text-2xl flex items-center justify-center rounded-lg">
                 <IconSolid className={'w-5 h-5'} />
               </div>
               <button
+                ref={mobileCloseButtonRef}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="w-10 h-10 flex items-center justify-center text-white"
+                aria-label="Đóng menu điều hướng"
               >
                 <IconX size={24} />
               </button>
@@ -149,50 +216,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
             <nav className="flex flex-col gap-5 flex-1">
               <Link href="/"
+                onClick={() => setIsMobileMenuOpen(false)}
                 className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
                   }`}>
                 <IconHome size={24} />
                 <span>Trang Chủ</span>
               </Link>
-              <Link href="/matches"
-                className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/matches' || pathname?.startsWith('/matches/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
-                  }`}>
-                <IconSwords size={24} />
-                <span>Trận Đấu</span>
-              </Link>
-              <Link href="/tournaments"
-                className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/tournaments' || pathname?.startsWith('/tournaments/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
-                  }`}>
-                <IconAward size={24} />
-                <span>Giải Đấu</span>
-              </Link>
-              <Link href="/leaderboard"
-                className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/leaderboard' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
-                  }`}>
-                <IconTrophy size={24} />
-                <span>Bảng Xếp Hạng</span>
-              </Link>
-              <Link href="/lobbies"
-                className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/lobbies' || pathname?.startsWith('/lobbies/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
-                  }`}>
-                <IconServer size={24} />
-                <span>Servers</span>
-              </Link>
-              <Link href="/games"
-                className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/games' || pathname?.startsWith('/games/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
-                  }`}>
-                <IconDeviceGamepad2 size={24} />
-                <span>Kho Game</span>
-              </Link>
               {session?.user && (
                 <>
-                  <Link href="/inventory"
-                    className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/inventory' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
+                  <Link href="/cs2/inventory"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    aria-current={pathname === '/cs2/inventory' ? 'page' : undefined}
+                    className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/cs2/inventory' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
                       }`}>
                     <IconPackage size={24} />
-                    <span>Kho Đồ</span>
+                    <span>Kho Đồ CS2</span>
                   </Link>
                   <Link href="/settings"
+                    onClick={() => setIsMobileMenuOpen(false)}
                     className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/settings' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
                       }`}>
                     <IconSettings size={24} />
@@ -202,9 +243,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               )}
             </nav>
 
+            {!isLoading && !session?.user && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsLoginModalOpen(true);
+                }}
+                className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-accent-primary px-4 py-3 font-medium text-white transition-colors hover:bg-[#ff6b76]"
+              >
+                <IconLogin size={20} />
+                <span>Đăng Nhập</span>
+              </button>
+            )}
+
             {session?.user && session.user.steamId && (
               <div className="p-4 border-t border-white/10">
-                <Link href={`/player/${session.user.steamId}`} className="flex items-center gap-3 hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors">
+                <Link href={`/player/${session.user.steamId}`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors">
                   <div className="w-12 h-12 rounded-full overflow-hidden bg-[#555] border-2 border-white/10">
                     <img
                       src={session.user.avatar || session.user.image || 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg'}
@@ -227,7 +282,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       )}
 
       <div
-        className="flex w-[95vw] h-[90vh] bg-bg-dark rounded-[40px] overflow-hidden shadow-2xl max-lg:w-full max-lg:h-screen max-lg:rounded-none max-md:flex-col max-md:h-screen max-md:overflow-y-auto max-md:pt-16 max-md:p-0 max-md:w-full max-md:rounded-none">
+        className={`${dashboardThemeClass} flex w-[95vw] h-[90vh] bg-bg-dark rounded-[40px] overflow-hidden shadow-2xl max-lg:w-full max-lg:h-dvh max-lg:rounded-none max-md:flex-col max-md:overflow-y-auto max-md:pt-16 max-md:p-0 max-md:w-full max-md:rounded-none`}>
         <aside className="w-20 m-5 mr-0 bg-bg-sidebar flex flex-col items-center py-5 rounded-[30px] max-md:hidden">
           <Link href={"/"}>
             <div
@@ -244,52 +299,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             >
               <IconHome size={24} />
             </Link>
-            <Link
-              href="/matches"
-              className={`transition-colors duration-300 flex items-center justify-center ${pathname === '/matches' || pathname?.startsWith('/matches/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
-                }`}
-              title="Trận Đấu"
-            >
-              <IconSwords size={24} />
-            </Link>
-            <Link
-              href="/tournaments"
-              className={`transition-colors duration-300 flex items-center justify-center ${pathname === '/tournaments' || pathname?.startsWith('/tournaments/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
-                }`}
-              title="Giải Đấu"
-            >
-              <IconAward size={24} />
-            </Link>
-            <Link
-              href="/leaderboard"
-              className={`transition-colors duration-300 flex items-center justify-center ${pathname === '/leaderboard' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
-                }`}
-              title="Bảng Xếp Hạng"
-            >
-              <IconTrophy size={24} />
-            </Link>
-            <Link
-              href="/lobbies"
-              className={`transition-colors duration-300 flex items-center justify-center ${pathname === '/lobbies' || pathname?.startsWith('/lobbies/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
-                }`}
-              title="Servers"
-            >
-              <IconServer size={24} />
-            </Link>
-            <Link
-              href="/games"
-              className={`transition-colors duration-300 flex items-center justify-center ${pathname === '/games' || pathname?.startsWith('/games/') ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
-                }`}
-              title="Kho Game"
-            >
-              <IconDeviceGamepad2 size={24} />
-            </Link>
             {session?.user && (
               <Link
-                href="/inventory"
-                className={`transition-colors duration-300 flex items-center justify-center ${pathname === '/inventory' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
+                href="/cs2/inventory"
+                aria-current={pathname === '/cs2/inventory' ? 'page' : undefined}
+                className={`transition-colors duration-300 flex items-center justify-center ${pathname === '/cs2/inventory' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'
                   }`}
-                title="Kho Đồ"
+                title="Kho Đồ CS2"
               >
                 <IconPackage size={24} />
               </Link>

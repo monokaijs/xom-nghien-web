@@ -16,8 +16,6 @@
     "@ianlucas/cs2-lib": "^7.15.0",
     "@tabler/icons-react": "^3.35.0",
     "@xom/db": "workspace:*",
-    "@xom/game-config": "workspace:*",
-    "@xom/queue": "workspace:*",
     "clsx": "^2.1.1",
     "next": "16.2.6",
     "next-auth": "^4.24.13",

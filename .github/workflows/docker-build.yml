@@ -90,8 +90,8 @@ jobs:
           set -euo pipefail
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "mkdir -p '${DEPLOY_PATH}/env' '${DEPLOY_PATH}/mysql-migrations'"
-          printf 'MATCHZY_UPLOAD_TOKEN=%s\nMATCH_DEMO_STORAGE_DIR=/app/storage/match-demos\n' \
-            "${MATCHZY_UPLOAD_TOKEN}" \
+          printf 'MATCHZY_UPLOAD_TOKEN=%s\nMATCH_DEMO_STORAGE_DIR=/app/storage/match-demos\nMATCHZY_DATABASE_PUBLIC_HOST=%s\n' \
+            "${MATCHZY_UPLOAD_TOKEN}" "${DEPLOY_HOST}" \
             | ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
                 "umask 077; cat > '${DEPLOY_PATH}/env/matchzy.env'"
           scp -i ~/.ssh/deploy_key .github/deploy/compose.matchzy.yml \

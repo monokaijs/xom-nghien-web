@@ -42,6 +42,19 @@ function sanitizeDemoFileName(value: string | null) {
   return `${baseName.slice(0, -4).slice(0, 251)}.dem`;
 }
 
+export async function GET(request: Request) {
+  if (!hasValidUploadToken(request.headers.get('authorization'))) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const host = process.env.MATCHZY_DATABASE_PUBLIC_HOST;
+  if (!host) {
+    return Response.json({ error: 'Public MatchZy database host is not configured' }, { status: 503 });
+  }
+
+  return Response.json({ host, port: 27044 });
+}
+
 export async function POST(request: Request) {
   if (!hasValidUploadToken(request.headers.get('authorization'))) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });

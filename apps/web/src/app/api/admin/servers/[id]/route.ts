@@ -22,7 +22,6 @@ export const GET = requireAdmin(async (_request: NextRequest, _user, context: Ro
       ...server,
       gameName: server.name,
       connectionLink: address,
-      connectionMethod: server.connectionMethod === 'guidance' ? 'guidance' : 'direct',
       connectionGuide: server.connectionGuide || null,
     },
   });
@@ -42,7 +41,6 @@ export const PUT = requireAdmin(async (request: NextRequest, _user, context: Rou
       name: input.name,
       game: input.game,
       address: input.connectionLink,
-      connectionMethod: input.connectionMethod,
       connectionGuide: input.connectionGuide,
       description: input.description,
       metadataUrl: input.metadataUrl,

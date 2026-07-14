@@ -14,14 +14,12 @@ import {
 } from '@tabler/icons-react';
 import Select from '@/components/ui/Select';
 import { Games, getGame } from '@/config/games';
-import type { ConnectionMethod } from '@/lib/game-servers';
 
 interface ManagedServer {
   id: number;
   name: string;
   gameName?: string;
   game: string;
-  connectionMethod: ConnectionMethod;
   connectionLink: string | null;
   connectionGuide: string | null;
   description: string | null;
@@ -31,7 +29,6 @@ interface ManagedServer {
 interface ServerForm {
   game: string;
   gameName: string;
-  connectionMethod: ConnectionMethod;
   connectionLink: string;
   connectionGuide: string;
   description: string;
@@ -41,7 +38,6 @@ interface ServerForm {
 const emptyForm: ServerForm = {
   game: Games[0].id,
   gameName: Games[0].name,
-  connectionMethod: 'direct',
   connectionLink: '',
   connectionGuide: '',
   description: '',
@@ -49,10 +45,6 @@ const emptyForm: ServerForm = {
 };
 
 const inputClass = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/20 transition-colors placeholder:text-white/25';
-const connectionMethodOptions = [
-  { value: 'direct', label: 'Direct link' },
-  { value: 'guidance', label: 'Guidance' },
-];
 
 export default function GameServersPage() {
   const [servers, setServers] = useState<ManagedServer[]>([]);
@@ -112,7 +104,6 @@ export default function GameServersPage() {
     setForm({
       game: server.game,
       gameName: server.gameName || server.name || getGame(server.game)?.name || '',
-      connectionMethod: server.connectionMethod || 'direct',
       connectionLink: server.connectionLink || '',
       connectionGuide: server.connectionGuide || '',
       description: server.description || '',
@@ -158,7 +149,7 @@ export default function GameServersPage() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h3 className="font-semibold">{editingId ? 'Edit server' : 'Add server'}</h3>
-            <p className="text-xs text-white/40 mt-1">Choose a default connection method. Players can switch when both are configured.</p>
+            <p className="text-xs text-white/40 mt-1">Add a direct address, guidance, or both.</p>
           </div>
           {editingId && (
             <button type="button" onClick={resetForm} className="text-white/50 hover:text-white p-2" title="Cancel editing">
@@ -189,19 +180,8 @@ export default function GameServersPage() {
             />
           </Field>
 
-          <Field label="Default connection method" required>
-            <Select
-              value={form.connectionMethod}
-              onChange={(event) => setForm({ ...form, connectionMethod: event.target.value as ConnectionMethod })}
-              options={connectionMethodOptions}
-              size="lg"
-              className="w-full"
-            />
-          </Field>
-
-          <Field label="Connection link" required={form.connectionMethod === 'direct'} hint="A game protocol, web URL, or host:port">
+          <Field label="Connection link" hint="A game protocol, web URL, or host:port">
             <input
-              required={form.connectionMethod === 'direct'}
               maxLength={255}
               value={form.connectionLink}
               onChange={(event) => setForm({ ...form, connectionLink: event.target.value })}
@@ -211,9 +191,8 @@ export default function GameServersPage() {
           </Field>
         </div>
 
-        <Field label="Connection guidance" required={form.connectionMethod === 'guidance'} hint="Shown to players when they choose the guidance method">
+        <Field label="Connection guidance" hint="Shown before players open the direct connection">
           <textarea
-            required={form.connectionMethod === 'guidance'}
             rows={6}
             maxLength={10000}
             value={form.connectionGuide}

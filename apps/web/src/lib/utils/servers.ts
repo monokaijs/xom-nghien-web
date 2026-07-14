@@ -8,7 +8,6 @@ export async function getServersWithStatus(gameId?: string) {
       name: servers.name,
       game: servers.game,
       connectionLink: servers.address,
-      connectionMethod: servers.connectionMethod,
       connectionGuide: servers.connectionGuide,
       description: servers.description,
       metadataUrl: servers.metadataUrl,
@@ -18,14 +17,12 @@ export async function getServersWithStatus(gameId?: string) {
       .filter((server) => !gameId || server.game === gameId)
       .map((server) => {
         const game = getGame(server.game);
-        const connectionMethod: 'direct' | 'guidance' = server.connectionMethod === 'guidance' ? 'guidance' : 'direct';
         return {
           id: server.id.toString(),
           name: server.name,
           game: server.game,
           gameName: server.name || game?.name || server.game,
           gameImage: game?.image || '',
-          connectionMethod,
           connectionLink: server.connectionLink,
           connectionGuide: server.connectionGuide || null,
           description: server.description,

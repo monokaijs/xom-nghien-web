@@ -109,7 +109,6 @@ export const servers = mysqlTable('servers', {
   name: varchar('name', { length: 255 }).notNull(),
   game: varchar('game', { length: 50 }).notNull(),
   address: varchar('address', { length: 255 }),
-  connectionMethod: varchar('connection_method', { length: 32 }).notNull().default('direct'),
   connectionGuide: text('connection_guide'),
   description: text('description'),
   metadataUrl: varchar('metadata_url', { length: 2048 }),

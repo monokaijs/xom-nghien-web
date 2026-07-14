@@ -8,7 +8,6 @@ export async function GET() {
     name: servers.name,
     game: servers.game,
     connectionLink: servers.address,
-    connectionMethod: servers.connectionMethod,
     connectionGuide: servers.connectionGuide,
     description: servers.description,
     metadataUrl: servers.metadataUrl,
@@ -22,7 +21,6 @@ export async function GET() {
         ...server,
         gameName: server.name || game?.name || server.game,
         gameImage: game?.image || null,
-        connectionMethod: server.connectionMethod === 'guidance' ? 'guidance' : 'direct',
         connectionGuide: server.connectionGuide || null,
       };
     }),

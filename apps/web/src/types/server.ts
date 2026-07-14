@@ -21,7 +21,6 @@ export interface ServerStatus {
   game: string;
   gameName: string;
   gameImage: string;
-  connectionMethod: 'direct' | 'guidance';
   connectionLink: string | null;
   connectionGuide: string | null;
   description: string | null;

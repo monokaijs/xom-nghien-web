@@ -9,7 +9,6 @@ function toResponse(server: typeof servers.$inferSelect) {
     ...rest,
     gameName: server.name,
     connectionLink: address,
-    connectionMethod: server.connectionMethod === 'guidance' ? 'guidance' : 'direct',
     connectionGuide: server.connectionGuide || null,
   };
 }
@@ -30,7 +29,6 @@ export const POST = requireAdmin(async (request: NextRequest) => {
       name: input.name,
       game: input.game,
       address: input.connectionLink,
-      connectionMethod: input.connectionMethod,
       connectionGuide: input.connectionGuide,
       description: input.description,
       metadataUrl: input.metadataUrl,

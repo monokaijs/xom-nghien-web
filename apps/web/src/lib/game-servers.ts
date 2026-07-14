@@ -1,29 +1,20 @@
 import { getGame } from '@/config/games';
 
 const BLOCKED_PROTOCOLS = new Set(['javascript:', 'data:', 'file:', 'vbscript:']);
-export const CONNECTION_METHODS = ['direct', 'guidance'] as const;
-
-export type ConnectionMethod = (typeof CONNECTION_METHODS)[number];
 
 export interface GameServerInput {
   game: string;
   name: string;
-  connectionMethod: ConnectionMethod;
   connectionLink: string | null;
   connectionGuide: string | null;
   description: string | null;
   metadataUrl: string | null;
 }
 
-function isConnectionMethod(value: string): value is ConnectionMethod {
-  return CONNECTION_METHODS.includes(value as ConnectionMethod);
-}
-
 export function parseGameServerInput(body: Record<string, unknown>): GameServerInput {
   const game = String(body.game || '').trim();
   const gameDefinition = getGame(game);
   const name = String(body.gameName || body.name || '').trim() || gameDefinition?.name || '';
-  const connectionMethodValue = String(body.connectionMethod || 'direct').trim();
   const connectionLink = String(body.connectionLink || '').trim() || null;
   const connectionGuide = String(body.connectionGuide || '').trim() || null;
   const description = String(body.description || '').trim() || null;
@@ -41,20 +32,8 @@ export function parseGameServerInput(body: Record<string, unknown>): GameServerI
     throw new Error('Game name must be 255 characters or fewer');
   }
 
-  if (!isConnectionMethod(connectionMethodValue)) {
-    throw new Error('Please select a supported connection method');
-  }
-
   if (!connectionLink && !connectionGuide) {
     throw new Error('Add a connection link or connection guidance');
-  }
-
-  if (connectionMethodValue === 'direct' && !connectionLink) {
-    throw new Error('Connection link is required for direct connection');
-  }
-
-  if (connectionMethodValue === 'guidance' && !connectionGuide) {
-    throw new Error('Connection guidance is required for guidance connection');
   }
 
   if (connectionLink && connectionLink.length > 255) {
@@ -87,7 +66,6 @@ export function parseGameServerInput(body: Record<string, unknown>): GameServerI
   return {
     game,
     name,
-    connectionMethod: connectionMethodValue,
     connectionLink,
     connectionGuide,
     description,

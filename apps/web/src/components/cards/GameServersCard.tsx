@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { IconBook, IconLink, IconPlayerPlayFilled, IconServer, IconX } from '@tabler/icons-react';
+import { IconBook, IconExternalLink, IconLink, IconPlayerPlayFilled, IconServer, IconX } from '@tabler/icons-react';
 import { ServerStatus } from '@/types/server';
-import { openConnectionLink, type ConnectionMethod } from '@/lib/game-servers';
+import { openConnectionLink } from '@/lib/game-servers';
 
 interface GameServersCardProps {
   title?: string;
@@ -49,32 +49,8 @@ export default function GameServersCard({
 function GameServerItem({ server, layout }: { server: ServerStatus; layout: 'carousel' | 'grid' }) {
   const hasDirect = Boolean(server.connectionLink);
   const hasGuidance = Boolean(server.connectionGuide);
-  const preferredMethod = server.connectionMethod === 'guidance' && hasGuidance
-    ? 'guidance'
-    : hasDirect
-      ? 'direct'
-      : 'guidance';
-  const [selectedMethod, setSelectedMethod] = useState<ConnectionMethod>(preferredMethod);
-  const [isGuideOpen, setIsGuideOpen] = useState(false);
-  const availableMethods = [
-    hasDirect ? 'direct' : null,
-    hasGuidance ? 'guidance' : null,
-  ].filter(Boolean) as ConnectionMethod[];
-  const activeMethod = availableMethods.includes(selectedMethod)
-    ? selectedMethod
-    : availableMethods[0] || 'direct';
-  const canConnect = availableMethods.length > 0;
-
-  const connect = () => {
-    if (activeMethod === 'guidance') {
-      setIsGuideOpen(true);
-      return;
-    }
-
-    if (server.connectionLink) {
-      openConnectionLink(server.connectionLink, server.game);
-    }
-  };
+  const [isConnectOpen, setIsConnectOpen] = useState(false);
+  const canOpenDialog = hasDirect || hasGuidance;
 
   return (
     <article className={`${layout === 'grid' ? 'min-w-0 w-full' : 'min-w-[300px] w-[300px]'} bg-card-bg rounded-[20px] p-4 flex flex-col gap-4 border border-white/5`}>
@@ -87,7 +63,7 @@ function GameServerItem({ server, layout }: { server: ServerStatus; layout: 'car
         <div className="min-w-0">
           <h3 className="font-semibold truncate">{server.gameName}</h3>
           <p className="text-xs text-text-secondary truncate">
-            {server.connectionLink || (server.connectionGuide ? 'Hướng dẫn kết nối' : 'Chưa cấu hình kết nối')}
+            {server.connectionLink || (hasGuidance ? 'Hướng dẫn kết nối' : 'Chưa cấu hình kết nối')}
           </p>
         </div>
       </div>
@@ -96,73 +72,31 @@ function GameServerItem({ server, layout }: { server: ServerStatus; layout: 'car
         {server.description || 'Sẵn sàng tham gia cùng cộng đồng.'}
       </p>
 
-      {availableMethods.length > 1 && (
-        <div className="grid grid-cols-2 gap-2 rounded-xl bg-white/5 p-1">
-          <ConnectionMethodButton
-            active={activeMethod === 'direct'}
-            icon={<IconLink size={15} />}
-            label="Liên kết"
-            onClick={() => setSelectedMethod('direct')}
-          />
-          <ConnectionMethodButton
-            active={activeMethod === 'guidance'}
-            icon={<IconBook size={15} />}
-            label="Hướng dẫn"
-            onClick={() => setSelectedMethod('guidance')}
-          />
-        </div>
-      )}
-
       <button
         type="button"
-        disabled={!canConnect}
-        onClick={connect}
+        disabled={!canOpenDialog}
+        onClick={() => setIsConnectOpen(true)}
         className="bg-accent-primary hover:bg-accent-primary/80 disabled:bg-white/10 disabled:text-white/35 disabled:cursor-not-allowed rounded-xl px-4 py-2.5 flex items-center justify-center gap-2 font-medium transition-colors"
       >
-        {activeMethod === 'guidance' ? <IconBook size={16} /> : <IconPlayerPlayFilled size={16} />}
-        {canConnect ? (activeMethod === 'guidance' ? 'Xem Hướng Dẫn' : 'Tham Gia') : 'Chưa Sẵn Sàng'}
+        <IconPlayerPlayFilled size={16} />
+        {canOpenDialog ? 'Kết Nối' : 'Chưa Sẵn Sàng'}
       </button>
 
-      {isGuideOpen && server.connectionGuide && (
-        <GuideModal
-          gameName={server.gameName}
-          guide={server.connectionGuide}
-          onClose={() => setIsGuideOpen(false)}
+      {isConnectOpen && (
+        <ConnectDialog
+          server={server}
+          onClose={() => setIsConnectOpen(false)}
         />
       )}
     </article>
   );
 }
 
-function ConnectionMethodButton({
-  active,
-  icon,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`min-h-9 rounded-lg px-2 text-xs font-medium transition-colors flex items-center justify-center gap-1.5 ${
-        active ? 'bg-accent-primary text-white' : 'text-white/55 hover:text-white hover:bg-white/5'
-      }`}
-    >
-      {icon}
-      <span className="truncate">{label}</span>
-    </button>
-  );
-}
-
-function GuideModal({ gameName, guide, onClose }: { gameName: string; guide: string; onClose: () => void }) {
+function ConnectDialog({ server, onClose }: { server: ServerStatus; onClose: () => void }) {
   const headingId = useId();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const hasDirect = Boolean(server.connectionLink);
+  const hasGuidance = Boolean(server.connectionGuide);
 
   useEffect(() => {
     closeButtonRef.current?.focus();
@@ -179,15 +113,63 @@ function GuideModal({ gameName, guide, onClose }: { gameName: string; guide: str
       <div className="w-full max-w-xl max-h-[80vh] bg-bg-sidebar border border-white/10 rounded-[20px] shadow-2xl flex flex-col overflow-hidden">
         <div className="flex items-center justify-between gap-4 p-5 border-b border-white/10">
           <div className="min-w-0">
-            <h3 id={headingId} className="font-semibold truncate">{gameName}</h3>
-            <p className="text-sm text-text-secondary">Hướng dẫn kết nối</p>
+            <h3 id={headingId} className="font-semibold truncate">{server.gameName}</h3>
+            <p className="text-sm text-text-secondary">Kết nối máy chủ</p>
           </div>
-          <button ref={closeButtonRef} type="button" onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white" aria-label="Đóng hướng dẫn kết nối">
+          <button ref={closeButtonRef} type="button" onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white" aria-label="Đóng hộp thoại kết nối">
             <IconX size={20} />
           </button>
         </div>
-        <div className="p-5 overflow-y-auto text-sm leading-6 text-white/80 whitespace-pre-wrap break-words">
-          {guide}
+
+        <div className="flex-1 overflow-y-auto p-5">
+          {hasDirect && (
+            <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-white/80">
+                <IconLink size={16} />
+                Địa chỉ kết nối
+              </div>
+              <p className="break-all font-mono text-sm text-white/70">{server.connectionLink}</p>
+            </div>
+          )}
+
+          {hasGuidance ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="mb-3 flex items-center gap-2 text-sm font-medium text-white/80">
+                <IconBook size={16} />
+                Hướng dẫn
+              </div>
+              <div className="whitespace-pre-wrap break-words text-sm leading-6 text-white/80">
+                {server.connectionGuide}
+              </div>
+            </div>
+          ) : (
+            <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-8 text-center text-sm text-white/50">
+              Máy chủ này chưa có hướng dẫn thêm.
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col-reverse gap-3 border-t border-white/10 p-5 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl px-4 py-2.5 text-sm font-medium text-white/65 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            Đóng
+          </button>
+          {hasDirect && (
+            <button
+              type="button"
+              onClick={() => {
+                if (!server.connectionLink) return;
+                openConnectionLink(server.connectionLink, server.game);
+              }}
+              className="rounded-xl bg-accent-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-primary/80 flex items-center justify-center gap-2"
+            >
+              <IconExternalLink size={16} />
+              Kết Nối
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -3,4 +3,7 @@ services:
     env_file:
       - ./env/matchzy.env
     volumes:
-      - ./matchzy-demos:/app/storage/match-demos
+      - matchzy_demos:/app/storage/match-demos
+
+volumes:
+  matchzy_demos:

@@ -89,17 +89,19 @@ jobs:
         run: |
           set -euo pipefail
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "mkdir -p '${DEPLOY_PATH}/env' '${DEPLOY_PATH}/mysql-migrations' '${DEPLOY_PATH}/matchzy-demos'"
+            "mkdir -p '${DEPLOY_PATH}/env' '${DEPLOY_PATH}/mysql-migrations'"
           printf 'MATCHZY_UPLOAD_TOKEN=%s\nMATCH_DEMO_STORAGE_DIR=/app/storage/match-demos\n' \
             "${MATCHZY_UPLOAD_TOKEN}" \
             | ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
                 "umask 077; cat > '${DEPLOY_PATH}/env/matchzy.env'"
           scp -i ~/.ssh/deploy_key .github/deploy/compose.matchzy.yml \
             "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/compose.matchzy.yml"
+          scp -i ~/.ssh/deploy_key .github/deploy/configure-matchzy-nginx.py \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/configure-matchzy-nginx.py"
           scp -i ~/.ssh/deploy_key packages/db/migrations/017_add_matchzy_demos.sql \
             "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/017_add_matchzy_demos.sql"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "cd '${DEPLOY_PATH}' && chmod 600 env/matchzy.env && chmod 750 matchzy-demos && docker compose -f compose.yml -f compose.matchzy.yml config >/dev/null && docker compose -f compose.yml -f compose.matchzy.yml up -d mysql && docker compose -f compose.yml -f compose.matchzy.yml exec -T mysql sh -lc 'for i in \$(seq 1 30); do mysqladmin ping -h 127.0.0.1 -u root -p\"\$MYSQL_ROOT_PASSWORD\" --silent && exit 0; sleep 2; done; exit 1' && docker compose -f compose.yml -f compose.matchzy.yml exec -T mysql sh -lc 'exec mysql -u\"\$MYSQL_USER\" -p\"\$MYSQL_PASSWORD\" \"\$MYSQL_DATABASE\"' < mysql-migrations/017_add_matchzy_demos.sql"
+            "cd '${DEPLOY_PATH}' && chmod 600 env/matchzy.env && python3 configure-matchzy-nginx.py && docker compose -f compose.yml -f compose.matchzy.yml config >/dev/null && docker compose -f compose.yml -f compose.matchzy.yml up -d mysql && docker compose -f compose.yml -f compose.matchzy.yml exec -T mysql sh -lc 'for i in \$(seq 1 30); do mysqladmin ping -h 127.0.0.1 -u root -p\"\$MYSQL_ROOT_PASSWORD\" --silent && exit 0; sleep 2; done; exit 1' && docker compose -f compose.yml -f compose.matchzy.yml exec -T mysql sh -lc 'exec mysql -u\"\$MYSQL_USER\" -p\"\$MYSQL_PASSWORD\" \"\$MYSQL_DATABASE\"' < mysql-migrations/017_add_matchzy_demos.sql"
 
       - name: Pull and restart
         run: |
@@ -108,5 +110,5 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml pull web inventory"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml up -d --remove-orphans web inventory nginx"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml rm -sf spawner redis || true"
-          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml restart nginx"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml exec -T nginx nginx -t && docker compose -f compose.yml -f compose.matchzy.yml restart nginx"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "docker image prune -f"

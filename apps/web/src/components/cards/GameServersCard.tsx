@@ -51,6 +51,13 @@ function GameServerItem({ server, layout }: { server: ServerStatus; layout: 'car
   const hasGuidance = Boolean(server.connectionGuide);
   const [isConnectOpen, setIsConnectOpen] = useState(false);
   const canOpenDialog = hasDirect || hasGuidance;
+  const connectionLabel = hasDirect && hasGuidance
+    ? 'Kết nối trực tiếp và hướng dẫn'
+    : hasDirect
+      ? 'Kết nối trực tiếp'
+      : hasGuidance
+        ? 'Hướng dẫn kết nối'
+        : 'Chưa cấu hình kết nối';
 
   return (
     <article className={`${layout === 'grid' ? 'min-w-0 w-full' : 'min-w-[300px] w-[300px]'} bg-card-bg rounded-[20px] p-4 flex flex-col gap-4 border border-white/5`}>
@@ -63,7 +70,7 @@ function GameServerItem({ server, layout }: { server: ServerStatus; layout: 'car
         <div className="min-w-0">
           <h3 className="font-semibold truncate">{server.gameName}</h3>
           <p className="text-xs text-text-secondary truncate">
-            {server.connectionLink || (hasGuidance ? 'Hướng dẫn kết nối' : 'Chưa cấu hình kết nối')}
+            {connectionLabel}
           </p>
         </div>
       </div>

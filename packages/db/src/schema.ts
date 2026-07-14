@@ -69,6 +69,21 @@ export const matchzyStatsPlayers = mysqlTable('matchzy_stats_players', {
   pk: primaryKey({ columns: [table.matchid, table.mapnumber, table.steamid64] }),
 }));
 
+export const matchzyDemos = mysqlTable('matchzy_demos', {
+  id: int('id').primaryKey().autoincrement(),
+  matchid: int('matchid').notNull(),
+  mapnumber: tinyint('mapnumber').notNull(),
+  roundnumber: int('roundnumber').notNull().default(0),
+  file_name: varchar('file_name', { length: 255 }).notNull(),
+  storage_key: varchar('storage_key', { length: 512 }).notNull(),
+  file_size: int('file_size', { unsigned: true }).notNull(),
+  sha256: varchar('sha256', { length: 64 }).notNull(),
+  uploaded_at: timestamp('uploaded_at').defaultNow().notNull(),
+}, (table) => ({
+  uniqueMatchMap: unique('uq_matchzy_demos_match_map').on(table.matchid, table.mapnumber),
+  idxMatch: index('idx_matchzy_demos_match').on(table.matchid),
+}));
+
 export const userInfo = mysqlTable('user_info', {
   steamid64: varchar('steamid64', { length: 64 }).primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
@@ -123,6 +138,7 @@ export const servers = mysqlTable('servers', {
 export type MatchzyStatsMatch = typeof matchzyStatsMatches.$inferSelect;
 export type MatchzyStatsMap = typeof matchzyStatsMaps.$inferSelect;
 export type MatchzyStatsPlayer = typeof matchzyStatsPlayers.$inferSelect;
+export type MatchzyDemo = typeof matchzyDemos.$inferSelect;
 export type UserInfo = typeof userInfo.$inferSelect;
 export type NewUserInfo = typeof userInfo.$inferInsert;
 export type UserPoints = typeof userPoints.$inferSelect;

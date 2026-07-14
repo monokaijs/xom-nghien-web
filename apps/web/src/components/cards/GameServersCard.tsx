@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { IconBook, IconExternalLink, IconLink, IconPlayerPlayFilled, IconServer, IconX } from '@tabler/icons-react';
-import { ServerStatus } from '@/types/server';
+import { IconBook, IconExternalLink, IconLink, IconMap, IconPlayerPlayFilled, IconServer, IconX } from '@tabler/icons-react';
+import { getGame } from '@/config/games';
+import type { ServerOnlineStatus, ServerStatus } from '@/types/server';
 import { openConnectionLink } from '@/lib/game-servers';
+import { getMapImage } from '@/lib/utils/mapImage';
 
 interface GameServersCardProps {
   title?: string;
@@ -51,43 +53,68 @@ function GameServerItem({ server, layout }: { server: ServerStatus; layout: 'car
   const hasGuidance = Boolean(server.connectionGuide);
   const [isConnectOpen, setIsConnectOpen] = useState(false);
   const canOpenDialog = hasDirect || hasGuidance;
-  const connectionLabel = hasDirect && hasGuidance
-    ? 'Kết nối trực tiếp và hướng dẫn'
-    : hasDirect
-      ? 'Kết nối trực tiếp'
-      : hasGuidance
-        ? 'Hướng dẫn kết nối'
-        : 'Chưa cấu hình kết nối';
+  const game = getGame(server.game);
+  const showMap = game?.serverCard.showMap ?? false;
+  const mapImage = showMap ? getMapImage(server.metadata.map) : '';
+  const backgroundImages = [mapImage, game?.serverCard.coverImage, server.gameImage]
+    .filter(Boolean)
+    .map((image) => `url("${image}")`)
+    .join(', ');
+  const playerValue = formatPlayerCount(
+    server.metadata.status,
+    server.metadata.players.online,
+    server.metadata.players.total,
+    game?.serverCard.playerCount || 'online',
+  );
+  const actionEnabled = canOpenDialog && server.metadata.status !== 'offline';
 
   return (
-    <article className={`${layout === 'grid' ? 'min-w-0 w-full' : 'min-w-[300px] w-[300px]'} bg-card-bg rounded-[20px] p-4 flex flex-col gap-4 border border-white/5`}>
-      <div className="flex items-center gap-3 min-w-0">
-        {server.gameImage ? (
-          <img src={server.gameImage} alt={server.gameName} className="w-12 h-12 rounded-xl object-cover" />
-        ) : (
-          <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center"><IconServer size={22} /></div>
-        )}
-        <div className="min-w-0">
-          <h3 className="font-semibold truncate">{server.gameName}</h3>
-          <p className="text-xs text-text-secondary truncate">
-            {connectionLabel}
-          </p>
+    <article
+      className={`${layout === 'grid' ? 'min-w-0 w-full' : 'min-w-[350px] w-[350px]'} group relative aspect-video min-h-[210px] overflow-hidden rounded-[25px] border border-white/5 bg-[#242427] bg-cover bg-center shadow-lg`}
+      style={{ backgroundImage: backgroundImages || undefined }}
+    >
+      <div className="absolute inset-0 z-10 bg-gradient-to-b from-bg-dark/80 via-bg-dark/45 to-bg-dark/90 transition-colors duration-300 group-hover:via-bg-dark/30" />
+
+      <div className="absolute inset-x-5 top-5 z-20">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="min-w-0 flex-1 truncate text-lg font-semibold text-white drop-shadow-md">
+            {server.name}
+          </h3>
+          <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium backdrop-blur-xl ${getStatusClass(server.metadata.status)}`}>
+            {getStatusText(server.metadata.status)}
+          </span>
+        </div>
+
+        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+          {showMap && server.metadata.map && (
+            <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-white/85 backdrop-blur-xl">
+              <IconMap size={13} />
+              {server.metadata.map}
+            </span>
+          )}
+          {server.metadata.ping !== null && (
+            <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-white/80 backdrop-blur-xl">
+              {server.metadata.ping}ms
+            </span>
+          )}
         </div>
       </div>
 
-      <p className="text-sm text-text-secondary leading-relaxed line-clamp-2 min-h-10">
-        {server.description || 'Sẵn sàng tham gia cùng cộng đồng.'}
-      </p>
-
-      <button
-        type="button"
-        disabled={!canOpenDialog}
-        onClick={() => setIsConnectOpen(true)}
-        className="bg-accent-primary hover:bg-accent-primary/80 disabled:bg-white/10 disabled:text-white/35 disabled:cursor-not-allowed rounded-xl px-4 py-2.5 flex items-center justify-center gap-2 font-medium transition-colors"
-      >
-        <IconPlayerPlayFilled size={16} />
-        {canOpenDialog ? 'Kết Nối' : 'Chưa Sẵn Sàng'}
-      </button>
+      <div className="absolute inset-x-5 bottom-5 z-20 flex items-end justify-between gap-4">
+        <div>
+          <div className="mb-1 text-xs text-white/70">Người Chơi</div>
+          <div className="text-xl font-bold text-white drop-shadow-md">{playerValue}</div>
+        </div>
+        <button
+          type="button"
+          disabled={!actionEnabled}
+          onClick={() => setIsConnectOpen(true)}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-primary text-white shadow-lg transition-colors hover:bg-[#ff6b76] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
+          aria-label={canOpenDialog ? `Kết nối ${server.name}` : `${server.name} chưa cấu hình kết nối`}
+        >
+          <IconPlayerPlayFilled size={16} />
+        </button>
+      </div>
 
       {isConnectOpen && (
         <ConnectDialog
@@ -97,6 +124,30 @@ function GameServerItem({ server, layout }: { server: ServerStatus; layout: 'car
       )}
     </article>
   );
+}
+
+function getStatusClass(status: ServerOnlineStatus) {
+  if (status === 'online') return 'border-green-500/30 bg-green-500/20 text-green-200';
+  if (status === 'offline') return 'border-red-500/30 bg-red-500/20 text-red-200';
+  return 'border-white/15 bg-black/25 text-white/70';
+}
+
+function getStatusText(status: ServerOnlineStatus) {
+  if (status === 'online') return 'Hoạt Động';
+  if (status === 'offline') return 'Offline';
+  return 'Chưa Rõ';
+}
+
+function formatPlayerCount(
+  status: ServerOnlineStatus,
+  online: number | null,
+  total: number | null,
+  presentation: 'online' | 'online-total',
+) {
+  const current = online ?? (status === 'offline' ? 0 : null);
+  if (current === null) return presentation === 'online-total' ? '-- / --' : '--';
+  if (presentation === 'online-total') return total === null ? `${current} / --` : `${current} / ${total}`;
+  return String(current);
 }
 
 function ConnectDialog({ server, onClose }: { server: ServerStatus; onClose: () => void }) {

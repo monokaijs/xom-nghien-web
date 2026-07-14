@@ -15,6 +15,20 @@ export interface PlayerInfo {
   };
 }
 
+export type ServerOnlineStatus = 'online' | 'offline' | 'unknown';
+
+export interface ServerMetadata {
+  status: ServerOnlineStatus;
+  players: {
+    online: number | null;
+    total: number | null;
+    list: PlayerInfo[];
+  };
+  map: string | null;
+  ping: number | null;
+  queriedAt: string | null;
+}
+
 export interface ServerStatus {
   id: string;
   name: string;
@@ -25,4 +39,5 @@ export interface ServerStatus {
   connectionGuide: string | null;
   description: string | null;
   metadataUrl: string | null;
+  metadata: ServerMetadata;
 }

@@ -1,8 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { IconArrowLeft, IconClock, IconMap, IconTrophy } from '@tabler/icons-react';
-import { db, matchzyStatsMaps, matchzyStatsMatches, matchzyStatsPlayers, sql } from '@xom/db';
+import { IconArrowLeft, IconClock, IconDownload, IconMap, IconTrophy } from '@tabler/icons-react';
+import { db, matchzyDemos, matchzyStatsMaps, matchzyStatsMatches, matchzyStatsPlayers, sql } from '@xom/db';
 import { getMapImage } from '@/lib/utils/mapImage';
 
 export const dynamic = 'force-dynamic';
@@ -45,10 +45,19 @@ interface Player {
   mapname: string;
 }
 
+interface MatchDemo {
+  matchid: number;
+  mapnumber: number;
+  file_name: string;
+  file_size: number;
+  uploaded_at: string;
+}
+
 interface MatchDetail {
   match: Match;
   maps: MatchMap[];
   players: Player[];
+  demos: MatchDemo[];
 }
 
 async function getMatchData(rawMatchId: string): Promise<MatchDetail | null> {
@@ -68,7 +77,7 @@ async function getMatchData(rawMatchId: string): Promise<MatchDetail | null> {
 
     if (!match) return null;
 
-    const [mapsResult, playersResult] = await Promise.all([
+    const [mapsResult, playersResult, demosResult] = await Promise.all([
       db.execute(sql`
         SELECT *
         FROM ${matchzyStatsMaps}
@@ -83,12 +92,19 @@ async function getMatchData(rawMatchId: string): Promise<MatchDetail | null> {
         WHERE p.matchid = ${matchId}
         ORDER BY p.mapnumber ASC, p.kills DESC
       `),
+      db.execute(sql`
+        SELECT matchid, mapnumber, file_name, file_size, uploaded_at
+        FROM ${matchzyDemos}
+        WHERE matchid = ${matchId}
+        ORDER BY mapnumber ASC
+      `),
     ]);
 
     return {
       match,
       maps: mapsResult[0] as unknown as MatchMap[],
       players: playersResult[0] as unknown as Player[],
+      demos: demosResult[0] as unknown as MatchDemo[],
     };
   } catch (error) {
     console.error('Error fetching match details:', error);
@@ -196,7 +212,7 @@ export default async function Cs2MatchDetailPage({
 
   if (!data) notFound();
 
-  const { match, maps, players } = data;
+  const { match, maps, players, demos } = data;
   const isTeam1Winner = match.winner === match.team1_name || match.team1_score > match.team2_score;
   const isTeam2Winner = match.winner === match.team2_name || match.team2_score > match.team1_score;
   const firstMap = maps[0];
@@ -264,6 +280,7 @@ export default async function Cs2MatchDetailPage({
         const team2Players = mapPlayers.filter((player) => player.team === match.team2_name).sort((a, b) => b.kills - a.kills);
         const isMapTeam1Winner = map.winner === match.team1_name || map.team1_score > map.team2_score;
         const isMapTeam2Winner = map.winner === match.team2_name || map.team2_score > map.team1_score;
+        const demo = demos.find((item) => item.mapnumber === map.mapnumber);
 
         return (
           <section key={map.mapnumber} className="rounded-[30px] bg-gradient-to-br from-[#2b161b] to-[#1a0f12] p-6 max-md:p-4" aria-labelledby={`map-${map.mapnumber}`}>
@@ -272,11 +289,23 @@ export default async function Cs2MatchDetailPage({
                 <IconMap size={24} className="shrink-0 text-accent-primary" aria-hidden="true" />
                 <h2 id={`map-${map.mapnumber}`} className="truncate text-xl font-semibold max-md:text-lg">{map.mapname}</h2>
               </div>
-              <p className="flex shrink-0 items-center gap-4 rounded-xl bg-white/5 px-4 py-2 max-md:gap-2 max-md:px-3 max-md:py-1.5" aria-label={`Tỉ số bản đồ ${map.team1_score}–${map.team2_score}`}>
-                <span className={`text-xl font-bold max-md:text-lg ${isMapTeam1Winner ? 'text-accent-primary' : 'text-white/60'}`}>{map.team1_score}</span>
-                <span className="text-white/50" aria-hidden="true">–</span>
-                <span className={`text-xl font-bold max-md:text-lg ${isMapTeam2Winner ? 'text-accent-primary' : 'text-white/60'}`}>{map.team2_score}</span>
-              </p>
+              <div className="flex shrink-0 items-center gap-2">
+                {demo && (
+                  <Link
+                    href={`/api/matches/${match.matchid}/demos/${map.mapnumber}`}
+                    className="flex items-center gap-2 rounded-xl bg-accent-primary/15 px-3 py-2 text-sm font-semibold text-accent-primary transition-colors hover:bg-accent-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+                    title={`${demo.file_name} (${(demo.file_size / 1024 / 1024).toFixed(1)} MB)`}
+                  >
+                    <IconDownload size={18} aria-hidden="true" />
+                    <span className="max-sm:hidden">Tải demo</span>
+                  </Link>
+                )}
+                <p className="flex items-center gap-4 rounded-xl bg-white/5 px-4 py-2 max-md:gap-2 max-md:px-3 max-md:py-1.5" aria-label={`Tỉ số bản đồ ${map.team1_score}–${map.team2_score}`}>
+                  <span className={`text-xl font-bold max-md:text-lg ${isMapTeam1Winner ? 'text-accent-primary' : 'text-white/60'}`}>{map.team1_score}</span>
+                  <span className="text-white/50" aria-hidden="true">–</span>
+                  <span className={`text-xl font-bold max-md:text-lg ${isMapTeam2Winner ? 'text-accent-primary' : 'text-white/60'}`}>{map.team2_score}</span>
+                </p>
+              </div>
             </header>
 
             <div className="grid grid-cols-2 gap-6 max-lg:grid-cols-1 max-lg:gap-5">

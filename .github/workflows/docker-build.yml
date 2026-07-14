@@ -58,6 +58,7 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/main'
     permissions:
+      contents: read
       packages: read
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -65,8 +66,12 @@ jobs:
       DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
       DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
       GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      MATCHZY_UPLOAD_TOKEN: ${{ secrets.MATCHZY_UPLOAD_TOKEN }}
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Configure SSH
         run: |
           set -euo pipefail
@@ -74,17 +79,34 @@ jobs:
           test -n "${DEPLOY_PATH}"
           test -n "${DEPLOY_SSH_KEY}"
           test -n "${DEPLOY_USER}"
+          test -n "${MATCHZY_UPLOAD_TOKEN}"
           mkdir -p ~/.ssh
           printf '%s\n' "${DEPLOY_SSH_KEY}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${DEPLOY_HOST}" >> ~/.ssh/known_hosts
 
+      - name: Prepare MatchZy demo storage and schema
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "mkdir -p '${DEPLOY_PATH}/env' '${DEPLOY_PATH}/mysql-migrations' '${DEPLOY_PATH}/matchzy-demos'"
+          printf 'MATCHZY_UPLOAD_TOKEN=%s\nMATCH_DEMO_STORAGE_DIR=/app/storage/match-demos\n' \
+            "${MATCHZY_UPLOAD_TOKEN}" \
+            | ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
+                "umask 077; cat > '${DEPLOY_PATH}/env/matchzy.env'"
+          scp -i ~/.ssh/deploy_key .github/deploy/compose.matchzy.yml \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/compose.matchzy.yml"
+          scp -i ~/.ssh/deploy_key packages/db/migrations/017_add_matchzy_demos.sql \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/017_add_matchzy_demos.sql"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "cd '${DEPLOY_PATH}' && chmod 600 env/matchzy.env && chmod 750 matchzy-demos && docker compose -f compose.yml -f compose.matchzy.yml config >/dev/null && docker compose -f compose.yml -f compose.matchzy.yml up -d mysql && docker compose -f compose.yml -f compose.matchzy.yml exec -T mysql sh -lc 'for i in \$(seq 1 30); do mysqladmin ping -h 127.0.0.1 -u root -p\"\$MYSQL_ROOT_PASSWORD\" --silent && exit 0; sleep 2; done; exit 1' && docker compose -f compose.yml -f compose.matchzy.yml exec -T mysql sh -lc 'exec mysql -u\"\$MYSQL_USER\" -p\"\$MYSQL_PASSWORD\" \"\$MYSQL_DATABASE\"' < mysql-migrations/017_add_matchzy_demos.sql"
+
       - name: Pull and restart
         run: |
           set -euo pipefail
           printf '%s' "${GHCR_TOKEN}" | ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
-          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose pull web inventory"
-          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose up -d --remove-orphans web inventory nginx"
-          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose rm -sf spawner redis || true"
-          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose restart nginx"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml pull web inventory"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml up -d --remove-orphans web inventory nginx"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml rm -sf spawner redis || true"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml restart nginx"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "docker image prune -f"

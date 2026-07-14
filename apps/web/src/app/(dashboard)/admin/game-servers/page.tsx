@@ -212,7 +212,7 @@ export default function GameServersPage() {
           />
         </Field>
 
-        <Field label="Metadata URL" hint="Optional HTTP(S) endpoint for future stats such as online and max players">
+        <Field label="Metadata URL" hint="Optional JSON endpoint: online/status, players.current, players.max, map, and ping are supported">
           <input
             type="url"
             value={form.metadataUrl}

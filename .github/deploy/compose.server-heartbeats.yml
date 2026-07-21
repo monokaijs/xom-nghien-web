@@ -9,6 +9,8 @@ services:
   server-heartbeats:
     image: ghcr.io/monokaijs/xom-nghien-web-server-heartbeats:latest
     restart: unless-stopped
+    networks:
+      - shared-network
     env_file:
       - ./env/mysql.env
     environment:

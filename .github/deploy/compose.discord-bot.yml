@@ -2,6 +2,8 @@ services:
   discord-bot:
     image: ghcr.io/monokaijs/xom-nghien-web-discord-bot:latest
     restart: unless-stopped
+    networks:
+      - shared-network
     env_file:
       - ./env/discord-bot.env
       - ./env/mysql.env

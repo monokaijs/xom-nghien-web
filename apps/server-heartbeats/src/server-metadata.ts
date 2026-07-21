@@ -2,6 +2,7 @@ import { lookup } from 'node:dns/promises';
 import { createSocket } from 'node:dgram';
 import { parseServerAddress } from './server-address.js';
 import type { PlayerInfo, ServerMetadata, ServerOnlineStatus, ServerTarget } from './types.js';
+import { valheimPlayFab, ValheimPlayFabClient } from './valheim-playfab.js';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -203,12 +204,37 @@ async function queryPalworldMetadata(connectionLink: string): Promise<ServerMeta
   };
 }
 
+async function queryValheimMetadata(connectionLink: string): Promise<ServerMetadata> {
+  const server = parseServerAddress(connectionLink);
+  if (!server) return emptyServerMetadata();
+  const queriedAt = new Date().toISOString();
+
+  try {
+    const resolved = await lookup(server.host, { family: 4 });
+    const lobby = await valheimPlayFab.findActiveLobby(`${resolved.address}:${server.port}`);
+    if (!lobby) return offlineServerMetadata(queriedAt);
+    const players = ValheimPlayFabClient.playerCounts(lobby);
+    return {
+      ...emptyServerMetadata(),
+      status: 'online',
+      players: { ...players, list: [] },
+      queriedAt,
+    };
+  } catch (error) {
+    console.error(`Failed to query Valheim PlayFab lobby ${server.address}:`, error);
+    return { ...emptyServerMetadata(), queriedAt };
+  }
+}
+
 export async function queryServerMetadata(server: ServerTarget): Promise<ServerMetadata> {
   if (server.game === 'cs2' && server.connectionLink && parseServerAddress(server.connectionLink)) {
     return queryCs2Metadata(server.connectionLink);
   }
   if (server.game === 'palworld' && server.connectionLink && parseServerAddress(server.connectionLink)) {
     return queryPalworldMetadata(server.connectionLink);
+  }
+  if (server.game === 'valheim' && server.connectionLink && parseServerAddress(server.connectionLink)) {
+    return queryValheimMetadata(server.connectionLink);
   }
   if (!server.metadataUrl) return emptyServerMetadata();
 

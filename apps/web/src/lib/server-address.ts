@@ -5,7 +5,7 @@ export interface ParsedServerAddress {
 }
 
 const STEAM_CONNECT_PREFIX = /^steam:\/\/connect\//i;
-const STEAM_RUN_PREFIX = /^steam:\/\/(?:run|rungameid)\/730\//i;
+const STEAM_RUN_PREFIX = /^steam:\/\/(?:run|rungameid)\/\d+\//i;
 
 function decodeSteamCommand(value: string) {
   try {

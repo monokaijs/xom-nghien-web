@@ -3,6 +3,7 @@
 import React, { useEffect, useId, useRef } from 'react';
 import { signIn } from 'next-auth/react';
 import { IconX, IconBrandSteam, IconBrandGoogle, IconBrandDiscord, IconBrandGithub } from '@tabler/icons-react';
+import Link from 'next/link';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -101,9 +102,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           ))}
         </div>
 
-        <div className="mt-6 text-center text-sm text-white/40">
-          Bằng cách đăng nhập, bạn đồng ý với điều khoản sử dụng của chúng tôi
-        </div>
+        <p className="mt-6 text-center text-sm text-white/40">
+          Bằng cách đăng nhập, bạn đồng ý với <Link href="/terms" onClick={onClose} className="text-white/65 underline">Điều khoản</Link> và <Link href="/privacy" onClick={onClose} className="text-white/65 underline">Chính sách quyền riêng tư</Link>.
+        </p>
       </div>
     </div>
   );

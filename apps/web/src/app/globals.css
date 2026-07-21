@@ -80,6 +80,33 @@ a, button {
   cursor: pointer;
 }
 
+.legal-copy h2 {
+  margin-bottom: 0.75rem;
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+}
+
+.legal-copy p + p {
+  margin-top: 0.75rem;
+}
+
+.legal-copy a {
+  color: white;
+  text-decoration: underline;
+  text-decoration-color: rgb(255 255 255 / 35%);
+  text-underline-offset: 3px;
+}
+
+.legal-copy code {
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 0.35rem;
+  background: rgb(255 255 255 / 6%);
+  padding: 0.1rem 0.35rem;
+  color: white;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;

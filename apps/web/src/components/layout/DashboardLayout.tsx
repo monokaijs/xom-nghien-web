@@ -409,6 +409,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </header>
           {children}
+          <footer className="mt-auto flex flex-wrap justify-center gap-x-5 gap-y-2 pt-8 text-xs text-white/35">
+            <Link href="/privacy" className="hover:text-white/70">Quyền riêng tư</Link>
+            <Link href="/terms" className="hover:text-white/70">Điều khoản</Link>
+            <Link href="/support" className="hover:text-white/70">Hỗ trợ</Link>
+          </footer>
         </main>
       </div>
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />

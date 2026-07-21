@@ -1,0 +1,26 @@
+ARG NODE_VERSION=22.13.1
+FROM node:${NODE_VERSION}-slim AS base
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+WORKDIR /app
+RUN npm install -g pnpm@11.0.9
+
+FROM base AS build
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.json ./
+COPY apps/server-heartbeats/package.json ./apps/server-heartbeats/package.json
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/tsconfig/package.json ./packages/tsconfig/package.json
+RUN pnpm install --frozen-lockfile --filter @xom/server-heartbeats...
+COPY apps/server-heartbeats ./apps/server-heartbeats
+COPY packages/db ./packages/db
+COPY packages/tsconfig ./packages/tsconfig
+RUN pnpm --filter @xom/server-heartbeats build && pnpm --filter @xom/server-heartbeats deploy --legacy --prod /prod/server-heartbeats
+
+FROM node:${NODE_VERSION}-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /prod/server-heartbeats ./
+USER node
+EXPOSE 3200
+CMD ["node", "dist/index.js"]

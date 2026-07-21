@@ -49,6 +49,43 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@22.19.18)(vite@8.1.5(@types/node@22.19.18)(esbuild@0.25.12)(jiti@2.7.0)(tsx@4.23.1))
 
+  apps/server-heartbeats:
+    dependencies:
+      '@xom/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      drizzle-orm:
+        specifier: ^0.44.7
+        version: 0.44.7(mysql2@3.22.3(@types/node@22.19.18))
+      gamedig:
+        specifier: ^5.3.3
+        version: 5.3.3
+      mysql2:
+        specifier: ^3.15.3
+        version: 3.22.3(@types/node@22.19.18)
+    devDependencies:
+      '@types/gamedig':
+        specifier: ^5.0.3
+        version: 5.0.3
+      '@types/node':
+        specifier: ^22.18.0
+        version: 22.19.18
+      '@xom/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      esbuild:
+        specifier: ^0.25.12
+        version: 0.25.12
+      tsx:
+        specifier: ^4.20.6
+        version: 4.23.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@22.19.18)(vite@8.1.5(@types/node@22.19.18)(esbuild@0.25.12)(jiti@2.7.0)(tsx@4.23.1))
+
   apps/web:
     dependencies:
       '@auth/core':
@@ -69,9 +106,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      gamedig:
-        specifier: ^5.3.3
-        version: 5.3.3
       jose:
         specifier: ^6.1.0
         version: 6.2.3
@@ -103,9 +137,6 @@ importers:
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.3.0
-      '@types/gamedig':
-        specifier: ^5.0.3
-        version: 5.0.3
       '@types/node':
         specifier: ^22.18.0
         version: 22.19.18

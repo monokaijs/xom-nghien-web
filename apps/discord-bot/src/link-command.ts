@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { db, discordLinkTokens } from '@xom/db';
+import { db, discordLinkTokens, lt } from '@xom/db';
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -19,6 +19,8 @@ export async function handleLinkCommand(interaction: ChatInputCommandInteraction
     await interaction.reply({ content: 'Lệnh này chỉ dùng trong máy chủ Xóm Nghiện.', flags: MessageFlags.Ephemeral });
     return;
   }
+
+  await db.delete(discordLinkTokens).where(lt(discordLinkTokens.expiresAt, new Date()));
 
   const rawToken = randomBytes(32).toString('base64url');
   const tokenHash = createHash('sha256').update(rawToken).digest('hex');

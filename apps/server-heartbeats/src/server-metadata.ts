@@ -1,23 +1,11 @@
-import type { GameId } from '@/config/games';
-import { parseServerAddress } from '@/lib/server-address';
-import type { PlayerInfo, ServerMetadata, ServerOnlineStatus } from '@/types/server';
 import { lookup } from 'node:dns/promises';
 import { createSocket } from 'node:dgram';
-
-interface ServerMetadataQuery {
-  game: string;
-  connectionLink: string | null;
-  metadataUrl: string | null;
-}
-
-interface ServerMetadataAdapter {
-  getUrl: (server: ServerMetadataQuery) => string | null;
-  normalize: (payload: unknown) => ServerMetadata;
-}
+import { parseServerAddress } from './server-address.js';
+import type { PlayerInfo, ServerMetadata, ServerOnlineStatus, ServerTarget } from './types.js';
 
 type JsonRecord = Record<string, unknown>;
 
-const PALWORLD_PORT_PROBE_TIMEOUT = 1_500;
+const PALWORLD_PORT_PROBE_TIMEOUT_MS = 1_500;
 const PALWORLD_PORT_PROBE = Buffer.concat([
   Buffer.from([0xff, 0xff, 0xff, 0xff, 0x54]),
   Buffer.from('Source Engine Query\0', 'ascii'),
@@ -26,14 +14,19 @@ const PALWORLD_PORT_PROBE = Buffer.concat([
 export function emptyServerMetadata(): ServerMetadata {
   return {
     status: 'unknown',
-    players: {
-      online: null,
-      total: null,
-      list: [],
-    },
+    players: { online: null, total: null, list: [] },
     map: null,
     ping: null,
     queriedAt: null,
+  };
+}
+
+function offlineServerMetadata(queriedAt = new Date().toISOString()): ServerMetadata {
+  return {
+    ...emptyServerMetadata(),
+    status: 'offline',
+    players: { online: 0, total: null, list: [] },
+    queriedAt,
   };
 }
 
@@ -69,7 +62,6 @@ function toStatus(value: unknown): ServerOnlineStatus {
 function unwrapPayload(payload: unknown): unknown {
   if (Array.isArray(payload)) return payload[0];
   if (!isRecord(payload)) return payload;
-
   if (Array.isArray(payload.servers)) return payload.servers[0];
   if (isRecord(payload.data)) return payload.data;
   return payload;
@@ -77,34 +69,14 @@ function unwrapPayload(payload: unknown): unknown {
 
 function normalizePlayers(value: unknown) {
   if (Array.isArray(value)) {
-    const list = value
-      .filter(isRecord)
-      .map((player) => ({
-        name: toText(firstDefined(player.name, player.playerName)) || 'Unknown',
-        raw: isRecord(player.raw) ? {
-          score: toCount(player.raw.score) ?? undefined,
-          time: toCount(player.raw.time) ?? undefined,
-        } : undefined,
-      } satisfies PlayerInfo));
-
+    const list = value.filter(isRecord).map(toPlayerInfo);
     return { online: list.length, total: null, list };
   }
-
   if (!isRecord(value)) {
     return { online: toCount(value), total: null, list: [] as PlayerInfo[] };
   }
 
-  const rawList = Array.isArray(value.list) ? value.list : [];
-  const list = rawList
-    .filter(isRecord)
-    .map((player) => ({
-      name: toText(firstDefined(player.name, player.playerName)) || 'Unknown',
-      raw: isRecord(player.raw) ? {
-        score: toCount(player.raw.score) ?? undefined,
-        time: toCount(player.raw.time) ?? undefined,
-      } : undefined,
-    } satisfies PlayerInfo));
-
+  const list = (Array.isArray(value.list) ? value.list : []).filter(isRecord).map(toPlayerInfo);
   return {
     online: toCount(firstDefined(value.current, value.online, value.count)) ?? (list.length ? list.length : null),
     total: toCount(firstDefined(value.max, value.total, value.capacity)),
@@ -112,10 +84,17 @@ function normalizePlayers(value: unknown) {
   };
 }
 
-/**
- * Normalizes both the legacy tracker response and common per-server JSON shapes.
- * A game can replace this adapter later without changing ServerStatus or the card.
- */
+function toPlayerInfo(player: JsonRecord): PlayerInfo {
+  const raw = isRecord(player.raw) ? player.raw : {};
+  return {
+    name: toText(firstDefined(player.name, player.playerName)) || 'Unknown',
+    raw: {
+      score: toCount(raw.score) ?? undefined,
+      time: toCount(raw.time) ?? undefined,
+    },
+  };
+}
+
 export function normalizeServerMetadata(payload: unknown): ServerMetadata {
   const value = unwrapPayload(payload);
   if (!isRecord(value)) return emptyServerMetadata();
@@ -149,23 +128,9 @@ export function normalizeServerMetadata(payload: unknown): ServerMetadata {
   };
 }
 
-const httpMetadataAdapter: ServerMetadataAdapter = {
-  getUrl: (server) => server.metadataUrl,
-  normalize: normalizeServerMetadata,
-};
-
-// Keep the registry game-specific even while all three games share the HTTP
-// contract. A future direct query only needs to replace its game's adapter.
-const metadataAdapters: Partial<Record<GameId, ServerMetadataAdapter>> = {
-  cs2: httpMetadataAdapter,
-  valheim: httpMetadataAdapter,
-  palworld: httpMetadataAdapter,
-};
-
 async function queryCs2Metadata(connectionLink: string): Promise<ServerMetadata> {
   const server = parseServerAddress(connectionLink);
   if (!server) return emptyServerMetadata();
-
   const queriedAt = new Date().toISOString();
 
   try {
@@ -178,18 +143,7 @@ async function queryCs2Metadata(connectionLink: string): Promise<ServerMetadata>
       attemptTimeout: 3_000,
       maxRetries: 1,
     });
-
-    const players = (state.players || []).map((player) => {
-      const raw = isRecord(player.raw) ? player.raw : {};
-      return {
-        name: toText(player.name) || 'Unknown',
-        raw: {
-          score: toCount(raw.score) ?? undefined,
-          time: toCount(raw.time) ?? undefined,
-        },
-      } satisfies PlayerInfo;
-    });
-
+    const players = (state.players || []).map((player) => toPlayerInfo(player as JsonRecord));
     return {
       status: 'online',
       players: {
@@ -203,24 +157,17 @@ async function queryCs2Metadata(connectionLink: string): Promise<ServerMetadata>
     };
   } catch (error) {
     console.error(`Failed to query CS2 server ${server.address}:`, error);
-    return {
-      ...emptyServerMetadata(),
-      status: 'offline',
-      players: { online: 0, total: null, list: [] },
-      queriedAt,
-    };
+    return offlineServerMetadata(queriedAt);
   }
 }
 
 async function probePalworldPort(host: string, port: number) {
   try {
     const address = await lookup(host);
-
     return await new Promise<{ reachable: boolean; ping: number | null }>((resolve) => {
       const socket = createSocket(address.family === 6 ? 'udp6' : 'udp4');
       const startedAt = Date.now();
       let finished = false;
-
       const finish = (reachable: boolean, ping: number | null = null) => {
         if (finished) return;
         finished = true;
@@ -229,12 +176,7 @@ async function probePalworldPort(host: string, port: number) {
         socket.close();
         resolve({ reachable, ping });
       };
-
-      // UDP has no connection handshake. A reply confirms the endpoint, while
-      // an ICMP port-unreachable response is surfaced as a socket error. If the
-      // probe is not rejected, treat the configured game port as reachable.
-      const timeout = setTimeout(() => finish(true), PALWORLD_PORT_PROBE_TIMEOUT);
-
+      const timeout = setTimeout(() => finish(true), PALWORLD_PORT_PROBE_TIMEOUT_MS);
       socket.once('error', () => finish(false));
       socket.once('message', () => finish(true, Date.now() - startedAt));
       socket.connect(port, address.address, () => {
@@ -251,44 +193,34 @@ async function probePalworldPort(host: string, port: number) {
 async function queryPalworldMetadata(connectionLink: string): Promise<ServerMetadata> {
   const server = parseServerAddress(connectionLink);
   if (!server) return emptyServerMetadata();
-
   const result = await probePalworldPort(server.host, server.port);
   return {
     ...emptyServerMetadata(),
     status: result.reachable ? 'online' : 'offline',
-    players: {
-      online: result.reachable ? null : 0,
-      total: null,
-      list: [],
-    },
+    players: { online: result.reachable ? null : 0, total: null, list: [] },
     ping: result.ping,
     queriedAt: new Date().toISOString(),
   };
 }
 
-export async function queryServerMetadata(server: ServerMetadataQuery): Promise<ServerMetadata> {
+export async function queryServerMetadata(server: ServerTarget): Promise<ServerMetadata> {
   if (server.game === 'cs2' && server.connectionLink && parseServerAddress(server.connectionLink)) {
     return queryCs2Metadata(server.connectionLink);
   }
-
   if (server.game === 'palworld' && server.connectionLink && parseServerAddress(server.connectionLink)) {
     return queryPalworldMetadata(server.connectionLink);
   }
-
-  const adapter = metadataAdapters[server.game as GameId] || httpMetadataAdapter;
-  const url = adapter.getUrl(server);
-  if (!url) return emptyServerMetadata();
+  if (!server.metadataUrl) return emptyServerMetadata();
 
   try {
-    const response = await fetch(url, {
-      cache: 'no-store',
+    const response = await fetch(server.metadataUrl, {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(4_000),
     });
-    if (!response.ok) return emptyServerMetadata();
-    return adapter.normalize(await response.json());
+    if (!response.ok) return offlineServerMetadata();
+    return normalizeServerMetadata(await response.json());
   } catch (error) {
     console.error(`Failed to fetch metadata for ${server.game} server:`, error);
-    return emptyServerMetadata();
+    return offlineServerMetadata();
   }
 }

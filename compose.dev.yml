@@ -40,6 +40,29 @@ services:
       timeout: 5s
       retries: 5
 
+  server-heartbeats:
+    build:
+      context: .
+      dockerfile: Dockerfile.server-heartbeats
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      SERVER_HEARTBEATS_PORT: 3200
+      SERVER_HEARTBEATS_INTERVAL_MS: 15000
+    ports:
+      - "${SERVER_HEARTBEATS_PORT:-3200}:3200"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3200/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
   coturn:
     profiles: ["voice"]
     image: coturn/coturn:latest

@@ -1,0 +1,26 @@
+services:
+  web:
+    environment:
+      SERVER_HEARTBEATS_URL: http://server-heartbeats:3200
+    depends_on:
+      server-heartbeats:
+        condition: service_healthy
+
+  server-heartbeats:
+    image: ghcr.io/monokaijs/xom-nghien-web-server-heartbeats:latest
+    restart: unless-stopped
+    env_file:
+      - ./env/mysql.env
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      SERVER_HEARTBEATS_PORT: 3200
+      SERVER_HEARTBEATS_INTERVAL_MS: 15000
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3200/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5

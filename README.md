@@ -20,6 +20,17 @@ To stop the local infrastructure:
 pnpm dev:services:down
 ```
 
+## Server heartbeats
+
+`server-heartbeats` probes game servers outside the web request path. It replaces
+its in-memory status snapshot every 15 seconds and keeps serving the previous
+snapshot immediately while a slow or failed refresh is running. The web app reads
+that internal snapshot through `SERVER_HEARTBEATS_URL`; it never contacts a game
+server directly.
+
+The service starts with `pnpm dev:services`. To run it directly instead, keep
+MySQL running and use `pnpm dev:heartbeats`.
+
 ## Discord activity bot
 
 Create a Discord application, install it in the community guild with the `bot`
@@ -39,9 +50,14 @@ Alternatively, build it as a separate container with:
 docker compose -f compose.dev.yml --profile discord up -d --build
 ```
 
-The bot registers `/link` in the configured guild. Its private link sends the
-member to the website to confirm account ownership and credit previously stored
-activity.
+The bot registers `/link` and `/support` in the configured guild. The private
+link from `/link` sends the member to the website to confirm account ownership
+and credit previously stored activity. `/support` provides direct links to the
+public support, privacy, and terms pages.
+
+Before submitting the Discord application for verification, set
+`NEXT_PUBLIC_SUPPORT_EMAIL`, deploy the public legal pages, and complete the
+portal checklist in [`docs/discord-verification.md`](docs/discord-verification.md).
 
 ## P2P voice rooms
 

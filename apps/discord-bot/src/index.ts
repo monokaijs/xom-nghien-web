@@ -8,6 +8,7 @@ import { config } from './config.js';
 import { startHealthServer } from './health.js';
 import { handleLinkCommand, linkCommand } from './link-command.js';
 import { log } from './logger.js';
+import { handleSupportCommand, supportCommand } from './support-command.js';
 import { VoiceTracker } from './voice-tracker.js';
 import { isMessageEligible } from './scoring.js';
 
@@ -28,7 +29,7 @@ client.once(Events.ClientReady, async (readyClient) => {
       throw new Error('DISCORD_APPLICATION_ID does not match the authenticated bot');
     }
     const guild = await readyClient.guilds.fetch(config.guildId);
-    await guild.commands.set([linkCommand]);
+    await guild.commands.set([linkCommand, supportCommand]);
     voiceTracker = new VoiceTracker(guild, config.voiceCheckpointMs);
     await voiceTracker.start();
     log('info', 'discord_ready', { user: readyClient.user.tag, guildId: guild.id });
@@ -69,12 +70,20 @@ client.on(Events.VoiceStateUpdate, (oldState, newState) => {
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
-  if (!interaction.isChatInputCommand() || interaction.commandName !== linkCommand.name) return;
+  if (!interaction.isChatInputCommand()) return;
   try {
-    await handleLinkCommand(interaction);
+    if (interaction.commandName === linkCommand.name) {
+      await handleLinkCommand(interaction);
+    } else if (interaction.commandName === supportCommand.name) {
+      await handleSupportCommand(interaction);
+    }
   } catch (error) {
-    log('error', 'link_command_failed', { discordUserId: interaction.user.id, error: String(error) });
-    const response = { content: 'Không thể tạo liên kết lúc này. Vui lòng thử lại.', flags: 64 as const };
+    log('error', 'command_failed', {
+      commandName: interaction.commandName,
+      discordUserId: interaction.user.id,
+      error: String(error),
+    });
+    const response = { content: 'Không thể xử lý lệnh lúc này. Vui lòng thử lại.', flags: 64 as const };
     if (interaction.replied || interaction.deferred) await interaction.followUp(response);
     else await interaction.reply(response);
   }

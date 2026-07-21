@@ -2,18 +2,13 @@ import type { Metadata } from 'next';
 import { GameServersCard, HeroCard } from '@/components/cards';
 import DashboardColumns from '@/components/game/DashboardColumns';
 import GameDirectoryCard from '@/components/game/GameDirectoryCard';
-import { getServersWithStatus } from '@/lib/utils/servers';
 
 export const metadata: Metadata = {
   title: 'Palworld | Xóm Nghiện',
   description: 'Danh sách máy chủ Palworld của cộng đồng Xóm Nghiện.',
 };
 
-export const dynamic = 'force-dynamic';
-
-export default async function PalworldPage() {
-  const servers = await getServersWithStatus('palworld');
-
+export default function PalworldPage() {
   return (
     <DashboardColumns sidebar={<GameDirectoryCard activeGameId="palworld" />} stackSidebarOnTablet>
       <HeroCard
@@ -28,7 +23,7 @@ export default async function PalworldPage() {
         imageFit="contain"
       />
 
-      <GameServersCard title="Máy Chủ Palworld" initialServers={servers} layout="grid" />
+      <GameServersCard title="Máy Chủ Palworld" gameId="palworld" layout="grid" />
     </DashboardColumns>
   );
 }

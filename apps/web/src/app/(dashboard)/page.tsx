@@ -2,13 +2,8 @@ import React from 'react';
 import { CommunityLeaderboardCard, GameServersCard, HeroCard } from '@/components/cards';
 import DashboardColumns from '@/components/game/DashboardColumns';
 import GameDirectoryCard from '@/components/game/GameDirectoryCard';
-import { getServersWithStatus } from '@/lib/utils/servers';
 
-export const dynamic = 'force-dynamic';
-
-export default async function Dashboard() {
-  const servers = await getServersWithStatus();
-
+export default function Dashboard() {
   return (
     <DashboardColumns
       sidebar={(
@@ -24,7 +19,7 @@ export default async function Dashboard() {
         imageUrl="https://cdn.xomnghien.com/agents.webp"
       />
 
-      <GameServersCard initialServers={servers} layout="grid" />
+      <GameServersCard layout="grid" />
     </DashboardColumns>
   );
 }

@@ -40,5 +40,26 @@ services:
       timeout: 5s
       retries: 5
 
+  coturn:
+    profiles: ["voice"]
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    command:
+      - --no-cli
+      - --log-file=stdout
+      - --fingerprint
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SHARED_SECRET:-local-dev-turn-secret-change-before-production}
+      - --realm=${TURN_REALM:-localhost}
+      - --external-ip=${TURN_EXTERNAL_IP:-127.0.0.1}
+      - --min-port=${TURN_MIN_PORT:-49160}
+      - --max-port=${TURN_MAX_PORT:-49200}
+      - --user-quota=12
+      - --total-quota=1200
+    ports:
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+      - "${TURN_MIN_PORT:-49160}-${TURN_MAX_PORT:-49200}:${TURN_MIN_PORT:-49160}-${TURN_MAX_PORT:-49200}/udp"
+
 volumes:
   xom_mysql_data:

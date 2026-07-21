@@ -42,3 +42,26 @@ docker compose -f compose.dev.yml --profile discord up -d --build
 The bot registers `/link` in the configured guild. Its private link sends the
 member to the website to confirm account ownership and credit previously stored
 activity.
+
+## P2P voice rooms
+
+The `/voice` page uses PeerJS Cloud for signaling. Audio and current-session chat
+travel directly between browsers; the web app stores room metadata and short-lived
+presence leases only. Apply `packages/db/migrations/020_add_voice_rooms.sql` before
+enabling the feature in an existing database.
+
+Set `VOICE_ENABLED=true` and replace the guest-cookie and room-code secrets in
+production. Public HTTPS is required for microphone access. PeerJS uses the STUN
+servers in `STUN_URLS`; no PeerJS or Socket.IO service is hosted by this project.
+
+TURN is optional but recommended for networks where direct P2P traversal fails.
+To run the included coturn profile locally or on a single public Docker host:
+
+```bash
+docker compose -f compose.dev.yml --profile voice up -d coturn
+```
+
+Set `TURN_EXTERNAL_IP` to the host's public IP, expose TCP/UDP 3478 and the UDP
+relay range, set `TURN_URLS` to the public `turn:`/`turns:` URLs, and use the same
+`TURN_SHARED_SECRET` in the web and coturn containers. Static TURN credentials are
+never sent to browsers; the session endpoint derives one-hour credentials.

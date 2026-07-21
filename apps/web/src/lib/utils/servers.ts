@@ -1,4 +1,4 @@
-import { db, desc, servers } from '@xom/db';
+import { asc, db, desc, servers } from '@xom/db';
 import { getGame } from '@/config/games';
 import { queryServerMetadata } from '@/lib/server-metadata';
 
@@ -12,7 +12,7 @@ export async function getServersWithStatus(gameId?: string) {
       connectionGuide: servers.connectionGuide,
       description: servers.description,
       metadataUrl: servers.metadataUrl,
-    }).from(servers).orderBy(desc(servers.created_at));
+    }).from(servers).orderBy(asc(servers.sortOrder), desc(servers.created_at));
 
     return Promise.all(rows
       .filter((server) => !gameId || server.game === gameId)

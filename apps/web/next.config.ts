@@ -4,7 +4,7 @@ import path from "path";
 const nextConfig: NextConfig = {
   output: 'standalone',
   outputFileTracingRoot: path.join(process.cwd(), '../..'),
-  transpilePackages: ['@xom/db'],
+  transpilePackages: ['@xom/db', '@xom/voice-contracts'],
   images: {
     remotePatterns: [
       {

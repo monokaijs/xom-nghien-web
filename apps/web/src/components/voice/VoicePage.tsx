@@ -3,8 +3,11 @@
 import React, { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DataConnection, MediaConnection, Peer } from 'peerjs';
 import {
+  IconCheck,
+  IconChevronDown,
   IconCopy,
   IconDeaf,
+  IconDoorEnter,
   IconEdit,
   IconHeadphones,
   IconLock,
@@ -16,7 +19,6 @@ import {
   IconPlus,
   IconRefresh,
   IconSend,
-  IconSettings,
   IconShield,
   IconTrash,
   IconUsers,
@@ -106,7 +108,7 @@ function ParticipantRow({
     audio.srcObject = stream;
     audio.muted = deafened;
     void audio.play().catch(() => undefined);
-    if (outputDeviceId && 'setSinkId' in audio) {
+    if ('setSinkId' in audio) {
       void (audio as HTMLAudioElement & { setSinkId(id: string): Promise<void> }).setSinkId(outputDeviceId).catch(() => undefined);
     }
   }, [stream, local, outputDeviceId, deafened]);
@@ -157,13 +159,14 @@ export default function VoicePage() {
   const [message, setMessage] = useState('');
   const [privateCode, setPrivateCode] = useState('');
   const [lastAccessCode, setLastAccessCode] = useState<string | null>(null);
+  const [joinOpen, setJoinOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState('');
   const [createVisibility, setCreateVisibility] = useState<'public' | 'private'>('public');
   const [manageOpen, setManageOpen] = useState(false);
   const [manageName, setManageName] = useState('');
   const [manageVisibility, setManageVisibility] = useState<'public' | 'private'>('public');
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [deviceMenu, setDeviceMenu] = useState<'input' | 'output' | null>(null);
   const [inputDevices, setInputDevices] = useState<MediaDeviceInfo[]>([]);
   const [outputDevices, setOutputDevices] = useState<MediaDeviceInfo[]>([]);
   const [inputDeviceId, setInputDeviceId] = useState('');
@@ -181,6 +184,7 @@ export default function VoicePage() {
   const dataConnectionsRef = useRef(new Map<string, DataConnection>());
   const mediaConnectionsRef = useRef(new Map<string, MediaConnection>());
   const leavingRef = useRef(false);
+  const deviceControlsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { snapshotRef.current = snapshot; }, [snapshot]);
 
@@ -225,6 +229,29 @@ export default function VoicePage() {
     setInputDevices(devices.filter((device) => device.kind === 'audioinput'));
     setOutputDevices(devices.filter((device) => device.kind === 'audiooutput'));
   }, []);
+
+  useEffect(() => {
+    if (!navigator.mediaDevices) return;
+    const handleDeviceChange = () => void refreshDevices().catch(() => undefined);
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+    return () => navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+  }, [refreshDevices]);
+
+  useEffect(() => {
+    if (!deviceMenu) return;
+    const closeMenu = (event: MouseEvent) => {
+      if (!deviceControlsRef.current?.contains(event.target as Node)) setDeviceMenu(null);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDeviceMenu(null);
+    };
+    document.addEventListener('mousedown', closeMenu);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeMenu);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [deviceMenu]);
 
   const sendEnvelope = useCallback((envelope: P2PEnvelope) => {
     for (const connection of dataConnectionsRef.current.values()) {
@@ -372,7 +399,7 @@ export default function VoicePage() {
   }, [loadRooms]);
 
   const joinRoom = useCallback(async ({ roomId, accessCode }: { roomId?: string; accessCode?: string }) => {
-    if (!session || status === 'connecting') return;
+    if (!session || status === 'connecting') return false;
     try {
       setStatus('connecting');
       setError(null);
@@ -411,9 +438,11 @@ export default function VoicePage() {
       for (const participant of result.snapshot.participants) connectToParticipant(participant);
       setStatus('connected');
       setMobilePanel('rooms');
+      return true;
     } catch (joinError) {
       await leaveRoom(false);
       setError(joinError instanceof Error ? joinError.message : 'Không thể vào phòng');
+      return false;
     }
   }, [applySnapshot, attachMediaConnection, connectToParticipant, inputDeviceId, leaveRoom, refreshDevices, registerDataConnection, session, status, validatePeer]);
 
@@ -572,22 +601,59 @@ export default function VoicePage() {
   };
 
   const changeInput = async (deviceId: string) => {
-    setInputDeviceId(deviceId);
-    if (!localStreamRef.current) return;
-    const next = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId }, echoCancellation: true, noiseSuppression: true } });
-    const track = next.getAudioTracks()[0];
-    track.enabled = !muted && !deafened;
-    for (const call of mediaConnectionsRef.current.values()) {
-      const sender = call.peerConnection?.getSenders().find((item) => item.track?.kind === 'audio');
-      await sender?.replaceTrack(track);
+    setDeviceMenu(null);
+    if (!localStreamRef.current) {
+      setInputDeviceId(deviceId);
+      return;
     }
-    for (const oldTrack of localStreamRef.current.getTracks()) oldTrack.stop();
-    localStreamRef.current = next;
+    let next: MediaStream | null = null;
+    try {
+      next = await navigator.mediaDevices.getUserMedia({
+        audio: deviceId
+          ? { deviceId: { exact: deviceId }, echoCancellation: true, noiseSuppression: true }
+          : { echoCancellation: true, noiseSuppression: true },
+      });
+      const track = next.getAudioTracks()[0];
+      track.enabled = !muted && !deafened;
+      for (const call of mediaConnectionsRef.current.values()) {
+        const sender = call.peerConnection?.getSenders().find((item) => item.track?.kind === 'audio');
+        await sender?.replaceTrack(track);
+      }
+      for (const oldTrack of localStreamRef.current.getTracks()) oldTrack.stop();
+      localStreamRef.current = next;
+      setInputDeviceId(deviceId);
+      next = null;
+    } catch (deviceError) {
+      setError(deviceError instanceof Error ? deviceError.message : 'Không thể đổi microphone');
+    } finally {
+      for (const track of next?.getTracks() || []) track.stop();
+    }
+  };
+
+  const changeOutput = (deviceId: string) => {
+    setOutputDeviceId(deviceId);
+    setDeviceMenu(null);
+  };
+
+  const openDeviceMenu = (menu: 'input' | 'output') => {
+    setDeviceMenu((current) => current === menu ? null : menu);
+    void refreshDevices().catch(() => setError('Không thể tải danh sách thiết bị âm thanh'));
+  };
+
+  const submitPrivateRoom = async (event: FormEvent) => {
+    event.preventDefault();
+    const accessCode = privateCode.trim();
+    if (accessCode.length !== 8) return;
+    if (await joinRoom({ accessCode })) {
+      setJoinOpen(false);
+      setPrivateCode('');
+    }
   };
 
   const selfParticipant = snapshot?.participants.find((participant) => participant.subject === session?.identity.subject);
   const canManage = snapshot?.capabilities.canManageRoom || false;
   const orderedParticipants = useMemo(() => snapshot?.participants || [], [snapshot?.participants]);
+  const supportsOutputSelection = typeof HTMLMediaElement !== 'undefined' && 'setSinkId' in HTMLMediaElement.prototype;
 
   if (needsGuestName) {
     return (
@@ -637,15 +703,72 @@ export default function VoicePage() {
             )}
           </div>
 
-          {snapshot && <div className="flex items-center justify-between border-t border-white/8 bg-black/10 px-2 py-1.5"><div className="flex items-center gap-1"><button onClick={toggleMute} disabled={selfParticipant?.forceMuted} className={`rounded-md p-2 ${muted ? 'bg-red-500 text-white' : 'text-white/60 hover:bg-white/8 hover:text-white'} disabled:opacity-40`} title={muted ? 'Bật mic' : 'Tắt mic'}>{muted ? <IconMicrophoneOff size={17} /> : <IconMicrophone size={17} />}</button><button onClick={toggleDeafen} className={`rounded-md p-2 ${deafened ? 'bg-red-500 text-white' : 'text-white/60 hover:bg-white/8 hover:text-white'}`} title="Tắt/bật âm thanh">{deafened ? <IconDeaf size={17} /> : <IconVolume size={17} />}</button><button onClick={() => setSettingsOpen(true)} className="rounded-md p-2 text-white/60 hover:bg-white/8 hover:text-white" title="Thiết bị"><IconSettings size={17} /></button></div><button onClick={() => void leaveRoom()} className="rounded-md bg-red-500/15 p-2 text-red-300 hover:bg-red-500 hover:text-white" title="Rời phòng"><IconPhone size={17} className="rotate-[135deg]" /></button></div>}
+          {snapshot && (
+            <div className="flex items-center justify-between border-t border-white/8 bg-black/10 px-2 py-1.5">
+              <div ref={deviceControlsRef} className="relative flex items-center gap-1">
+                <div className={`flex items-center rounded-md ${muted ? 'bg-red-500 text-white' : 'text-white/60 hover:bg-white/8 hover:text-white'}`}>
+                  <button onClick={toggleMute} disabled={selfParticipant?.forceMuted} className="rounded-l-md p-2 disabled:opacity-40" title={muted ? 'Bật mic' : 'Tắt mic'} aria-label={muted ? 'Bật mic' : 'Tắt mic'}>
+                    {muted ? <IconMicrophoneOff size={18} /> : <IconMicrophone size={18} />}
+                  </button>
+                  <button onClick={() => openDeviceMenu('input')} className="rounded-r-md px-1.5 py-2" title="Chọn microphone" aria-label="Chọn microphone" aria-expanded={deviceMenu === 'input'}>
+                    <IconChevronDown size={15} />
+                  </button>
+                </div>
+                <div className={`flex items-center rounded-md ${deafened ? 'bg-red-500 text-white' : 'text-white/60 hover:bg-white/8 hover:text-white'}`}>
+                  <button onClick={toggleDeafen} className="rounded-l-md p-2" title={deafened ? 'Bật âm thanh' : 'Tắt âm thanh'} aria-label={deafened ? 'Bật âm thanh' : 'Tắt âm thanh'}>
+                    {deafened ? <IconDeaf size={18} /> : <IconHeadphones size={18} />}
+                  </button>
+                  <button onClick={() => openDeviceMenu('output')} className="rounded-r-md px-1.5 py-2" title="Chọn loa hoặc tai nghe" aria-label="Chọn loa hoặc tai nghe" aria-expanded={deviceMenu === 'output'}>
+                    <IconChevronDown size={15} />
+                  </button>
+                </div>
+
+                {deviceMenu === 'input' && (
+                  <div className="absolute bottom-[calc(100%+0.5rem)] left-0 z-50 w-64 overflow-hidden rounded-xl border border-white/10 bg-bg-dark p-1.5 shadow-2xl" role="menu" aria-label="Microphone">
+                    <p className="px-2.5 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-white/35">Thiết bị đầu vào</p>
+                    <button onClick={() => void changeInput('')} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs hover:bg-white/8" role="menuitemradio" aria-checked={!inputDeviceId}>
+                      <span className="min-w-0 flex-1 truncate">Mặc định hệ thống</span>
+                      {!inputDeviceId && <IconCheck size={15} className="shrink-0 text-accent-primary" />}
+                    </button>
+                    {inputDevices.filter((device) => device.deviceId !== 'default').map((device, index) => (
+                      <button key={device.deviceId} onClick={() => void changeInput(device.deviceId)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs hover:bg-white/8" role="menuitemradio" aria-checked={inputDeviceId === device.deviceId}>
+                        <span className="min-w-0 flex-1 truncate">{device.label || `Microphone ${index + 1}`}</span>
+                        {inputDeviceId === device.deviceId && <IconCheck size={15} className="shrink-0 text-accent-primary" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {deviceMenu === 'output' && (
+                  <div className="absolute bottom-[calc(100%+0.5rem)] left-0 z-50 w-64 overflow-hidden rounded-xl border border-white/10 bg-bg-dark p-1.5 shadow-2xl" role="menu" aria-label="Loa hoặc tai nghe">
+                    <p className="px-2.5 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-white/35">Thiết bị đầu ra</p>
+                    {!supportsOutputSelection ? (
+                      <p className="px-2.5 py-2 text-xs leading-relaxed text-white/45">Trình duyệt này chưa hỗ trợ chọn thiết bị đầu ra.</p>
+                    ) : (
+                      <>
+                        <button onClick={() => changeOutput('')} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs hover:bg-white/8" role="menuitemradio" aria-checked={!outputDeviceId}>
+                          <span className="min-w-0 flex-1 truncate">Mặc định hệ thống</span>
+                          {!outputDeviceId && <IconCheck size={15} className="shrink-0 text-accent-primary" />}
+                        </button>
+                        {outputDevices.filter((device) => device.deviceId !== 'default').map((device, index) => (
+                          <button key={device.deviceId} onClick={() => changeOutput(device.deviceId)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs hover:bg-white/8" role="menuitemradio" aria-checked={outputDeviceId === device.deviceId}>
+                            <span className="min-w-0 flex-1 truncate">{device.label || `Thiết bị ${index + 1}`}</span>
+                            {outputDeviceId === device.deviceId && <IconCheck size={15} className="shrink-0 text-accent-primary" />}
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button onClick={() => void leaveRoom()} className="rounded-md bg-red-500/15 p-2 text-red-300 hover:bg-red-500 hover:text-white" title="Rời phòng" aria-label="Rời phòng"><IconPhone size={17} className="rotate-[135deg]" /></button>
+            </div>
+          )}
 
           <div className="border-t border-white/8 p-2">
-            <form onSubmit={(event) => { event.preventDefault(); if (privateCode.trim()) void joinRoom({ accessCode: privateCode.trim() }); }} className="flex gap-1.5">
-              <input value={privateCode} onChange={(event) => setPrivateCode(event.target.value.toUpperCase().slice(0, 8))} placeholder="Mã phòng riêng" className="min-w-0 flex-1 rounded-lg border border-white/8 bg-white/5 px-2.5 py-2 text-xs uppercase tracking-wider outline-none focus:border-accent-primary" />
-              <button disabled={privateCode.length !== 8 || status === 'connecting'} className="rounded-lg bg-white/8 px-3 text-xs font-medium hover:bg-white/12 disabled:opacity-40">Vào</button>
-            </form>
-            <div className="mt-1.5 grid grid-cols-[1fr_auto] gap-1.5">
+            <div className="grid grid-cols-[1fr_auto_auto] gap-1.5">
               <button onClick={() => setCreateOpen(true)} disabled={!session} className="flex items-center justify-center gap-1.5 rounded-lg bg-accent-primary px-3 py-2 text-xs font-semibold hover:bg-accent-primary/80 disabled:opacity-50"><IconPlus size={15} /> Tạo phòng</button>
+              <button onClick={() => setJoinOpen(true)} disabled={!session || status === 'connecting'} className="rounded-lg bg-white/8 p-2 text-white/60 hover:bg-white/12 hover:text-white disabled:opacity-40" title="Vào phòng riêng" aria-label="Vào phòng riêng"><IconDoorEnter size={16} /></button>
               <button onClick={() => void loadRooms()} className="rounded-lg bg-white/8 p-2 text-white/60 hover:bg-white/12 hover:text-white" title="Làm mới"><IconRefresh size={16} /></button>
             </div>
           </div>
@@ -662,11 +785,12 @@ export default function VoicePage() {
 
       <nav className="grid grid-cols-2 gap-2 rounded-xl border border-white/8 bg-bg-sidebar p-1.5 lg:hidden"><button onClick={() => setMobilePanel('rooms')} className={`flex items-center justify-center gap-2 rounded-lg py-2 text-sm ${mobilePanel === 'rooms' ? 'bg-accent-primary' : 'text-white/55'}`}><IconUsers size={17} /> Kênh thoại</button><button onClick={() => setMobilePanel('chat')} className={`flex items-center justify-center gap-2 rounded-lg py-2 text-sm ${mobilePanel === 'chat' ? 'bg-accent-primary' : 'text-white/55'}`}><IconMessageCircle size={17} /> Chat</button></nav>
 
+      {joinOpen && <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && status !== 'connecting') setJoinOpen(false); }}><form onSubmit={submitPrivateRoom} className="w-full max-w-sm rounded-3xl border border-white/10 bg-bg-sidebar p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="join-room-title"><div className="flex items-center justify-between"><div><h2 id="join-room-title" className="text-xl font-bold">Vào phòng riêng</h2><p className="mt-1 text-sm text-white/45">Nhập mã mời gồm 8 ký tự.</p></div><button type="button" onClick={() => setJoinOpen(false)} disabled={status === 'connecting'} className="rounded-lg p-1.5 text-white/55 hover:bg-white/8 hover:text-white disabled:opacity-40" aria-label="Đóng"><IconX /></button></div><label htmlFor="private-room-code" className="mt-6 block text-sm text-white/60">Mã phòng</label><input id="private-room-code" value={privateCode} onChange={(event) => setPrivateCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))} minLength={8} maxLength={8} autoFocus autoComplete="off" placeholder="XXXXXXXX" className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center font-semibold uppercase tracking-[0.3em] outline-none focus:border-accent-primary" /><button disabled={privateCode.length !== 8 || status === 'connecting'} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-accent-primary px-4 py-3 font-semibold hover:bg-accent-primary/80 disabled:opacity-40"><IconDoorEnter size={18} /> {status === 'connecting' ? 'Đang kết nối…' : 'Vào phòng'}</button></form></div>}
+
       {createOpen && <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreateOpen(false); }}><form onSubmit={createRoom} className="w-full max-w-md rounded-3xl border border-white/10 bg-bg-sidebar p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-xl font-bold">Tạo Voice Room</h2><button type="button" onClick={() => setCreateOpen(false)}><IconX /></button></div><label className="mt-6 block text-sm text-white/60">Tên phòng</label><input value={createName} onChange={(event) => setCreateName(event.target.value)} minLength={3} maxLength={80} autoFocus className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent-primary" placeholder="Ví dụ: Tám chuyện tối nay" /><div className="mt-4 grid grid-cols-2 gap-3"><button type="button" onClick={() => setCreateVisibility('public')} className={`rounded-xl border p-4 text-left ${createVisibility === 'public' ? 'border-accent-primary bg-accent-primary/10' : 'border-white/10'}`}><IconLockOpen className="mb-2" /><strong className="block">Công khai</strong><span className="text-xs text-white/40">Hiện trong danh sách</span></button><button type="button" onClick={() => setCreateVisibility('private')} className={`rounded-xl border p-4 text-left ${createVisibility === 'private' ? 'border-accent-primary bg-accent-primary/10' : 'border-white/10'}`}><IconLock className="mb-2" /><strong className="block">Riêng tư</strong><span className="text-xs text-white/40">Vào bằng mã 8 ký tự</span></button></div><button className="mt-6 w-full rounded-xl bg-accent-primary px-4 py-3 font-semibold">Tạo và tham gia</button></form></div>}
 
       {manageOpen && snapshot && <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setManageOpen(false); }}><form onSubmit={saveRoomSettings} className="w-full max-w-md rounded-3xl border border-white/10 bg-bg-sidebar p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-xl font-bold">Cài đặt phòng</h2><button type="button" onClick={() => setManageOpen(false)}><IconX /></button></div><label className="mt-6 block text-sm text-white/60">Tên phòng</label><input value={manageName} onChange={(event) => setManageName(event.target.value)} minLength={3} maxLength={80} autoFocus className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent-primary" /><label className="mt-5 block text-sm text-white/60">Quyền truy cập</label><div className="mt-2 grid grid-cols-2 gap-3"><button type="button" onClick={() => setManageVisibility('public')} className={`rounded-xl border p-3 ${manageVisibility === 'public' ? 'border-accent-primary bg-accent-primary/10' : 'border-white/10'}`}>Công khai</button><button type="button" onClick={() => setManageVisibility('private')} className={`rounded-xl border p-3 ${manageVisibility === 'private' ? 'border-accent-primary bg-accent-primary/10' : 'border-white/10'}`}>Riêng tư</button></div><button className="mt-6 w-full rounded-xl bg-accent-primary px-4 py-3 font-semibold">Lưu thay đổi</button></form></div>}
 
-      {settingsOpen && <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setSettingsOpen(false); }}><div className="w-full max-w-md rounded-3xl border border-white/10 bg-bg-sidebar p-6"><div className="flex items-center justify-between"><h2 className="text-xl font-bold">Thiết bị âm thanh</h2><button onClick={() => setSettingsOpen(false)}><IconX /></button></div><label className="mt-6 block text-sm text-white/60">Microphone</label><select value={inputDeviceId} onChange={(event) => void changeInput(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-bg-dark px-4 py-3">{inputDevices.map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Microphone ${device.deviceId.slice(0, 5)}`}</option>)}</select><label className="mt-5 block text-sm text-white/60">Loa / tai nghe</label><select value={outputDeviceId} onChange={(event) => setOutputDeviceId(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-bg-dark px-4 py-3"><option value="">Mặc định hệ thống</option>{outputDevices.map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Thiết bị ${device.deviceId.slice(0, 5)}`}</option>)}</select><p className="mt-4 text-xs text-white/35">Một số trình duyệt không hỗ trợ chọn thiết bị đầu ra.</p></div></div>}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CommunityLeaderboardCard, GameServersCard, HeroCard, LatestMatchesCard } from '@/components/cards';
+import { CommunityLeaderboardCard, GameServersCard, HeroCard } from '@/components/cards';
 import DashboardColumns from '@/components/game/DashboardColumns';
 import GameDirectoryCard from '@/components/game/GameDirectoryCard';
 import { getServersWithStatus } from '@/lib/utils/servers';
@@ -25,8 +25,6 @@ export default async function Dashboard() {
       />
 
       <GameServersCard initialServers={servers} layout="grid" />
-
-      <LatestMatchesCard />
     </DashboardColumns>
   );
 }

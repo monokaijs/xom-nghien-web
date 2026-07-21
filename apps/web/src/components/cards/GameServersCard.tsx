@@ -190,7 +190,7 @@ function ConnectDialog({ server, onClose }: { server: ServerStatus; onClose: () 
             </div>
           )}
 
-          {hasGuidance ? (
+          {hasGuidance && (
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <div className="mb-3 flex items-center gap-2 text-sm font-medium text-white/80">
                 <IconBook size={16} />
@@ -200,10 +200,10 @@ function ConnectDialog({ server, onClose }: { server: ServerStatus; onClose: () 
                 {server.connectionGuide}
               </div>
             </div>
-          ) : (
-            <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-8 text-center text-sm text-white/50">
-              Máy chủ này chưa có hướng dẫn thêm.
-            </p>
+          )}
+
+          {server.game === 'cs2' && (
+            <Cs2PlayerList server={server} className={hasGuidance ? 'mt-4' : ''} />
           )}
         </div>
 
@@ -232,4 +232,64 @@ function ConnectDialog({ server, onClose }: { server: ServerStatus; onClose: () 
       </div>
     </div>
   );
+}
+
+function Cs2PlayerList({ server, className = '' }: { server: ServerStatus; className?: string }) {
+  const { online, total, list } = server.metadata.players;
+  const count = online === null ? '--' : String(online);
+  const capacity = total === null ? '' : ` / ${total}`;
+
+  return (
+    <div className={`${className} rounded-2xl border border-white/10 bg-white/[0.03] p-4`}>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="text-sm font-medium text-white/80">Người chơi</div>
+        <div className="rounded-full bg-white/[0.06] px-2.5 py-1 text-xs font-semibold text-white/70">
+          {count}{capacity}
+        </div>
+      </div>
+
+      {list.length > 0 ? (
+        <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+          {list.map((player, index) => (
+            <div key={`${player.name}-${index}`} className="flex items-center justify-between gap-4 rounded-xl bg-white/[0.04] px-3 py-2.5">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-primary/15 text-xs font-semibold text-accent-primary">
+                  {index + 1}
+                </span>
+                <span className="truncate text-sm text-white/85">{player.name}</span>
+              </div>
+              {(player.raw?.score !== undefined || player.raw?.time !== undefined) && (
+                <div className="flex shrink-0 items-center gap-3 text-xs text-white/45">
+                  {player.raw.score !== undefined && <span>{player.raw.score} điểm</span>}
+                  {player.raw.time !== undefined && <span>{formatPlayerTime(player.raw.time)}</span>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="py-3 text-center text-sm text-white/45">
+          {getEmptyPlayerText(server)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function getEmptyPlayerText(server: ServerStatus) {
+  if (server.metadata.status === 'offline') return 'Máy chủ đang offline.';
+  if (server.metadata.players.online && server.metadata.players.online > 0) {
+    return 'Không thể tải tên người chơi.';
+  }
+  if (server.metadata.players.online === 0) return 'Chưa có người chơi trực tuyến.';
+  return 'Chưa có dữ liệu người chơi.';
+}
+
+function formatPlayerTime(seconds: number) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return hours > 0
+    ? `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+    : `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }

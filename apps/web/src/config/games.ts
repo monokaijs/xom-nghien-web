@@ -15,7 +15,7 @@ export const Games = [{
   href: '/valheim',
   serverCard: {
     coverImage: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/892970/header.jpg',
-    playerCount: 'online',
+    playerCount: 'online-total',
     showMap: false,
   },
 }, {

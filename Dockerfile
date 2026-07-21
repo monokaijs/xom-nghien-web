@@ -12,6 +12,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.json ./
 COPY apps/web/package.json ./apps/web/package.json
 COPY packages/db/package.json ./packages/db/package.json
 COPY packages/tsconfig/package.json ./packages/tsconfig/package.json
+COPY packages/voice-contracts/package.json ./packages/voice-contracts/package.json
 RUN pnpm install --frozen-lockfile --filter @xom/web...
 
 FROM deps AS build

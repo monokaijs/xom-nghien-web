@@ -175,12 +175,53 @@ export const servers = mysqlTable('servers', {
   connectionGuide: text('connection_guide'),
   description: text('description'),
   metadataUrl: varchar('metadata_url', { length: 2048 }),
+  sortOrder: int('sort_order').notNull().default(0),
   rcon_password: varchar('rcon_password', { length: 255 }),
   created_at: timestamp('created_at').defaultNow().notNull(),
   updated_at: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
   idxGame: index('idx_game').on(table.game),
   uniqueAddress: unique('unique_address').on(table.address),
+}));
+
+export const voiceRooms = mysqlTable('voice_rooms', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  name: varchar('name', { length: 80 }).notNull(),
+  visibility: varchar('visibility', { length: 10 }).notNull().default('public'),
+  accessCodeHash: varchar('access_code_hash', { length: 64 }),
+  ownerSubject: varchar('owner_subject', { length: 160 }).notNull(),
+  ownerName: varchar('owner_name', { length: 32 }).notNull(),
+  persistent: tinyint('persistent').notNull().default(0),
+  maxParticipants: tinyint('max_participants', { unsigned: true }).notNull().default(8),
+  expiresAt: datetime('expires_at', { mode: 'date', fsp: 3 }),
+  createdAt: timestamp('created_at', { fsp: 3 }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { fsp: 3 }).defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  uniqueAccessCode: unique('uq_voice_rooms_access_code').on(table.accessCodeHash),
+  idxDirectory: index('idx_voice_rooms_directory').on(table.visibility, table.persistent, table.createdAt),
+  idxExpiry: index('idx_voice_rooms_expiry').on(table.persistent, table.expiresAt),
+  idxOwner: index('idx_voice_rooms_owner').on(table.ownerSubject),
+}));
+
+export const voiceRoomPresence = mysqlTable('voice_room_presence', {
+  participantId: varchar('participant_id', { length: 36 }).primaryKey(),
+  roomId: varchar('room_id', { length: 36 })
+    .notNull()
+    .references(() => voiceRooms.id, { onDelete: 'cascade' }),
+  subject: varchar('subject', { length: 160 }).notNull(),
+  displayName: varchar('display_name', { length: 32 }).notNull(),
+  avatarUrl: varchar('avatar_url', { length: 512 }),
+  peerId: varchar('peer_id', { length: 128 }).notNull(),
+  muted: tinyint('muted').notNull().default(0),
+  deafened: tinyint('deafened').notNull().default(0),
+  forceMuted: tinyint('force_muted').notNull().default(0),
+  isAdmin: tinyint('is_admin').notNull().default(0),
+  joinedAt: timestamp('joined_at', { fsp: 3 }).defaultNow().notNull(),
+  lastSeenAt: datetime('last_seen_at', { mode: 'date', fsp: 3 }).notNull(),
+}, (table) => ({
+  uniqueSubject: unique('uq_voice_presence_subject').on(table.roomId, table.subject),
+  uniquePeer: unique('uq_voice_presence_peer').on(table.peerId),
+  idxLease: index('idx_voice_presence_lease').on(table.roomId, table.lastSeenAt),
 }));
 
 export type MatchzyStatsMatch = typeof matchzyStatsMatches.$inferSelect;
@@ -199,3 +240,7 @@ export type DiscordLinkToken = typeof discordLinkTokens.$inferSelect;
 export type NewDiscordLinkToken = typeof discordLinkTokens.$inferInsert;
 export type Server = typeof servers.$inferSelect;
 export type NewServer = typeof servers.$inferInsert;
+export type VoiceRoomRecord = typeof voiceRooms.$inferSelect;
+export type NewVoiceRoomRecord = typeof voiceRooms.$inferInsert;
+export type VoiceRoomPresenceRecord = typeof voiceRoomPresence.$inferSelect;
+export type NewVoiceRoomPresenceRecord = typeof voiceRoomPresence.$inferInsert;

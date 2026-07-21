@@ -13,6 +13,7 @@ import {
   IconX,
   IconSettings,
   IconShield,
+  IconHeadphones,
 } from '@tabler/icons-react';
 import IconSolid from "@/components/IconSolid";
 import { usePathname } from 'next/navigation';
@@ -222,6 +223,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <IconHome size={24} />
                 <span>Trang Chủ</span>
               </Link>
+              <Link href="/voice"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex items-center gap-4 transition-colors duration-300 p-3 rounded-lg hover:bg-white/5 ${pathname === '/voice' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'}`}>
+                <IconHeadphones size={24} />
+                <span>Voice Rooms</span>
+              </Link>
               {session?.user && (
                 <>
                   <Link href="/cs2/inventory"
@@ -298,6 +305,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               title="Trang Chủ"
             >
               <IconHome size={24} />
+            </Link>
+            <Link
+              href="/voice"
+              className={`transition-colors duration-300 flex items-center justify-center ${pathname === '/voice' ? 'text-accent-primary' : 'text-text-secondary hover:text-accent-primary'}`}
+              title="Voice Rooms"
+            >
+              <IconHeadphones size={24} />
             </Link>
             {session?.user && (
               <Link

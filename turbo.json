@@ -28,7 +28,13 @@
         "INVENTORY_PUBLIC_URL",
         "INVENTORY_INTERNAL_URL",
         "INVENTORY_SERVICE_URL",
-        "XN_INV_API_AUTH_KEY"
+        "XN_INV_API_AUTH_KEY",
+        "VOICE_ENABLED",
+        "VOICE_GUEST_COOKIE_SECRET",
+        "VOICE_ROOM_CODE_SECRET",
+        "STUN_URLS",
+        "TURN_URLS",
+        "TURN_SHARED_SECRET"
       ]
     },
     "typecheck": {

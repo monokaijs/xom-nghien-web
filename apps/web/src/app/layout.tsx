@@ -5,6 +5,11 @@ import AuthProvider from "@/components/providers/AuthProvider";
 export const metadata: Metadata = {
   title: "Xóm Nghiện",
   description: "Cộng đồng game Xóm Nghiện - máy chủ, trận đấu và hoạt động dành cho game thủ.",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

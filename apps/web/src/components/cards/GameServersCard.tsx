@@ -9,27 +9,78 @@ import { getMapImage } from '@/lib/utils/mapImage';
 
 interface GameServersCardProps {
   title?: string;
+  gameId?: string;
   initialServers?: ServerStatus[];
   layout?: 'carousel' | 'grid';
 }
 
 export default function GameServersCard({
   title = 'Máy Chủ Game',
+  gameId,
   initialServers = [],
   layout = 'carousel',
 }: GameServersCardProps) {
+  const [servers, setServers] = useState(initialServers);
+  const [loading, setLoading] = useState(initialServers.length === 0);
+  const [loadError, setLoadError] = useState(false);
+  const [requestVersion, setRequestVersion] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadServers() {
+      setLoading(true);
+      setLoadError(false);
+      try {
+        const query = gameId ? `?game=${encodeURIComponent(gameId)}` : '';
+        const response = await fetch(`/api/game-servers${query}`, {
+          signal: controller.signal,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to load servers');
+        setServers(data.servers || []);
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return;
+        console.error('Failed to load game servers:', error);
+        setLoadError(true);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+
+    void loadServers();
+    return () => controller.abort();
+  }, [gameId, requestVersion]);
+
   return (
     <section id="servers" className="flex scroll-mt-6 flex-col gap-3">
       <div className="flex items-center gap-2.5">
         <h2 className="text-lg font-semibold">{title}</h2>
-        {initialServers.length > 0 && (
+        {servers.length > 0 && (
           <span className="rounded-full bg-white/5 px-2 py-0.5 text-xs text-text-secondary">
-            {initialServers.length}
+            {servers.length}
           </span>
         )}
       </div>
 
-      {initialServers.length === 0 ? (
+      {loading && servers.length === 0 ? (
+        <div className="bg-card-bg rounded-[20px] p-8 text-center text-text-secondary">
+          <IconServer size={30} className="mx-auto mb-3 animate-pulse opacity-40" />
+          Đang tải máy chủ...
+        </div>
+      ) : loadError && servers.length === 0 ? (
+        <div className="bg-card-bg rounded-[20px] p-8 text-center text-text-secondary">
+          <IconServer size={30} className="mx-auto mb-3 opacity-40" />
+          <p>Chưa thể tải máy chủ</p>
+          <button
+            type="button"
+            onClick={() => setRequestVersion((version) => version + 1)}
+            className="mt-3 rounded-lg bg-white/5 px-3 py-1.5 text-sm text-white/70 hover:bg-white/10 hover:text-white"
+          >
+            Thử lại
+          </button>
+        </div>
+      ) : servers.length === 0 ? (
         <div className="bg-card-bg rounded-[20px] p-8 text-center text-text-secondary">
           <IconServer size={30} className="mx-auto mb-3 opacity-40" />
           Chưa có máy chủ
@@ -39,7 +90,7 @@ export default function GameServersCard({
           ? 'grid grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))] gap-4'
           : 'flex gap-4 overflow-x-auto pb-2 scrollbar-hide'
         }>
-          {initialServers.map((server) => (
+          {servers.map((server) => (
             <GameServerItem key={server.id} server={server} layout={layout} />
           ))}
         </div>

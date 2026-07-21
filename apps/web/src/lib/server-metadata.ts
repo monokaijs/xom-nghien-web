@@ -1,6 +1,8 @@
 import type { GameId } from '@/config/games';
 import { parseServerAddress } from '@/lib/server-address';
 import type { PlayerInfo, ServerMetadata, ServerOnlineStatus } from '@/types/server';
+import { lookup } from 'node:dns/promises';
+import { createSocket } from 'node:dgram';
 
 interface ServerMetadataQuery {
   game: string;
@@ -14,6 +16,12 @@ interface ServerMetadataAdapter {
 }
 
 type JsonRecord = Record<string, unknown>;
+
+const PALWORLD_PORT_PROBE_TIMEOUT = 1_500;
+const PALWORLD_PORT_PROBE = Buffer.concat([
+  Buffer.from([0xff, 0xff, 0xff, 0xff, 0x54]),
+  Buffer.from('Source Engine Query\0', 'ascii'),
+]);
 
 export function emptyServerMetadata(): ServerMetadata {
   return {
@@ -204,9 +212,67 @@ async function queryCs2Metadata(connectionLink: string): Promise<ServerMetadata>
   }
 }
 
+async function probePalworldPort(host: string, port: number) {
+  try {
+    const address = await lookup(host);
+
+    return await new Promise<{ reachable: boolean; ping: number | null }>((resolve) => {
+      const socket = createSocket(address.family === 6 ? 'udp6' : 'udp4');
+      const startedAt = Date.now();
+      let finished = false;
+
+      const finish = (reachable: boolean, ping: number | null = null) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timeout);
+        socket.removeAllListeners();
+        socket.close();
+        resolve({ reachable, ping });
+      };
+
+      // UDP has no connection handshake. A reply confirms the endpoint, while
+      // an ICMP port-unreachable response is surfaced as a socket error. If the
+      // probe is not rejected, treat the configured game port as reachable.
+      const timeout = setTimeout(() => finish(true), PALWORLD_PORT_PROBE_TIMEOUT);
+
+      socket.once('error', () => finish(false));
+      socket.once('message', () => finish(true, Date.now() - startedAt));
+      socket.connect(port, address.address, () => {
+        socket.send(PALWORLD_PORT_PROBE, (error) => {
+          if (error) finish(false);
+        });
+      });
+    });
+  } catch {
+    return { reachable: false, ping: null };
+  }
+}
+
+async function queryPalworldMetadata(connectionLink: string): Promise<ServerMetadata> {
+  const server = parseServerAddress(connectionLink);
+  if (!server) return emptyServerMetadata();
+
+  const result = await probePalworldPort(server.host, server.port);
+  return {
+    ...emptyServerMetadata(),
+    status: result.reachable ? 'online' : 'offline',
+    players: {
+      online: result.reachable ? null : 0,
+      total: null,
+      list: [],
+    },
+    ping: result.ping,
+    queriedAt: new Date().toISOString(),
+  };
+}
+
 export async function queryServerMetadata(server: ServerMetadataQuery): Promise<ServerMetadata> {
   if (server.game === 'cs2' && server.connectionLink && parseServerAddress(server.connectionLink)) {
     return queryCs2Metadata(server.connectionLink);
+  }
+
+  if (server.game === 'palworld' && server.connectionLink && parseServerAddress(server.connectionLink)) {
+    return queryPalworldMetadata(server.connectionLink);
   }
 
   const adapter = metadataAdapters[server.game as GameId] || httpMetadataAdapter;

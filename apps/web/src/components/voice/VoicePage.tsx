@@ -80,7 +80,7 @@ function useSpeaking(stream: MediaStream | null, enabled: boolean) {
   return speaking;
 }
 
-function ParticipantTile({
+function ParticipantRow({
   participant,
   stream,
   local,
@@ -112,33 +112,33 @@ function ParticipantTile({
   }, [stream, local, outputDeviceId, deafened]);
 
   return (
-    <article className={`group relative rounded-2xl border p-4 transition-colors ${speaking ? 'border-emerald-400/70 bg-emerald-400/10' : 'border-white/8 bg-white/4'}`}>
+    <article className={`group relative rounded-lg px-2 py-1.5 transition-colors ${speaking ? 'bg-emerald-400/10' : 'hover:bg-white/5'}`}>
       {!local && <audio ref={audioRef} autoPlay playsInline />}
-      <div className="flex items-center gap-3">
-        <div className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 ${speaking ? 'border-emerald-400' : 'border-white/10'} bg-accent-primary/15`}>
+      <div className="flex items-center gap-2">
+        <div className={`relative h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 ${speaking ? 'border-emerald-400' : 'border-transparent'} bg-accent-primary/15`}>
           {participant.avatarUrl ? (
             <img src={participant.avatarUrl} alt="" className="h-full w-full object-cover" />
           ) : (
-            <span className="flex h-full w-full items-center justify-center font-bold text-accent-primary">{participant.displayName.slice(0, 1).toUpperCase()}</span>
+            <span className="flex h-full w-full items-center justify-center text-xs font-bold text-accent-primary">{participant.displayName.slice(0, 1).toUpperCase()}</span>
           )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <p className="truncate font-semibold">{participant.displayName}{local ? ' (Bạn)' : ''}</p>
-            {participant.owner && <IconShield size={14} className="text-amber-300" title="Chủ phòng" />}
+            <p className="truncate text-sm font-medium">{participant.displayName}{local ? ' (Bạn)' : ''}</p>
+            {participant.owner && <IconShield size={12} className="shrink-0 text-amber-300" title="Chủ phòng" />}
           </div>
-          <p className="mt-0.5 text-xs text-white/45">
+          <p className="truncate text-[10px] text-white/40">
             {participant.forceMuted ? 'Bị tắt mic bởi chủ phòng' : participant.deafened ? 'Đã tắt âm thanh' : participant.muted ? 'Đã tắt mic' : speaking ? 'Đang nói' : 'Đã kết nối'}
           </p>
         </div>
-        {(participant.muted || participant.forceMuted) && <IconMicrophoneOff size={18} className="text-red-300" />}
+        {(participant.muted || participant.forceMuted) && <IconMicrophoneOff size={15} className="shrink-0 text-red-300" />}
       </div>
       {canManage && !local && (
-        <div className="mt-3 flex gap-2 opacity-80 transition-opacity group-hover:opacity-100">
-          <button onClick={() => onModerate(participant, participant.forceMuted ? 'unmute' : 'force-mute')} className="rounded-lg bg-white/7 px-2.5 py-1.5 text-xs hover:bg-white/12">
+        <div className="mt-1.5 flex gap-1 pl-10 opacity-70 transition-opacity group-hover:opacity-100">
+          <button onClick={() => onModerate(participant, participant.forceMuted ? 'unmute' : 'force-mute')} className="rounded-md bg-white/7 px-2 py-1 text-[10px] hover:bg-white/12">
             {participant.forceMuted ? 'Cho phép mic' : 'Tắt mic'}
           </button>
-          <button onClick={() => onModerate(participant, 'kick')} className="rounded-lg bg-red-500/10 px-2.5 py-1.5 text-xs text-red-300 hover:bg-red-500/20">
+          <button onClick={() => onModerate(participant, 'kick')} className="rounded-md bg-red-500/10 px-2 py-1 text-[10px] text-red-300 hover:bg-red-500/20">
             Mời ra
           </button>
         </div>
@@ -173,7 +173,7 @@ export default function VoicePage() {
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'reconnecting'>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [mobilePanel, setMobilePanel] = useState<'rooms' | 'people' | 'chat'>('rooms');
+  const [mobilePanel, setMobilePanel] = useState<'rooms' | 'chat'>('rooms');
 
   const peerRef = useRef<Peer | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -410,7 +410,7 @@ export default function VoicePage() {
       applySnapshot(result.snapshot);
       for (const participant of result.snapshot.participants) connectToParticipant(participant);
       setStatus('connected');
-      setMobilePanel('people');
+      setMobilePanel('rooms');
     } catch (joinError) {
       await leaveRoom(false);
       setError(joinError instanceof Error ? joinError.message : 'Không thể vào phòng');
@@ -604,70 +604,63 @@ export default function VoicePage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold"><IconHeadphones className="text-accent-primary" /> Voice Rooms</h1>
-          <p className="mt-1 text-sm text-white/45">Âm thanh và tin nhắn trực tiếp P2P qua PeerJS Cloud.</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => void loadRooms()} className="rounded-xl border border-white/10 bg-white/5 p-2.5 hover:bg-white/10" title="Làm mới"><IconRefresh size={19} /></button>
-          <button onClick={() => setCreateOpen(true)} disabled={!session} className="flex items-center gap-2 rounded-xl bg-accent-primary px-4 py-2.5 text-sm font-semibold hover:bg-accent-primary/80 disabled:opacity-50"><IconPlus size={18} /> Tạo phòng</button>
-        </div>
-      </div>
-
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       {error && <div className="flex items-center justify-between rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200"><span>{error}</span><button onClick={() => setError(null)}><IconX size={17} /></button></div>}
       {lastAccessCode && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm"><span>Mã phòng riêng: <strong className="ml-2 tracking-[0.25em] text-amber-200">{lastAccessCode}</strong> — mã chỉ hiển thị lần này.</span><button onClick={() => void navigator.clipboard.writeText(lastAccessCode)} className="flex items-center gap-1.5 text-amber-200"><IconCopy size={16} /> Sao chép</button></div>}
 
-      <div className="grid min-h-0 flex-1 grid-cols-[260px_minmax(320px,1fr)_320px] gap-4 max-xl:grid-cols-[230px_1fr_280px] max-lg:grid-cols-1">
-        <aside className={`${mobilePanel === 'rooms' ? 'flex' : 'hidden'} min-h-[480px] flex-col rounded-2xl border border-white/8 bg-bg-sidebar/55 p-4 lg:flex`}>
-          <div className="mb-4 flex items-center justify-between"><h2 className="font-semibold">Phòng công khai</h2><span className="text-xs text-white/40">{rooms.length}</span></div>
-          <form onSubmit={(event) => { event.preventDefault(); if (privateCode.trim()) void joinRoom({ accessCode: privateCode.trim() }); }} className="mb-4 flex gap-2">
-            <input value={privateCode} onChange={(event) => setPrivateCode(event.target.value.toUpperCase().slice(0, 8))} placeholder="Mã phòng riêng" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm uppercase tracking-wider outline-none focus:border-accent-primary" />
-            <button disabled={privateCode.length !== 8 || status === 'connecting'} className="rounded-xl bg-white/8 px-3 text-sm hover:bg-white/12 disabled:opacity-40">Vào</button>
-          </form>
-          <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
-            {rooms.length === 0 ? <div className="rounded-xl border border-dashed border-white/10 p-5 text-center text-sm text-white/40">Chưa có phòng. Hãy tạo phòng đầu tiên.</div> : rooms.map((room) => (
-              <button key={room.id} disabled={room.full || status === 'connecting'} onClick={() => void joinRoom({ roomId: room.id })} className={`rounded-xl border p-3 text-left transition-colors ${snapshot?.room.id === room.id ? 'border-accent-primary/60 bg-accent-primary/10' : 'border-white/7 bg-white/3 hover:bg-white/7'} disabled:opacity-50`}>
-                <div className="flex items-start justify-between gap-2"><p className="truncate font-medium">{room.name}</p>{room.persistent && <IconShield size={15} className="shrink-0 text-amber-300" />}</div>
-                <div className="mt-2 flex items-center justify-between text-xs text-white/40"><span className="truncate">{room.ownerName}</span><span className="flex items-center gap-1"><IconUsers size={13} /> {room.participantCount}/{room.maxParticipants}</span></div>
+      <div className="grid min-h-[560px] flex-1 grid-cols-[280px_minmax(0,1fr)] overflow-hidden rounded-2xl border border-white/8 bg-bg-sidebar/40 max-lg:grid-cols-1">
+        <aside className={`${mobilePanel === 'rooms' ? 'flex' : 'hidden'} min-h-0 flex-col border-r border-white/8 bg-bg-sidebar/70 lg:flex`}>
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-2">
+            <div className="flex items-center justify-between px-2 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-white/40"><span>Kênh thoại</span><span>{rooms.length}</span></div>
+            {rooms.length === 0 ? <div className="px-2 py-5 text-center text-xs text-white/35">Chưa có phòng.</div> : rooms.map((room) => (
+              <button key={room.id} disabled={room.full || status === 'connecting'} onClick={() => void joinRoom({ roomId: room.id })} className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors ${snapshot?.room.id === room.id ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/5 hover:text-white/85'} disabled:opacity-40`}>
+                <IconVolume size={16} className="shrink-0 text-white/45" />
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">{room.name}</span>
+                {room.persistent && <IconShield size={12} className="shrink-0 text-amber-300" />}
+                <span className="shrink-0 text-[10px] text-white/35">{room.participantCount}/{room.maxParticipants}</span>
               </button>
             ))}
+
+            {snapshot && (
+              <section className="mt-3 border-t border-white/8 pt-2">
+                <div className="flex items-center justify-between gap-2 px-2 pb-1">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5"><h2 className="truncate text-xs font-semibold text-white/70">{snapshot.room.name}</h2>{snapshot.room.visibility === 'private' ? <IconLock size={12} className="shrink-0 text-amber-300" /> : <IconLockOpen size={12} className="shrink-0 text-emerald-300" />}</div>
+                    <p className="text-[10px] text-white/35">{status === 'reconnecting' ? 'Đang kết nối lại…' : `${snapshot.room.participantCount} người kết nối`}</p>
+                  </div>
+                  {canManage && <div className="flex shrink-0"><button onClick={() => { setManageName(snapshot.room.name); setManageVisibility(snapshot.room.visibility); setManageOpen(true); }} className="rounded p-1 text-white/45 hover:bg-white/8 hover:text-white" title="Sửa phòng"><IconEdit size={13} /></button>{snapshot.room.visibility === 'private' && <button onClick={() => void rotateCode()} className="rounded p-1 text-white/45 hover:bg-white/8 hover:text-white" title="Đổi mã"><IconRefresh size={13} /></button>}<button onClick={() => void deleteRoom()} className="rounded p-1 text-red-300/70 hover:bg-red-500/10 hover:text-red-300" title="Xóa phòng"><IconTrash size={13} /></button></div>}
+                </div>
+                <div className="space-y-0.5">
+                  {orderedParticipants.map((participant) => <ParticipantRow key={participant.id} participant={participant} stream={participant.subject === session?.identity.subject ? localStreamRef.current : remoteStreams[participant.peerId] || null} local={participant.subject === session?.identity.subject} canManage={canManage} outputDeviceId={outputDeviceId} deafened={deafened} onModerate={(target, action) => void moderate(target, action)} />)}
+                </div>
+              </section>
+            )}
+          </div>
+
+          {snapshot && <div className="flex items-center justify-between border-t border-white/8 bg-black/10 px-2 py-1.5"><div className="flex items-center gap-1"><button onClick={toggleMute} disabled={selfParticipant?.forceMuted} className={`rounded-md p-2 ${muted ? 'bg-red-500 text-white' : 'text-white/60 hover:bg-white/8 hover:text-white'} disabled:opacity-40`} title={muted ? 'Bật mic' : 'Tắt mic'}>{muted ? <IconMicrophoneOff size={17} /> : <IconMicrophone size={17} />}</button><button onClick={toggleDeafen} className={`rounded-md p-2 ${deafened ? 'bg-red-500 text-white' : 'text-white/60 hover:bg-white/8 hover:text-white'}`} title="Tắt/bật âm thanh">{deafened ? <IconDeaf size={17} /> : <IconVolume size={17} />}</button><button onClick={() => setSettingsOpen(true)} className="rounded-md p-2 text-white/60 hover:bg-white/8 hover:text-white" title="Thiết bị"><IconSettings size={17} /></button></div><button onClick={() => void leaveRoom()} className="rounded-md bg-red-500/15 p-2 text-red-300 hover:bg-red-500 hover:text-white" title="Rời phòng"><IconPhone size={17} className="rotate-[135deg]" /></button></div>}
+
+          <div className="border-t border-white/8 p-2">
+            <form onSubmit={(event) => { event.preventDefault(); if (privateCode.trim()) void joinRoom({ accessCode: privateCode.trim() }); }} className="flex gap-1.5">
+              <input value={privateCode} onChange={(event) => setPrivateCode(event.target.value.toUpperCase().slice(0, 8))} placeholder="Mã phòng riêng" className="min-w-0 flex-1 rounded-lg border border-white/8 bg-white/5 px-2.5 py-2 text-xs uppercase tracking-wider outline-none focus:border-accent-primary" />
+              <button disabled={privateCode.length !== 8 || status === 'connecting'} className="rounded-lg bg-white/8 px-3 text-xs font-medium hover:bg-white/12 disabled:opacity-40">Vào</button>
+            </form>
+            <div className="mt-1.5 grid grid-cols-[1fr_auto] gap-1.5">
+              <button onClick={() => setCreateOpen(true)} disabled={!session} className="flex items-center justify-center gap-1.5 rounded-lg bg-accent-primary px-3 py-2 text-xs font-semibold hover:bg-accent-primary/80 disabled:opacity-50"><IconPlus size={15} /> Tạo phòng</button>
+              <button onClick={() => void loadRooms()} className="rounded-lg bg-white/8 p-2 text-white/60 hover:bg-white/12 hover:text-white" title="Làm mới"><IconRefresh size={16} /></button>
+            </div>
           </div>
         </aside>
 
-        <main className={`${mobilePanel === 'people' ? 'flex' : 'hidden'} min-h-[480px] flex-col rounded-2xl border border-white/8 bg-white/3 p-5 lg:flex`}>
-          {!snapshot ? (
-            <div className="flex flex-1 flex-col items-center justify-center text-center text-white/45"><IconHeadphones size={54} className="mb-4 opacity-30" /><h2 className="text-lg font-semibold text-white/70">Chọn một phòng để bắt đầu</h2><p className="mt-2 max-w-sm text-sm">Trình duyệt sẽ hỏi quyền microphone trước khi kết nối trực tiếp với những người khác.</p></div>
-          ) : (
-            <>
-              <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-white/8 pb-4">
-                <div><div className="flex items-center gap-2"><h2 className="text-lg font-bold">{snapshot.room.name}</h2>{snapshot.room.visibility === 'private' ? <IconLock size={16} className="text-amber-300" /> : <IconLockOpen size={16} className="text-emerald-300" />}</div><p className="mt-1 text-xs text-white/40">{status === 'reconnecting' ? 'Đang kết nối lại…' : `${snapshot.room.participantCount} người đang kết nối`}</p></div>
-                {canManage && <div className="flex gap-2"><button onClick={() => { setManageName(snapshot.room.name); setManageVisibility(snapshot.room.visibility); setManageOpen(true); }} className="rounded-lg bg-white/7 p-2" title="Sửa phòng"><IconEdit size={16} /></button>{snapshot.room.visibility === 'private' && <button onClick={() => void rotateCode()} className="rounded-lg bg-white/7 p-2" title="Đổi mã"><IconRefresh size={16} /></button>}<button onClick={() => void deleteRoom()} className="rounded-lg bg-red-500/10 p-2 text-red-300" title="Xóa phòng"><IconTrash size={16} /></button></div>}
-              </div>
-              <div className="grid flex-1 auto-rows-min grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3">
-                {orderedParticipants.map((participant) => <ParticipantTile key={participant.id} participant={participant} stream={participant.subject === session?.identity.subject ? localStreamRef.current : remoteStreams[participant.peerId] || null} local={participant.subject === session?.identity.subject} canManage={canManage} outputDeviceId={outputDeviceId} deafened={deafened} onModerate={(target, action) => void moderate(target, action)} />)}
-              </div>
-              <div className="mt-5 flex items-center justify-center gap-3 border-t border-white/8 pt-4">
-                <button onClick={toggleMute} disabled={selfParticipant?.forceMuted} className={`rounded-full p-3.5 ${muted ? 'bg-red-500 text-white' : 'bg-white/8 hover:bg-white/12'} disabled:opacity-50`} title={muted ? 'Bật mic' : 'Tắt mic'}>{muted ? <IconMicrophoneOff /> : <IconMicrophone />}</button>
-                <button onClick={toggleDeafen} className={`rounded-full p-3.5 ${deafened ? 'bg-red-500 text-white' : 'bg-white/8 hover:bg-white/12'}`} title="Tắt/bật âm thanh">{deafened ? <IconDeaf /> : <IconVolume />}</button>
-                <button onClick={() => setSettingsOpen(true)} className="rounded-full bg-white/8 p-3.5 hover:bg-white/12" title="Thiết bị"><IconSettings /></button>
-                <button onClick={() => void leaveRoom()} className="rounded-full bg-red-500 p-3.5 text-white hover:bg-red-600" title="Rời phòng"><IconPhone className="rotate-[135deg]" /></button>
-              </div>
-            </>
-          )}
+        <main className={`${mobilePanel === 'chat' ? 'flex' : 'hidden'} min-h-0 flex-col bg-white/[0.02] lg:flex`}>
+          <div className="flex h-12 shrink-0 items-center gap-2 border-b border-white/8 px-4"><IconMessageCircle size={17} className="text-white/45" /><h2 className="truncate text-sm font-semibold">{snapshot ? snapshot.room.name : 'Chat trực tiếp'}</h2></div>
+          <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-4">
+            {!snapshot ? <div className="m-auto text-center text-sm text-white/35"><IconHeadphones size={40} className="mx-auto mb-3 opacity-30" /><p>Chọn một kênh thoại để bắt đầu.</p></div> : messages.length === 0 ? <div className="m-auto max-w-sm text-center text-sm text-white/35">Tin nhắn chỉ tồn tại trong phiên hiện tại và không được lưu trên máy chủ.</div> : messages.map((item) => <div key={item.id} className="group rounded-lg px-2 py-2 hover:bg-white/[0.03]"><div className="flex items-center gap-2"><strong className="truncate text-sm text-accent-primary">{item.authorName}</strong><time className="text-[10px] text-white/30">{new Date(item.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</time>{canManage && <button onClick={() => deleteChatMessage(item.id)} className="ml-auto text-white/0 transition-colors group-hover:text-red-300" title="Xóa tin nhắn"><IconTrash size={13} /></button>}</div><p className="mt-0.5 break-words text-sm text-white/80">{item.body}</p></div>)}
+          </div>
+          <form onSubmit={sendMessage} className="flex gap-2 p-3 pt-1"><input value={message} onChange={(event) => setMessage(event.target.value.slice(0, 1000))} disabled={!snapshot} placeholder="Nhắn cho mọi người…" className="min-w-0 flex-1 rounded-lg border border-white/8 bg-white/5 px-3 py-2.5 text-sm outline-none focus:border-accent-primary disabled:opacity-40" /><button disabled={!snapshot || !message.trim()} className="rounded-lg bg-accent-primary p-2.5 disabled:opacity-40"><IconSend size={18} /></button></form>
         </main>
-
-        <aside className={`${mobilePanel === 'chat' ? 'flex' : 'hidden'} min-h-[480px] flex-col rounded-2xl border border-white/8 bg-bg-sidebar/55 p-4 lg:flex`}>
-          <div className="mb-4 flex items-center gap-2 border-b border-white/8 pb-3"><IconMessageCircle size={19} /><h2 className="font-semibold">Chat trực tiếp</h2></div>
-          <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
-            {!snapshot ? <div className="m-auto text-center text-sm text-white/35">Vào phòng để chat.</div> : messages.length === 0 ? <div className="m-auto max-w-[210px] text-center text-sm text-white/35">Tin nhắn chỉ tồn tại trong phiên hiện tại và không được lưu trên máy chủ.</div> : messages.map((item) => <div key={item.id} className="group rounded-xl bg-white/5 px-3 py-2.5"><div className="flex items-center justify-between gap-2"><strong className="truncate text-xs text-accent-primary">{item.authorName}</strong><div className="flex items-center gap-1"><time className="text-[10px] text-white/30">{new Date(item.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</time>{canManage && <button onClick={() => deleteChatMessage(item.id)} className="ml-1 text-white/0 transition-colors group-hover:text-red-300" title="Xóa tin nhắn"><IconTrash size={13} /></button>}</div></div><p className="mt-1 break-words text-sm text-white/80">{item.body}</p></div>)}
-          </div>
-          <form onSubmit={sendMessage} className="mt-4 flex gap-2"><input value={message} onChange={(event) => setMessage(event.target.value.slice(0, 1000))} disabled={!snapshot} placeholder="Nhắn cho mọi người…" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm outline-none focus:border-accent-primary disabled:opacity-40" /><button disabled={!snapshot || !message.trim()} className="rounded-xl bg-accent-primary p-2.5 disabled:opacity-40"><IconSend size={18} /></button></form>
-        </aside>
       </div>
 
-      <nav className="grid grid-cols-3 gap-2 rounded-2xl border border-white/8 bg-bg-sidebar p-2 lg:hidden"><button onClick={() => setMobilePanel('rooms')} className={`flex items-center justify-center gap-2 rounded-xl py-2 ${mobilePanel === 'rooms' ? 'bg-accent-primary' : 'text-white/55'}`}><IconUsers size={18} /> Phòng</button><button onClick={() => setMobilePanel('people')} className={`flex items-center justify-center gap-2 rounded-xl py-2 ${mobilePanel === 'people' ? 'bg-accent-primary' : 'text-white/55'}`}><IconHeadphones size={18} /> Voice</button><button onClick={() => setMobilePanel('chat')} className={`flex items-center justify-center gap-2 rounded-xl py-2 ${mobilePanel === 'chat' ? 'bg-accent-primary' : 'text-white/55'}`}><IconMessageCircle size={18} /> Chat</button></nav>
+      <nav className="grid grid-cols-2 gap-2 rounded-xl border border-white/8 bg-bg-sidebar p-1.5 lg:hidden"><button onClick={() => setMobilePanel('rooms')} className={`flex items-center justify-center gap-2 rounded-lg py-2 text-sm ${mobilePanel === 'rooms' ? 'bg-accent-primary' : 'text-white/55'}`}><IconUsers size={17} /> Kênh thoại</button><button onClick={() => setMobilePanel('chat')} className={`flex items-center justify-center gap-2 rounded-lg py-2 text-sm ${mobilePanel === 'chat' ? 'bg-accent-primary' : 'text-white/55'}`}><IconMessageCircle size={17} /> Chat</button></nav>
 
       {createOpen && <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreateOpen(false); }}><form onSubmit={createRoom} className="w-full max-w-md rounded-3xl border border-white/10 bg-bg-sidebar p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-xl font-bold">Tạo Voice Room</h2><button type="button" onClick={() => setCreateOpen(false)}><IconX /></button></div><label className="mt-6 block text-sm text-white/60">Tên phòng</label><input value={createName} onChange={(event) => setCreateName(event.target.value)} minLength={3} maxLength={80} autoFocus className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent-primary" placeholder="Ví dụ: Tám chuyện tối nay" /><div className="mt-4 grid grid-cols-2 gap-3"><button type="button" onClick={() => setCreateVisibility('public')} className={`rounded-xl border p-4 text-left ${createVisibility === 'public' ? 'border-accent-primary bg-accent-primary/10' : 'border-white/10'}`}><IconLockOpen className="mb-2" /><strong className="block">Công khai</strong><span className="text-xs text-white/40">Hiện trong danh sách</span></button><button type="button" onClick={() => setCreateVisibility('private')} className={`rounded-xl border p-4 text-left ${createVisibility === 'private' ? 'border-accent-primary bg-accent-primary/10' : 'border-white/10'}`}><IconLock className="mb-2" /><strong className="block">Riêng tư</strong><span className="text-xs text-white/40">Vào bằng mã 8 ký tự</span></button></div><button className="mt-6 w-full rounded-xl bg-accent-primary px-4 py-3 font-semibold">Tạo và tham gia</button></form></div>}
 

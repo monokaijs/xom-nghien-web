@@ -19,3 +19,26 @@ To stop the local infrastructure:
 ```bash
 pnpm dev:services:down
 ```
+
+## Discord activity bot
+
+Create a Discord application, install it in the community guild with the `bot`
+and `applications.commands` scopes, then fill in `DISCORD_BOT_TOKEN`,
+`DISCORD_APPLICATION_ID`, and `DISCORD_GUILD_ID` in `.env`. The bot only requests
+guild, guild-message, and voice-state intents; message content is never read.
+
+Run the bot beside the local web app with:
+
+```bash
+pnpm dev:bot
+```
+
+Alternatively, build it as a separate container with:
+
+```bash
+docker compose -f compose.dev.yml --profile discord up -d --build
+```
+
+The bot registers `/link` in the configured guild. Its private link sends the
+member to the website to confirm account ownership and credit previously stored
+activity.

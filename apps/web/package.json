@@ -8,6 +8,7 @@
     "start": "next start",
     "build": "next build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
     "lint": "next lint",
     "clean": "rm -rf .next"
   },
@@ -36,6 +37,7 @@
     "@xom/tsconfig": "workspace:*",
     "tailwindcss": "^4",
     "typescript": "^5.9.3",
+    "vitest": "^4.1.10",
     "wrangler": "^4.51.0"
   }
 }

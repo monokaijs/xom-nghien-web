@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { IconBrandGoogle, IconBrandDiscord, IconBrandGithub, IconCheck, IconAlertCircle, IconLink, IconUnlink, IconBrandSteam } from '@tabler/icons-react';
+import { DiscordInvitationLink } from '@/config/discord';
 
 interface OAuthProviders {
   steam: boolean;
@@ -55,6 +56,12 @@ export default function SettingsPage() {
     setMessage(null);
 
     try {
+      if (provider === 'discord') {
+        window.open(DiscordInvitationLink, '_blank', 'noopener,noreferrer');
+        setMessage({ type: 'success', text: 'Trong Discord, hãy dùng lệnh /link để tạo liên kết bảo mật.' });
+        setActionLoading(null);
+        return;
+      }
       await signIn(provider, { callbackUrl: '/settings' });
     } catch (error) {
       setMessage({ type: 'error', text: `Không thể liên kết ${provider}` });
@@ -193,7 +200,7 @@ export default function SettingsPage() {
                     className="px-4 py-2 rounded-lg bg-accent-primary hover:bg-accent-primary/80 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <IconLink size={18} />
-                    <span>{actionLoading === provider.id ? 'Đang liên kết...' : 'Liên kết'}</span>
+                    <span>{actionLoading === provider.id ? 'Đang liên kết...' : provider.id === 'discord' ? 'Mở Discord' : 'Liên kết'}</span>
                   </button>
                 )}
               </div>
@@ -204,4 +211,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-

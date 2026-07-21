@@ -1,3 +1,5 @@
+import type { CommunityLeaderboardPeriod } from '@/lib/utils/community-leaderboard-period';
+
 export interface CommunityLeaderboardPlayer {
   name: string;
   avatar: string | null;
@@ -6,4 +8,9 @@ export interface CommunityLeaderboardPlayer {
 
 export interface CommunityLeaderboardResponse {
   players: CommunityLeaderboardPlayer[];
+  period: CommunityLeaderboardPeriod;
+  window: {
+    startsAt: string | null;
+    endsAt: string | null;
+  };
 }

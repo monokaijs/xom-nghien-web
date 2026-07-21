@@ -26,7 +26,7 @@ export default function CommunityLeaderboardCard({
 
     const fetchLeaderboard = async () => {
       try {
-        const response = await fetch('/api/community-leaderboard?limit=5', {
+        const response = await fetch('/api/community-leaderboard?limit=5&period=week', {
           signal: controller.signal,
         });
 
@@ -55,7 +55,7 @@ export default function CommunityLeaderboardCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 id={headingId} className="text-lg font-semibold">{title}</h3>
-          <p className="mt-1 text-xs text-text-secondary">Xếp hạng người chơi theo điểm cộng đồng.</p>
+          <p className="mt-1 text-xs text-text-secondary">Xếp hạng hoạt động trong tuần.</p>
         </div>
         <Link
           href="/leaderboard"
@@ -73,7 +73,7 @@ export default function CommunityLeaderboardCard({
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent-primary/15 text-accent-primary">
             <IconTrophy size={17} aria-hidden="true" />
           </span>
-          Điểm người chơi
+          Điểm tuần này
         </div>
 
         {loading ? (

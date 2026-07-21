@@ -1,4 +1,4 @@
-import { mysqlTable, int, varchar, float, tinyint, text, timestamp, index, unique, datetime, primaryKey } from 'drizzle-orm/mysql-core';
+import { mysqlTable, bigint, int, varchar, float, tinyint, text, timestamp, index, unique, datetime, primaryKey } from 'drizzle-orm/mysql-core';
 
 
 export const matchzyStatsMatches = mysqlTable('matchzy_stats_matches', {
@@ -106,6 +106,7 @@ export const userInfo = mysqlTable('user_info', {
   idxLastUpdated: index('idx_last_updated').on(table.last_updated),
   idxGoogleId: index('idx_google_id').on(table.google_id),
   idxDiscordId: index('idx_discord_id').on(table.discord_id),
+  uniqueDiscordId: unique('uq_user_info_discord_id').on(table.discord_id),
   idxGithubOauthId: index('idx_github_oauth_id').on(table.github_oauth_id),
 }));
 
@@ -117,6 +118,53 @@ export const userPoints = mysqlTable('user_points', {
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
   idxPointsRanking: index('idx_user_points_ranking').on(table.points, table.userId),
+}));
+
+export const discordActivityEvents = mysqlTable('discord_activity_events', {
+  id: bigint('id', { mode: 'number', unsigned: true }).primaryKey().autoincrement(),
+  guildId: varchar('guild_id', { length: 32 }).notNull(),
+  discordUserId: varchar('discord_user_id', { length: 32 }).notNull(),
+  channelId: varchar('channel_id', { length: 32 }).notNull(),
+  activityType: varchar('activity_type', { length: 16 }).notNull(),
+  sourceKey: varchar('source_key', { length: 128 }).notNull(),
+  occurredAt: datetime('occurred_at', { mode: 'date', fsp: 3 }).notNull(),
+  durationSeconds: int('duration_seconds', { unsigned: true }).notNull().default(0),
+  points: int('points', { unsigned: true }).notNull(),
+  creditedUserId: varchar('credited_user_id', { length: 64 })
+    .references(() => userInfo.steamid64, { onDelete: 'set null' }),
+  creditedAt: datetime('credited_at', { mode: 'date', fsp: 3 }),
+  createdAt: timestamp('created_at', { fsp: 3 }).defaultNow().notNull(),
+}, (table) => ({
+  uniqueSource: unique('uq_discord_activity_source').on(table.guildId, table.activityType, table.sourceKey),
+  idxDiscordUncredited: index('idx_discord_activity_uncredited').on(table.discordUserId, table.creditedUserId),
+  idxUserPeriod: index('idx_discord_activity_user_period').on(table.creditedUserId, table.occurredAt),
+}));
+
+export const discordVoiceState = mysqlTable('discord_voice_state', {
+  guildId: varchar('guild_id', { length: 32 }).notNull(),
+  discordUserId: varchar('discord_user_id', { length: 32 }).notNull(),
+  channelId: varchar('channel_id', { length: 32 }),
+  connectedAt: datetime('connected_at', { mode: 'date', fsp: 3 }),
+  eligibleSince: datetime('eligible_since', { mode: 'date', fsp: 3 }),
+  remainderMs: int('remainder_ms', { unsigned: true }).notNull().default(0),
+  lastObservedAt: datetime('last_observed_at', { mode: 'date', fsp: 3 }).notNull(),
+  updatedAt: timestamp('updated_at', { fsp: 3 }).defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.guildId, table.discordUserId] }),
+  idxActiveChannel: index('idx_discord_voice_active_channel').on(table.guildId, table.channelId),
+}));
+
+export const discordLinkTokens = mysqlTable('discord_link_tokens', {
+  tokenHash: varchar('token_hash', { length: 64 }).primaryKey(),
+  guildId: varchar('guild_id', { length: 32 }).notNull(),
+  discordUserId: varchar('discord_user_id', { length: 32 }).notNull(),
+  displayName: varchar('display_name', { length: 255 }).notNull(),
+  avatarUrl: varchar('avatar_url', { length: 512 }),
+  expiresAt: datetime('expires_at', { mode: 'date', fsp: 3 }).notNull(),
+  usedAt: datetime('used_at', { mode: 'date', fsp: 3 }),
+  createdAt: timestamp('created_at', { fsp: 3 }).defaultNow().notNull(),
+}, (table) => ({
+  idxDiscordExpiry: index('idx_discord_link_user_expiry').on(table.discordUserId, table.expiresAt),
 }));
 
 export const servers = mysqlTable('servers', {
@@ -143,5 +191,11 @@ export type UserInfo = typeof userInfo.$inferSelect;
 export type NewUserInfo = typeof userInfo.$inferInsert;
 export type UserPoints = typeof userPoints.$inferSelect;
 export type NewUserPoints = typeof userPoints.$inferInsert;
+export type DiscordActivityEvent = typeof discordActivityEvents.$inferSelect;
+export type NewDiscordActivityEvent = typeof discordActivityEvents.$inferInsert;
+export type DiscordVoiceState = typeof discordVoiceState.$inferSelect;
+export type NewDiscordVoiceState = typeof discordVoiceState.$inferInsert;
+export type DiscordLinkToken = typeof discordLinkTokens.$inferSelect;
+export type NewDiscordLinkToken = typeof discordLinkTokens.$inferInsert;
 export type Server = typeof servers.$inferSelect;
 export type NewServer = typeof servers.$inferInsert;

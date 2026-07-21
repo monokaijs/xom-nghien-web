@@ -45,54 +45,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const sessionToken = request.cookies.get('next-auth.session-token')?.value ||
-                         request.cookies.get('__Secure-next-auth.session-token')?.value;
-
-    if (!sessionToken) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const token = await decode({
-      token: sessionToken,
-      secret: process.env.NEXTAUTH_SECRET!,
-    });
-
-    if (!token?.steamId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { provider, providerId } = body;
-
-    if (!provider || !providerId) {
-      return NextResponse.json({ error: 'Provider and providerId are required' }, { status: 400 });
-    }
-
-    const updateData: any = {};
-    if (provider === 'google') {
-      updateData.google_id = providerId;
-    } else if (provider === 'discord') {
-      updateData.discord_id = providerId;
-    } else if (provider === 'github') {
-      updateData.github_oauth_id = providerId;
-    } else {
-      return NextResponse.json({ error: 'Invalid provider' }, { status: 400 });
-    }
-
-    await db
-      .update(userInfo)
-      .set(updateData)
-      .where(eq(userInfo.steamid64, token.steamId as string));
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error linking OAuth provider:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
 export async function DELETE(request: NextRequest) {
   try {
     const sessionToken = request.cookies.get('next-auth.session-token')?.value ||
@@ -140,4 +92,3 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-

@@ -36,7 +36,7 @@ export default function GameServersCard({
         </div>
       ) : (
         <div className={layout === 'grid'
-          ? 'grid grid-cols-2 gap-4 max-xl:grid-cols-1'
+          ? 'grid grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))] gap-4'
           : 'flex gap-4 overflow-x-auto pb-2 scrollbar-hide'
         }>
           {initialServers.map((server) => (
@@ -70,12 +70,12 @@ function GameServerItem({ server, layout }: { server: ServerStatus; layout: 'car
 
   return (
     <article
-      className={`${layout === 'grid' ? 'min-w-0 w-full' : 'min-w-[350px] w-[350px]'} group relative aspect-video min-h-[210px] overflow-hidden rounded-[25px] border border-white/5 bg-[#242427] bg-cover bg-center shadow-lg`}
+      className={`${layout === 'grid' ? 'min-w-0 w-full' : 'min-w-[350px] w-[350px]'} group relative aspect-video overflow-hidden rounded-[25px] bg-[#242427] bg-cover bg-center shadow-lg ring-1 ring-inset ring-white/5`}
       style={{ backgroundImage: backgroundImages || undefined }}
     >
       <div className="absolute inset-0 z-10 bg-gradient-to-b from-bg-dark/80 via-bg-dark/45 to-bg-dark/90 transition-colors duration-300 group-hover:via-bg-dark/30" />
 
-      <div className="absolute inset-x-5 top-5 z-20">
+      <div className="absolute inset-x-4 top-4 z-20 sm:inset-x-5 sm:top-5">
         <div className="flex items-start justify-between gap-3">
           <h3 className="min-w-0 flex-1 truncate text-lg font-semibold text-white drop-shadow-md">
             {server.name}
@@ -100,7 +100,7 @@ function GameServerItem({ server, layout }: { server: ServerStatus; layout: 'car
         </div>
       </div>
 
-      <div className="absolute inset-x-5 bottom-5 z-20 flex items-end justify-between gap-4">
+      <div className="absolute inset-x-4 bottom-4 z-20 flex items-end justify-between gap-4 sm:inset-x-5 sm:bottom-5">
         <div>
           <div className="mb-1 text-xs text-white/70">Người Chơi</div>
           <div className="text-xl font-bold text-white drop-shadow-md">{playerValue}</div>

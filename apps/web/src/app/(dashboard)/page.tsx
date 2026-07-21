@@ -24,7 +24,7 @@ export default async function Dashboard() {
         imageUrl="https://cdn.xomnghien.com/agents.webp"
       />
 
-      <GameServersCard initialServers={servers} />
+      <GameServersCard initialServers={servers} layout="grid" />
 
       <LatestMatchesCard />
     </DashboardColumns>

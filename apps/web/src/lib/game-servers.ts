@@ -1,4 +1,5 @@
 import { getGame } from '@/config/games';
+import { getCs2LaunchUrl } from '@/lib/server-address';
 
 const BLOCKED_PROTOCOLS = new Set(['javascript:', 'data:', 'file:', 'vbscript:']);
 
@@ -76,7 +77,17 @@ export function parseGameServerInput(body: Record<string, unknown>): GameServerI
 export function openConnectionLink(connectionLink: string, game: string) {
   const link = connectionLink.trim();
 
-  if ((game === 'cs2' || game === 'palworld' || game === 'valheim') && /^[^\s/:]+:\d+$/.test(link)) {
+  if (game === 'cs2') {
+    const cs2LaunchUrl = getCs2LaunchUrl(link);
+    if (cs2LaunchUrl) {
+      // CS2 reliably accepts +connect through its app-specific launch command.
+      // steam://connect can open Steam without passing the address to CS2.
+      window.location.href = cs2LaunchUrl;
+      return;
+    }
+  }
+
+  if ((game === 'palworld' || game === 'valheim') && /^[^\s/:]+:\d+$/.test(link)) {
     window.location.href = `steam://connect/${link}`;
     return;
   }

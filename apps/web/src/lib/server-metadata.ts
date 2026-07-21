@@ -1,8 +1,10 @@
 import type { GameId } from '@/config/games';
+import { parseServerAddress } from '@/lib/server-address';
 import type { PlayerInfo, ServerMetadata, ServerOnlineStatus } from '@/types/server';
 
 interface ServerMetadataQuery {
   game: string;
+  connectionLink: string | null;
   metadataUrl: string | null;
 }
 
@@ -152,7 +154,61 @@ const metadataAdapters: Partial<Record<GameId, ServerMetadataAdapter>> = {
   palworld: httpMetadataAdapter,
 };
 
+async function queryCs2Metadata(connectionLink: string): Promise<ServerMetadata> {
+  const server = parseServerAddress(connectionLink);
+  if (!server) return emptyServerMetadata();
+
+  const queriedAt = new Date().toISOString();
+
+  try {
+    const { GameDig } = await import('gamedig');
+    const state = await GameDig.query({
+      type: 'counterstrike2',
+      host: server.host,
+      port: server.port,
+      socketTimeout: 1_500,
+      attemptTimeout: 3_000,
+      maxRetries: 1,
+    });
+
+    const players = (state.players || []).map((player) => {
+      const raw = isRecord(player.raw) ? player.raw : {};
+      return {
+        name: toText(player.name) || 'Unknown',
+        raw: {
+          score: toCount(raw.score) ?? undefined,
+          time: toCount(raw.time) ?? undefined,
+        },
+      } satisfies PlayerInfo;
+    });
+
+    return {
+      status: 'online',
+      players: {
+        online: toCount(state.numplayers) ?? players.length,
+        total: toCount(state.maxplayers),
+        list: players,
+      },
+      map: toText(state.map),
+      ping: toCount(state.ping),
+      queriedAt,
+    };
+  } catch (error) {
+    console.error(`Failed to query CS2 server ${server.address}:`, error);
+    return {
+      ...emptyServerMetadata(),
+      status: 'offline',
+      players: { online: 0, total: null, list: [] },
+      queriedAt,
+    };
+  }
+}
+
 export async function queryServerMetadata(server: ServerMetadataQuery): Promise<ServerMetadata> {
+  if (server.game === 'cs2' && server.connectionLink && parseServerAddress(server.connectionLink)) {
+    return queryCs2Metadata(server.connectionLink);
+  }
+
   const adapter = metadataAdapters[server.game as GameId] || httpMetadataAdapter;
   const url = adapter.getUrl(server);
   if (!url) return emptyServerMetadata();

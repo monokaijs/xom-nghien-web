@@ -17,6 +17,7 @@
     "@tabler/icons-react": "^3.35.0",
     "@xom/db": "workspace:*",
     "clsx": "^2.1.1",
+    "gamedig": "^5.3.3",
     "next": "16.2.6",
     "next-auth": "^4.24.13",
     "next-auth-steam": "github:monokaijs/next-auth-steam#fix/peer-legacy-deps",
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/gamedig": "^5.0.3",
     "@types/node": "^22.18.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",

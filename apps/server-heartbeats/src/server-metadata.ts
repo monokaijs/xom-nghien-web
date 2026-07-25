@@ -2,9 +2,9 @@ import { lookup } from 'node:dns/promises';
 import { createSocket } from 'node:dgram';
 import { parseServerAddress } from './server-address.js';
 import type { PlayerInfo, ServerMetadata, ServerOnlineStatus, ServerTarget } from './types.js';
-import { valheimPlayFab, ValheimPlayFabClient } from './valheim-playfab.js';
 
 type JsonRecord = Record<string, unknown>;
+type SteamQueryGame = 'counterstrike2' | 'valheim';
 
 const PALWORLD_PORT_PROBE_TIMEOUT_MS = 1_500;
 const PALWORLD_PORT_PROBE = Buffer.concat([
@@ -129,7 +129,10 @@ export function normalizeServerMetadata(payload: unknown): ServerMetadata {
   };
 }
 
-async function queryCs2Metadata(connectionLink: string): Promise<ServerMetadata> {
+async function querySteamMetadata(
+  connectionLink: string,
+  type: SteamQueryGame,
+): Promise<ServerMetadata> {
   const server = parseServerAddress(connectionLink);
   if (!server) return emptyServerMetadata();
   const queriedAt = new Date().toISOString();
@@ -137,14 +140,18 @@ async function queryCs2Metadata(connectionLink: string): Promise<ServerMetadata>
   try {
     const { GameDig } = await import('gamedig');
     const state = await GameDig.query({
-      type: 'counterstrike2',
+      type,
       host: server.host,
       port: server.port,
       socketTimeout: 1_500,
       attemptTimeout: 3_000,
       maxRetries: 1,
     });
-    const players = (state.players || []).map((player) => toPlayerInfo(player as JsonRecord));
+    // Valheim's A2S response exposes the count but redacts player names. Keep
+    // the list empty instead of returning one "Unknown" entry per player.
+    const players = type === 'counterstrike2'
+      ? (state.players || []).map((player) => toPlayerInfo(player as JsonRecord))
+      : [];
     return {
       status: 'online',
       players: {
@@ -152,14 +159,19 @@ async function queryCs2Metadata(connectionLink: string): Promise<ServerMetadata>
         total: toCount(state.maxplayers),
         list: players,
       },
-      map: toText(state.map),
+      // GameDig reports the Valheim server name in the map field.
+      map: type === 'counterstrike2' ? toText(state.map) : null,
       ping: toCount(state.ping),
       queriedAt,
     };
   } catch (error) {
-    console.error(`Failed to query CS2 server ${server.address}:`, error);
+    console.error(`Failed to query ${type} server ${server.address}:`, error);
     return offlineServerMetadata(queriedAt);
   }
+}
+
+async function queryCs2Metadata(connectionLink: string): Promise<ServerMetadata> {
+  return querySteamMetadata(connectionLink, 'counterstrike2');
 }
 
 async function probePalworldPort(host: string, port: number) {
@@ -205,25 +217,7 @@ async function queryPalworldMetadata(connectionLink: string): Promise<ServerMeta
 }
 
 async function queryValheimMetadata(connectionLink: string): Promise<ServerMetadata> {
-  const server = parseServerAddress(connectionLink);
-  if (!server) return emptyServerMetadata();
-  const queriedAt = new Date().toISOString();
-
-  try {
-    const resolved = await lookup(server.host, { family: 4 });
-    const lobby = await valheimPlayFab.findActiveLobby(`${resolved.address}:${server.port}`);
-    if (!lobby) return offlineServerMetadata(queriedAt);
-    const players = ValheimPlayFabClient.playerCounts(lobby);
-    return {
-      ...emptyServerMetadata(),
-      status: 'online',
-      players: { ...players, list: [] },
-      queriedAt,
-    };
-  } catch (error) {
-    console.error(`Failed to query Valheim PlayFab lobby ${server.address}:`, error);
-    return { ...emptyServerMetadata(), queriedAt };
-  }
+  return querySteamMetadata(connectionLink, 'valheim');
 }
 
 export async function queryServerMetadata(server: ServerTarget): Promise<ServerMetadata> {

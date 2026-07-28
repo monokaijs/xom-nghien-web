@@ -10,7 +10,6 @@ import {
   CS2Economy,
   CS2EconomyItem,
   CS2InventoryItem,
-  CS2_MAX_STICKERS,
   getNextStickerSchema
 } from "@ianlucas/cs2-lib";
 import clsx from "clsx";
@@ -22,13 +21,12 @@ import {
   useState
 } from "react";
 import { range } from "~/utils/number";
-import { useTranslate } from "./app-context";
+import { useRules, useTranslate } from "./app-context";
 import { AppliedStickerEditor } from "./applied-sticker-editor";
 import { ButtonWithTooltip } from "./button-with-tooltip";
-import { ViewerOverlay } from "./viewer-overlay";
+import { useNameItemString } from "./hooks/use-name-item";
 import { useViewer } from "./hooks/use-viewer";
 import { useViewerStatus } from "./hooks/use-viewer-status";
-import { useNameItemString } from "./hooks/use-name-item";
 import { ItemImage } from "./item-image";
 import { ModalButton } from "./modal-button";
 import { Presence } from "./presence";
@@ -36,6 +34,7 @@ import { SelectStickerModal } from "./select-sticker-modal";
 import { StickerSlotGrid } from "./sticker-slot-grid";
 import { UseItemFooter } from "./use-item-footer";
 import { UseItemHeader } from "./use-item-header";
+import { ViewerOverlay } from "./viewer-overlay";
 
 // Window to ignore the viewer's `change` echo of our own form edits, so the
 // panel isn't remounted under an active slider.
@@ -126,6 +125,7 @@ function Sticker3dEditorOverlay({
 }) {
   const translate = useTranslate();
   const nameItemString = useNameItemString();
+  const { inventoryItemMaxStickers } = useRules();
 
   const maxSchema = forItem.getStickerSchemaCount();
 
@@ -262,17 +262,15 @@ function Sticker3dEditorOverlay({
       return;
     }
     if (target.mode === "add") {
-      if (count >= CS2_MAX_STICKERS) {
+      if (count >= inventoryItemMaxStickers) {
         return;
       }
       const index = count;
-      // Anchor on the first free schema, never the stack index (overflows on
-      // reduced-anchor models like the AK-47 HD).
       const schema = getNextStickerSchema(stickers, maxSchema);
       const next = [...stickers, { id: item.id, schema }];
-      api?.addSticker({ id: item.id, schema });
       stageStickers(next);
       setSelected(index);
+      api?.setItem(buildItem(next));
       api?.setActiveSticker({ index });
     } else {
       const { index } = target;
@@ -280,15 +278,14 @@ function Sticker3dEditorOverlay({
         i === index ? { ...sticker, id: item.id } : sticker
       );
       stageStickers(next);
-      // No setStickerId in the embed api: rebuild so the viewer picks up the swap.
       api?.setItem(buildItem(next));
     }
   }
 
   function handleRemove(index: number) {
     const next = stickers.filter((_, i) => i !== index);
-    api?.removeSticker({ index });
     stageStickers(next);
+    api?.setItem(buildItem(next));
     if (selected === index) {
       setSelected(undefined);
       api?.setActiveSticker({ index: null });
@@ -338,21 +335,6 @@ function Sticker3dEditorOverlay({
         return;
       }
       lastEditAtRef.current = Date.now();
-      if ((current.wear ?? 0) !== (data.wear || 0)) {
-        api?.setStickerWear({ index, wear: data.wear });
-      }
-      if (
-        (current.x ?? 0) !== (data.x || 0) ||
-        (current.y ?? 0) !== (data.y || 0)
-      ) {
-        api?.setStickerOffset({ index, x: data.x, y: data.y });
-      }
-      if ((current.rotation ?? 0) !== (data.rotation || 0)) {
-        api?.setStickerRotation({ index, rotation: data.rotation });
-      }
-      if ((current.schema ?? index) !== schema) {
-        api?.setStickerSchema({ index, schema });
-      }
       const updated: Sticker = {
         id: current.id,
         rotation: data.rotation || undefined,
@@ -361,9 +343,11 @@ function Sticker3dEditorOverlay({
         x: data.x || undefined,
         y: data.y || undefined
       };
-      stageStickers(
-        stickers.map((sticker, i) => (i === index ? updated : sticker))
+      const next = stickers.map((sticker, i) =>
+        i === index ? updated : sticker
       );
+      stageStickers(next);
+      api?.setItem(buildItem(next));
     };
   }
 
@@ -547,7 +531,7 @@ function Sticker3dEditorOverlay({
                 </div>
               );
             })}
-            {range(CS2_MAX_STICKERS - count).map((index) => (
+            {range(inventoryItemMaxStickers - count).map((index) => (
               <button
                 key={`empty-${index}`}
                 className="group pointer-events-auto flex items-center gap-1 rounded-l bg-neutral-950/40 p-1 transition hover:bg-neutral-900/60"

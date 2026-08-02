@@ -33,19 +33,20 @@ import { Splash } from "./components/splash";
 import { SyncIndicator } from "./components/sync-indicator";
 import { SyncWarn } from "./components/sync-warn";
 import {
+  resolveViewerCatalog,
+  resolveViewerOriginAllowed
+} from "./data/viewer.server";
+import {
   ASSETS_BASE_URL,
   CLOUDFLARE_ANALYTICS_TOKEN,
   SOURCE_COMMIT,
   VIEWER_ASSETS_BASE_URL,
   VIEWER_EMBED_URL
 } from "./env.server";
-import {
-  resolveViewerOriginAllowed,
-  resolveViewerCatalog
-} from "./data/viewer.server";
 import { middleware } from "./middleware.server";
 import { getClientRules } from "./models/rule";
 import { steamCallbackUrl } from "./models/rule.server";
+import { loadOrCreateUserInventory } from "./models/user.server";
 import { getBackground } from "./preferences/background.server";
 import { getLanguage } from "./preferences/language.server";
 import { getToggleable } from "./preferences/toggleable.server";
@@ -112,7 +113,22 @@ export async function loader({ request }: LoaderFunctionArgs) {
       ...(await getLanguage(session, ipCountry)),
       ...(await getToggleable(session))
     },
-    user
+    user:
+      user === undefined
+        ? undefined
+        : {
+            ...user,
+            inventory:
+              user.inventory !== null
+                ? (
+                    await loadOrCreateUserInventory(user.id, user.inventory, {
+                      maxItems: clientRules.inventoryMaxItems,
+                      storageUnitMaxItems:
+                        clientRules.inventoryStorageUnitMaxItems
+                    })
+                  ).getData()
+                : null
+          }
   });
 }
 
@@ -123,6 +139,7 @@ export default function App() {
   return (
     <AppProvider {...appProps}>
       <html
+        className="scrollbar-gutter-stable"
         data-language={appProps.preferences.language}
         lang={appProps.preferences.lang}
         onContextMenu={(event) => event.preventDefault()}

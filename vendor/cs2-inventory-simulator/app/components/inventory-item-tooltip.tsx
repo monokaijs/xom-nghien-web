@@ -12,9 +12,9 @@ import {
 import clsx from "clsx";
 import { ComponentProps } from "react";
 import { has } from "~/utils/misc";
-import { usePreferences } from "./app-context";
+import { usePreferences, useTranslate } from "./app-context";
 import { InventoryItemTooltipContents } from "./inventory-item-tooltip-contents";
-import { InventoryItemTooltipDescription } from "./inventory-item-tooltip-description";
+import { ItemDescription } from "./item-description";
 import { InventoryItemTooltipExterior } from "./inventory-item-tooltip-exterior";
 import { InventoryItemTooltipName } from "./inventory-item-tooltip-name";
 import { InventoryItemTooltipRarity } from "./inventory-item-tooltip-rarity";
@@ -31,6 +31,7 @@ export function InventoryItemTooltip({
   item: CS2InventoryItem;
   forwardRef: typeof props.ref;
 }) {
+  const translate = useTranslate();
   const { statsForNerds } = usePreferences();
   const isContainer = item.isContainer();
   const containerItem =
@@ -38,10 +39,13 @@ export function InventoryItemTooltip({
       ? CS2Economy.getById(item.containerId)
       : item;
   const hasContents = containerItem.isContainer();
-  const hasWear = !item.free && item.hasWear();
-  const hasSeed = !item.free && item.hasSeed();
+  const hasWear = !item.isDefault && item.hasWear();
+  const hasSeed = !item.isDefault && item.hasSeed();
   const hasAttributes = hasWear || hasSeed;
   const hasStatTrak = item.statTrak !== undefined;
+  const isUnsealedGraffiti =
+    item.isGraffiti() && item.hasCharges() && !item.isSealed();
+  const isCharmDetachment = item.isCharmDetachment();
   const wear = item.getWear();
 
   // We don't treat graffiti as equippable for a particular team, but in-game it
@@ -67,8 +71,8 @@ export function InventoryItemTooltip({
         {hasWear && <InventoryItemTooltipExterior wear={wear} />}
         {hasTeams && <InventoryItemTooltipTeams teams={teams} />}
       </div>
-      {has(item.tournamentDesc) && (
-        <p className="mt-4 text-yellow-300">{item.tournamentDesc}</p>
+      {has(item.tournamentDescription) && (
+        <p className="mt-4 text-yellow-300">{item.tournamentDescription}</p>
       )}
       {hasStatTrak && (
         <InventoryItemTooltipStatTrak
@@ -76,7 +80,17 @@ export function InventoryItemTooltip({
           statTrak={item.statTrak}
         />
       )}
-      <InventoryItemTooltipDescription item={item} />
+      <ItemDescription item={item} />
+      {isUnsealedGraffiti && (
+        <p className="mt-4 text-cyan-200/80">
+          {translate("ItemGraffitiChargesRemaining", String(item.getCharges()))}
+        </p>
+      )}
+      {isCharmDetachment && (
+        <p className="mt-4 text-cyan-200/80">
+          {translate("CharmDetachmentsAvailable", String(item.getCharges()))}
+        </p>
+      )}
       {hasContents && (
         <InventoryItemTooltipContents
           containerItem={containerItem}

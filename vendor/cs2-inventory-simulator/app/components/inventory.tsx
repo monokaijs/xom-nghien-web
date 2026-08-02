@@ -13,6 +13,7 @@ import { useStorageUnit } from "~/components/hooks/use-storage-unit";
 import { useSwapItemsStatTrak } from "~/components/hooks/use-swap-items-stattrak";
 import { useSync } from "~/components/hooks/use-sync";
 import { useUnlockCase } from "~/components/hooks/use-unlock-case";
+import { useUnpackItem } from "~/components/hooks/use-unpack-item";
 import { InventoryItem } from "~/components/inventory-item";
 import { SyncAction } from "~/data/sync";
 import { playSound } from "~/utils/sound";
@@ -23,11 +24,19 @@ import {
   usePreferences,
   useTranslate
 } from "./app-context";
+import { ApplyItemKeychain } from "./apply-item-keychain";
 import { ApplyItemPatch } from "./apply-item-patch";
 import { ApplyItemSticker } from "./apply-item-sticker";
+import { DetachCharm } from "./detach-charm";
+import { ExtractItemSticker } from "./extract-item-sticker";
+import { useApplyItemKeychain } from "./hooks/use-apply-item-keychain";
 import { useApplyItemPatch } from "./hooks/use-apply-item-patch";
+import { useDetachCharm } from "./hooks/use-detach-charm";
+import { useExtractItemSticker } from "./hooks/use-extract-item-sticker";
 import { useListenAppEvent } from "./hooks/use-listen-app-event";
 import { useRemoveItemPatch } from "./hooks/use-remove-item-patch";
+import { useSealItemSticker } from "./hooks/use-seal-item-sticker";
+import { useUnsealGraffiti } from "./hooks/use-unseal-graffiti";
 import { InfoIcon } from "./info-icon";
 import { InspectItem } from "./inspect-item";
 import { InventoryGridPlaceholder } from "./inventory-grid-placeholder";
@@ -38,8 +47,11 @@ import { RemoveItemPatch } from "./remove-item-patch";
 import { RenameItem } from "./rename-item";
 import { RenameStorageUnit } from "./rename-storage-unit";
 import { ScrapeItemSticker } from "./scrape-item-sticker";
+import { SealItemSticker } from "./seal-item-sticker";
 import { SwapItemsStatTrak } from "./swap-items-stattrak";
 import { UnlockCase } from "./unlock-case";
+import { UnpackItem } from "./unpack-item";
+import { UnsealGraffiti } from "./unseal-graffiti";
 
 export function Inventory() {
   const translate = useTranslate();
@@ -54,6 +66,10 @@ export function Inventory() {
   const ownApplicableStickers =
     items.filter(({ item }) => item.isSticker()).length > 0 &&
     items.filter(({ item }) => item.hasStickers()).length > 0;
+
+  const ownApplicableKeychains =
+    items.filter(({ item }) => item.isKeychain()).length > 0 &&
+    items.filter(({ item }) => item.hasKeychains()).length > 0;
 
   const ownApplicablePatches =
     items.filter(({ item }) => item.isPatch()).length > 0 &&
@@ -105,12 +121,36 @@ export function Inventory() {
   } = useRemoveItemPatch();
 
   const {
+    applyItemKeychain,
+    closeApplyItemKeychain,
+    handleApplyItemKeychain,
+    handleApplyItemKeychainSelect,
+    isApplyingItemKeychain
+  } = useApplyItemKeychain();
+
+  const {
     applyItemSticker,
     closeApplyItemSticker,
     handleApplyItemSticker,
     handleApplyItemStickerSelect,
     isApplyingItemSticker
   } = useApplyItemSticker();
+
+  const {
+    closeExtractItemSticker,
+    extractItemSticker,
+    handleExtractItemSticker,
+    isExtractingItemSticker
+  } = useExtractItemSticker();
+
+  const {
+    closeSealItemSticker,
+    handleSealItemSticker,
+    handleSealItemStickerCrafted,
+    handleSealItemStickerSelect,
+    isSealingItemSticker,
+    sealItemSticker
+  } = useSealItemSticker();
 
   const {
     closeScrapeItemSticker,
@@ -129,6 +169,23 @@ export function Inventory() {
 
   const { closeInspectItem, handleInspectItem, inspectItem, isInspectingItem } =
     useInspectItem();
+
+  const { closeUnpackItem, handleUnpackItem, isUnpackingItem, unpackItem } =
+    useUnpackItem();
+
+  const {
+    closeUnsealGraffiti,
+    handleUnsealGraffiti,
+    isUnsealingGraffiti,
+    unsealGraffiti
+  } = useUnsealGraffiti();
+
+  const {
+    closeDetachCharm,
+    detachCharm,
+    handleDetachCharm: openDetachCharm,
+    isDetachingCharm
+  } = useDetachCharm();
 
   function handleEquip(uid: number, team?: CS2Team) {
     playSound(
@@ -153,20 +210,48 @@ export function Inventory() {
   }
 
   function handleEdit(uid: number) {
-    return navigate(`/craft?uid=${uid}`);
+    return navigate(`/craft?uid=${uid}`, { preventScrollReset: true });
+  }
+
+  function handleDetachCharm(uid: number) {
+    if (inventory.getCharmDetachmentCharges() === 0) {
+      const pack = items.find(
+        ({ uid: packUid, item }) => packUid >= 0 && item.isCharmDetachmentPack()
+      );
+      if (pack !== undefined) {
+        return handleUnpackItem(pack.uid);
+      }
+    }
+    return openDetachCharm(uid);
+  }
+
+  function handleDetachCharmWithTool(uid: number) {
+    return setItemSelector({
+      uid,
+      items: items.filter(
+        ({ uid: itemUid, item }) => itemUid >= 0 && item.getKeychainsCount() > 0
+      ),
+      type: "detach-charm"
+    });
   }
 
   function dismissSelectItem() {
     setItemSelector(undefined);
+    closeApplyItemKeychain();
     closeApplyItemPatch();
+    closeDetachCharm();
     closeApplyItemSticker();
+    closeExtractItemSticker();
     closeInspectItem();
     closeRemoveItemPatch();
     closeRenameItem();
     closeRenameStorageUnit();
     closeScrapeItemSticker();
+    closeSealItemSticker();
     closeSwapItemsStatTrak();
     closeUnlockCase();
+    closeUnpackItem();
+    closeUnsealGraffiti();
   }
 
   function handleSelectItem(uid: number) {
@@ -183,12 +268,21 @@ export function Inventory() {
         case "rename-item":
           setItemSelector(undefined);
           return handleRenameItemSelect(uid);
+        case "apply-item-keychain":
+          setItemSelector(undefined);
+          return handleApplyItemKeychainSelect(uid);
         case "apply-item-patch":
           setItemSelector(undefined);
           return handleApplyItemPatchSelect(uid);
         case "apply-item-sticker":
           setItemSelector(undefined);
           return handleApplyItemStickerSelect(uid);
+        case "detach-charm":
+          setItemSelector(undefined);
+          return handleDetachCharm(uid);
+        case "seal-item-sticker":
+          setItemSelector(undefined);
+          return handleSealItemStickerSelect(uid);
         case "deposit-to-storage-unit":
           return handleDepositToStorageUnitSelect(uid);
         case "retrieve-from-storage-unit":
@@ -229,9 +323,13 @@ export function Inventory() {
                 : {
                     onApplyPatch: handleApplyItemPatch,
                     onApplySticker: handleApplyItemSticker,
+                    onAttachCharm: handleApplyItemKeychain,
                     onDepositToStorageUnit: handleDepositToStorageUnit,
+                    onDetachCharm: handleDetachCharm,
+                    onDetachCharmWithTool: handleDetachCharmWithTool,
                     onEdit: handleEdit,
                     onEquip: handleEquip,
+                    onExtractSticker: handleExtractItemSticker,
                     onInspectItem: handleInspectItem,
                     onInspectStorageUnit: handleInspectStorageUnit,
                     onRemove: handleRemove,
@@ -240,9 +338,13 @@ export function Inventory() {
                     onRenameStorageUnit: handleRenameStorageUnit,
                     onRetrieveFromStorageUnit: handleRetrieveFromStorageUnit,
                     onScrapeSticker: handleScrapeItemSticker,
+                    onSealSticker: handleSealItemSticker,
                     onSwapItemsStatTrak: handleSwapItemsStatTrak,
                     onUnequip: handleUnequip,
                     onUnlockContainer: handleUnlockCase,
+                    onUnsealGraffiti: handleUnsealGraffiti,
+                    onUseItem: handleUnpackItem,
+                    ownApplicableKeychains,
                     ownApplicablePatches,
                     ownApplicableStickers
                   })}
@@ -281,11 +383,36 @@ export function Inventory() {
       {isRemovingItemPatch(removeItemPatch) && (
         <RemoveItemPatch {...removeItemPatch} onClose={closeRemoveItemPatch} />
       )}
+      <Presence present={isApplyingItemKeychain(applyItemKeychain)}>
+        {isApplyingItemKeychain(applyItemKeychain) ? (
+          <ApplyItemKeychain
+            {...applyItemKeychain}
+            onClose={closeApplyItemKeychain}
+          />
+        ) : null}
+      </Presence>
       <Presence present={isApplyingItemSticker(applyItemSticker)}>
         {isApplyingItemSticker(applyItemSticker) ? (
           <ApplyItemSticker
             {...applyItemSticker}
             onClose={closeApplyItemSticker}
+          />
+        ) : null}
+      </Presence>
+      <Presence present={isExtractingItemSticker(extractItemSticker)}>
+        {isExtractingItemSticker(extractItemSticker) ? (
+          <ExtractItemSticker
+            {...extractItemSticker}
+            onClose={closeExtractItemSticker}
+          />
+        ) : null}
+      </Presence>
+      <Presence present={isSealingItemSticker(sealItemSticker)}>
+        {isSealingItemSticker(sealItemSticker) ? (
+          <SealItemSticker
+            {...sealItemSticker}
+            onAddTool={handleSealItemStickerCrafted}
+            onClose={closeSealItemSticker}
           />
         ) : null}
       </Presence>
@@ -305,7 +432,30 @@ export function Inventory() {
       )}
       <Presence present={isInspectingItem(inspectItem)}>
         {isInspectingItem(inspectItem) ? (
-          <InspectItem {...inspectItem} onClose={closeInspectItem} />
+          <InspectItem
+            {...inspectItem}
+            onClose={closeInspectItem}
+            onUnsealGraffiti={handleUnsealGraffiti}
+          />
+        ) : null}
+      </Presence>
+      <Presence present={isDetachingCharm(detachCharm)}>
+        {isDetachingCharm(detachCharm) ? (
+          <DetachCharm {...detachCharm} onClose={closeDetachCharm} />
+        ) : null}
+      </Presence>
+      <Presence present={isUnpackingItem(unpackItem)}>
+        {isUnpackingItem(unpackItem) ? (
+          <UnpackItem
+            {...unpackItem}
+            onClose={closeUnpackItem}
+            onUnpacked={handleInspectItem}
+          />
+        ) : null}
+      </Presence>
+      <Presence present={isUnsealingGraffiti(unsealGraffiti)}>
+        {isUnsealingGraffiti(unsealGraffiti) ? (
+          <UnsealGraffiti {...unsealGraffiti} onClose={closeUnsealGraffiti} />
         ) : null}
       </Presence>
     </>

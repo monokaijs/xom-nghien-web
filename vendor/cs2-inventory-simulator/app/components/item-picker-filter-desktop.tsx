@@ -47,14 +47,15 @@ export function ItemPickerFilterDesktop({
   return (
     <div className="w-55 min-w-42">
       <GridList
-        className="rounded-tr rounded-br bg-black/10"
+        className="rounded-r bg-black/10"
         itemHeight={FILTER_HEIGHT}
         items={categories}
         maxItemsIntoView={Math.min(categories.length, MAX_FILTERS_INTO_VIEW)}
       >
         {(filter, index) => {
           const isActive =
-            filter.category === value.category && filter.type === value.type;
+            filter.loadoutCategory === value.loadoutCategory &&
+            filter.type === value.type;
           const isIdle = !isActive;
           return (
             <button

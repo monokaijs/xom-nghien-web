@@ -563,7 +563,7 @@ Enable the 3D viewer (e.g. the craft sticker editor). Still gated by a reachable
 - **Type:** `boolean`
 - **Default:** `false`
 
-Restrict the 3D viewer to attachment features (applying, scraping, and positioning stickers - and keychains in the future). Item inspection and the craft item preview fall back to 2D images. Has no effect when `viewerEnabled` is `false`.
+Restrict the 3D viewer to attachment features (applying, scraping, and positioning stickers, and attaching and positioning charms). Everything else (e.g. item inspection and the craft item preview) falls back to 2D images. Has no effect when `viewerEnabled` is `false`.
 
 ### `viewerKey`
 
@@ -571,6 +571,22 @@ Restrict the 3D viewer to attachment features (applying, scraping, and positioni
 - **Default:** `VIEWER_KEY` env var or _empty_
 
 Partner key for the 3D viewer. Sent as the iframe `key` and used as a trusted-partner signal that skips the rate-limit check.
+
+## API
+
+### `apiPublicStatTrakIncrement`
+
+- **Type:** `boolean`
+- **Default:** `false`
+
+Can anyone increment the StatTrak count of the user's equipped items using `POST /api/increment-item-stattrak` without an API key? Anonymous requests are rate-limited per item (burst of 50, then 1 increment every 3.6 seconds). Requests with a valid API key are not affected by this rule.
+
+### `apiPublicSprayConsume`
+
+- **Type:** `boolean`
+- **Default:** `false`
+
+Can anyone consume a charge of the user's equipped graffiti using `POST /api/consume-item-spray` without an API key? Anonymous requests are rate-limited per item (1 charge every 30 seconds). Requests with a valid API key are not affected by this rule.
 
 ## Rule overwriting
 

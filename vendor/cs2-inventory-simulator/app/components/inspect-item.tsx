@@ -23,39 +23,55 @@ import { useTimedState } from "./hooks/use-timed-state";
 import { useViewer } from "./hooks/use-viewer";
 import { useViewerAvailability } from "./hooks/use-viewer-availability";
 import { useViewerStatus } from "./hooks/use-viewer-status";
+import { InGameOverlay } from "./in-game-overlay";
 import { InfoIcon } from "./info-icon";
+import { InspectCharmDetachments } from "./inspect-charm-detachments";
+import { ItemDescription } from "./item-description";
 import { ItemImage } from "./item-image";
 import { ModalButton } from "./modal-button";
-import { Overlay } from "./overlay";
 import { UseItemFooter } from "./use-item-footer";
 import { ViewerOverlay } from "./viewer-overlay";
 
 interface InspectItemProps {
   onClose: () => void;
+  onUnsealGraffiti?: (uid: number) => void;
   uid: number;
 }
 
-function InspectItemHeader({ item }: { item: CS2InventoryItem }) {
+export function InspectItemHeader({
+  icon,
+  item,
+  subtitle,
+  title
+}: {
+  icon?: ReactNode;
+  item: CS2InventoryItem;
+  subtitle?: ReactNode;
+  title?: ReactNode;
+}) {
   const nameItemString = useNameItemString();
+  icon ??=
+    item.collectionKey !== undefined ? (
+      <ItemImage className="w-29.5" item={item} type="collection" />
+    ) : undefined;
+  subtitle ??= item.collectionName;
   return (
     <div className="flex flex-col items-center">
       <div className="flex w-fit flex-col">
-        <div className="flex items-center justify-center gap-1">
-          {item.collection !== undefined && (
-            <ItemImage className="w-29.5" item={item} type="collection" />
-          )}
+        <div className="flex items-center justify-center gap-1 px-4">
+          {icon}
           <div
             className={clsx(
               "max-w-200",
-              item.collection !== undefined ? "text-left" : "text-center"
+              icon !== undefined ? "text-left" : "text-center"
             )}
           >
             <div className="font-display text-[36px] leading-tight font-medium text-white/90">
-              {nameItemString(item)}
+              {title ?? nameItemString(item)}
             </div>
-            {item.collectionName !== undefined && (
+            {subtitle !== undefined && (
               <div className="mt-1 font-sans text-[20px] text-neutral-300 drop-shadow">
-                {item.collectionName}
+                {subtitle}
               </div>
             )}
           </div>
@@ -63,7 +79,7 @@ function InspectItemHeader({ item }: { item: CS2InventoryItem }) {
         <div
           className="mt-1.5 h-1 w-full"
           style={{
-            backgroundImage: `linear-gradient(to right, ${item.rarity}, color-mix(in srgb, ${item.rarity} 72%, #000))`
+            backgroundImage: `linear-gradient(to right, ${item.rarityColor}, color-mix(in srgb, ${item.rarityColor} 72%, #000))`
           }}
         />
       </div>
@@ -108,7 +124,7 @@ function useInspectInfo(item: CS2InventoryItem): {
           >
             <div>
               <strong>{translate("InventoryItemInspectFinishCatalog")}:</strong>{" "}
-              {item.index}
+              {item.variantIndex}
             </div>
             <div>
               <strong>
@@ -147,7 +163,62 @@ function InspectItemShareButton({ item }: { item: CS2InventoryItem }) {
   );
 }
 
-function InspectItem3d({ onClose, uid }: InspectItemProps) {
+function InspectItemDescription({ item }: { item: CS2InventoryItem }) {
+  const translate = useTranslate();
+  const isGraffitiWithCharges = item.isGraffiti() && item.hasCharges();
+  const isSealedGraffiti = isGraffitiWithCharges && item.isSealed();
+  const isUnsealedGraffiti = isGraffitiWithCharges && !item.isSealed();
+  if (
+    !isGraffitiWithCharges &&
+    (item.parent ?? item).description === undefined &&
+    item.description === undefined
+  ) {
+    return null;
+  }
+  return (
+    <div className="m-auto max-w-5xl px-24 pb-4 lg:w-5xl">
+      {isSealedGraffiti ? (
+        <p className="mt-4 whitespace-pre-wrap text-neutral-300">
+          {translate("ItemSealedGraffitiDesc")}
+        </p>
+      ) : isUnsealedGraffiti ? (
+        <>
+          <ItemDescription item={item} />
+          <p className="mt-4 text-cyan-200/80">
+            {translate(
+              "ItemGraffitiChargesRemaining",
+              String(item.getCharges())
+            )}
+          </p>
+        </>
+      ) : (
+        <ItemDescription item={item} />
+      )}
+    </div>
+  );
+}
+
+function InspectItemUnsealButton({
+  item,
+  onClick
+}: {
+  item: CS2InventoryItem;
+  onClick?: () => void;
+}) {
+  const translate = useTranslate();
+  if (!item.isGraffiti() || !item.isSealed() || onClick === undefined) {
+    return null;
+  }
+  return (
+    <ModalButton
+      variant="secondary"
+      onClick={onClick}
+      children={translate("InventoryItemUnsealGraffiti")}
+    />
+  );
+}
+
+function InspectItem3d({ onClose, onUnsealGraffiti, uid }: InspectItemProps) {
   const translate = useTranslate();
   const item = useInventoryItem(uid);
   const { api, viewerProps } = useViewer({ item });
@@ -160,6 +231,7 @@ function InspectItem3d({ onClose, uid }: InspectItemProps) {
       viewerProps={viewerProps}
     >
       <div className="pointer-events-none absolute bottom-8 left-0 w-full">
+        <InspectItemDescription item={item} />
         <UseItemFooter
           left={
             <>
@@ -168,11 +240,24 @@ function InspectItem3d({ onClose, uid }: InspectItemProps) {
             </>
           }
           right={
-            <ModalButton
-              variant="secondary"
-              onClick={onClose}
-              children={translate("InspectClose")}
-            />
+            <>
+              <InspectItemUnsealButton
+                item={item}
+                onClick={
+                  onUnsealGraffiti !== undefined
+                    ? () => {
+                        onClose();
+                        onUnsealGraffiti(uid);
+                      }
+                    : undefined
+                }
+              />
+              <ModalButton
+                variant="secondary"
+                onClick={onClose}
+                children={translate("InspectClose")}
+              />
+            </>
           }
         />
       </div>
@@ -181,7 +266,7 @@ function InspectItem3d({ onClose, uid }: InspectItemProps) {
   );
 }
 
-function InspectItem2d({ onClose, uid }: InspectItemProps) {
+function InspectItem2d({ onClose, onUnsealGraffiti, uid }: InspectItemProps) {
   const translate = useTranslate();
   const item = useInventoryItem(uid);
   const { statsForNerds } = usePreferences();
@@ -191,11 +276,10 @@ function InspectItem2d({ onClose, uid }: InspectItemProps) {
     <ClientOnly
       children={() =>
         createPortal(
-          <Overlay className="m-auto lg:w-5xl">
-            <InspectItemHeader item={item} />
-            <div className="text-center">
-              <div className="relative mx-auto inline-block">
-                <ItemImage className="m-auto my-8 max-w-lg" item={item} />
+          <InGameOverlay header={<InspectItemHeader item={item} />}>
+            <div className="flex size-full items-center justify-center">
+              <div className="relative inline-block">
+                <ItemImage className="max-w-lg" item={item} />
                 {item.stickers !== undefined && (
                   <div className="absolute bottom-0 left-0 flex items-center justify-center">
                     {item.someStickers().map(([index, { id, wear }]) => (
@@ -219,23 +303,40 @@ function InspectItem2d({ onClose, uid }: InspectItemProps) {
                 )}
               </div>
             </div>
-            <UseItemFooter
-              left={
-                <>
-                  {infoButton}
-                  <InspectItemShareButton item={item} />
-                </>
-              }
-              right={
-                <ModalButton
-                  variant="secondary"
-                  onClick={onClose}
-                  children={translate("InspectClose")}
-                />
-              }
-            />
+            <div className="absolute bottom-8 left-0 w-full">
+              <InspectItemDescription item={item} />
+              <UseItemFooter
+                className="mt-2 max-w-5xl px-8 lg:w-5xl"
+                left={
+                  <>
+                    {infoButton}
+                    <InspectItemShareButton item={item} />
+                  </>
+                }
+                right={
+                  <>
+                    <InspectItemUnsealButton
+                      item={item}
+                      onClick={
+                        onUnsealGraffiti !== undefined
+                          ? () => {
+                              onClose();
+                              onUnsealGraffiti(uid);
+                            }
+                          : undefined
+                      }
+                    />
+                    <ModalButton
+                      variant="secondary"
+                      onClick={onClose}
+                      children={translate("InspectClose")}
+                    />
+                  </>
+                }
+              />
+            </div>
             {infoTooltip}
-          </Overlay>,
+          </InGameOverlay>,
           document.body
         )
       }
@@ -243,7 +344,11 @@ function InspectItem2d({ onClose, uid }: InspectItemProps) {
   );
 }
 
-export function InspectItem({ onClose, uid }: InspectItemProps) {
+export function InspectItem({
+  onClose,
+  onUnsealGraffiti,
+  uid
+}: InspectItemProps) {
   const item = useInventoryItem(uid);
   const { canUse3d } = useViewerAvailability(item);
 
@@ -254,9 +359,20 @@ export function InspectItem({ onClose, uid }: InspectItemProps) {
     };
   }, []);
 
+  if (item.isCharmDetachment()) {
+    return <InspectCharmDetachments onClose={onClose} uid={uid} />;
+  }
   return canUse3d ? (
-    <InspectItem3d onClose={onClose} uid={uid} />
+    <InspectItem3d
+      onClose={onClose}
+      onUnsealGraffiti={onUnsealGraffiti}
+      uid={uid}
+    />
   ) : (
-    <InspectItem2d onClose={onClose} uid={uid} />
+    <InspectItem2d
+      onClose={onClose}
+      onUnsealGraffiti={onUnsealGraffiti}
+      uid={uid}
+    />
   );
 }

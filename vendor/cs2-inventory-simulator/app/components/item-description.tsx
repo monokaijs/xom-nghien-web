@@ -7,14 +7,12 @@ import { CS2InventoryItem, CS2ItemType } from "@ianlucas/cs2-lib";
 import clsx from "clsx";
 import { has } from "~/utils/misc";
 
-export function InventoryItemTooltipDescription({
-  item
-}: {
-  item: CS2InventoryItem;
-}) {
+export function ItemDescription({ item }: { item: CS2InventoryItem }) {
   const isAgent = item.type === CS2ItemType.Agent;
-  const baseDescription = (item.parent ?? item).desc;
-  const itemDescription = item.parent !== undefined ? item.desc : undefined;
+  const baseDescription = (item.isStickerSlab() ? item : (item.parent ?? item))
+    .description;
+  const itemDescription =
+    item.parent !== undefined ? item.description : undefined;
 
   let leadDescription: string;
   let flavorDescription: string;

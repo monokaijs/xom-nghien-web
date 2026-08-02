@@ -16,13 +16,11 @@ import { ItemBrowser } from "./item-browser";
 import { Modal, ModalHeader, ModalNav } from "./modal";
 
 export function SelectStickerModal({
-  fixed,
   hidden,
   onClose,
   onSelect,
   stickerFilter
 }: {
-  fixed?: boolean;
   hidden?: boolean;
   onClose: () => void;
   onSelect: (item: CS2EconomyItem) => void;
@@ -40,7 +38,7 @@ export function SelectStickerModal({
       if (stickerFilter !== undefined && !stickerFilter(item)) {
         return false;
       }
-      if (category !== "" && item.category !== category) {
+      if (category !== "" && item.categoryName !== category) {
         return false;
       }
       const name = item.name.toLowerCase();
@@ -54,7 +52,7 @@ export function SelectStickerModal({
   }, [search, category, stickers, stickerFilter]);
 
   return (
-    <Modal className="w-135 pb-1" fixed={fixed} hidden={hidden} blur>
+    <Modal className="w-135 pb-1" hidden={hidden} blur>
       <ModalHeader title={translate("StickerPickerHeader")} onClose={onClose} />
       <ModalNav
         items={[]}

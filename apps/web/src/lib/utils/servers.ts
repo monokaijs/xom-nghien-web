@@ -1,6 +1,7 @@
 import { asc, db, desc, servers } from '@xom/db';
 import { getGame } from '@/config/games';
 import { emptyServerMetadata, getCachedServerHeartbeats } from '@/lib/server-heartbeats';
+import { getServerModsById } from '@/lib/utils/server-mods';
 
 export async function getServersWithStatus(gameId?: string) {
   try {
@@ -16,6 +17,7 @@ export async function getServersWithStatus(gameId?: string) {
       }).from(servers).orderBy(asc(servers.sortOrder), desc(servers.created_at)),
       getCachedServerHeartbeats(),
     ]);
+    const mods = await getServerModsById(rows.map((server) => server.id));
 
     return rows
       .filter((server) => !gameId || server.game === gameId)
@@ -31,6 +33,7 @@ export async function getServersWithStatus(gameId?: string) {
           connectionGuide: server.connectionGuide || null,
           description: server.description,
           metadataUrl: server.metadataUrl,
+          mods: mods.get(server.id) || [],
           metadata: heartbeats[String(server.id)] || emptyServerMetadata(),
         };
       });

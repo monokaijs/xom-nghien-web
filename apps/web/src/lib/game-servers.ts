@@ -1,5 +1,7 @@
 import { getGame } from '@/config/games';
 import { getCs2LaunchUrl } from '@/lib/server-address';
+import { parseServerMods } from '@/lib/server-mods';
+import type { ServerMod } from '@/types/server';
 
 const BLOCKED_PROTOCOLS = new Set(['javascript:', 'data:', 'file:', 'vbscript:']);
 
@@ -10,6 +12,7 @@ export interface GameServerInput {
   connectionGuide: string | null;
   description: string | null;
   metadataUrl: string | null;
+  mods: ServerMod[];
 }
 
 export function parseGameServerInput(body: Record<string, unknown>): GameServerInput {
@@ -20,6 +23,7 @@ export function parseGameServerInput(body: Record<string, unknown>): GameServerI
   const connectionGuide = String(body.connectionGuide || '').trim() || null;
   const description = String(body.description || '').trim() || null;
   const metadataUrl = String(body.metadataUrl || '').trim() || null;
+  const mods = parseServerMods(body.mods, game);
 
   if (!gameDefinition) {
     throw new Error('Please select a supported game');
@@ -71,6 +75,7 @@ export function parseGameServerInput(body: Record<string, unknown>): GameServerI
     connectionGuide,
     description,
     metadataUrl,
+    mods,
   };
 }
 

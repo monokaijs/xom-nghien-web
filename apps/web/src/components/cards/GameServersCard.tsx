@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { IconBook, IconExternalLink, IconLink, IconMap, IconPlayerPlayFilled, IconServer, IconX } from '@tabler/icons-react';
+import { IconBook, IconExternalLink, IconLink, IconMap, IconPackage, IconPlayerPlayFilled, IconServer, IconX } from '@tabler/icons-react';
 import { getGame } from '@/config/games';
-import type { ServerOnlineStatus, ServerStatus } from '@/types/server';
+import type { ServerMod, ServerOnlineStatus, ServerStatus } from '@/types/server';
 import { openConnectionLink } from '@/lib/game-servers';
 import { getMapImage } from '@/lib/utils/mapImage';
 
@@ -117,7 +117,7 @@ function GameServerItem({ server, layout }: { server: ServerStatus; layout: 'car
     server.metadata.players.total,
     game?.serverCard.playerCount || 'online',
   );
-  const actionEnabled = canOpenDialog && server.metadata.status !== 'offline';
+  const actionEnabled = canOpenDialog;
 
   return (
     <article
@@ -206,6 +206,8 @@ function ConnectDialog({ server, onClose }: { server: ServerStatus; onClose: () 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const hasDirect = Boolean(server.connectionLink);
   const hasGuidance = Boolean(server.connectionGuide);
+  const mods = server.mods || [];
+  const hasMods = mods.length > 0;
 
   useEffect(() => {
     closeButtonRef.current?.focus();
@@ -253,8 +255,10 @@ function ConnectDialog({ server, onClose }: { server: ServerStatus; onClose: () 
             </div>
           )}
 
+          {hasMods && <ServerModList mods={mods} />}
+
           {server.game === 'cs2' && (
-            <Cs2PlayerList server={server} className={hasGuidance ? 'mt-4' : ''} />
+            <Cs2PlayerList server={server} className={hasGuidance || hasDirect || hasMods ? 'mt-4' : ''} />
           )}
         </div>
 
@@ -273,13 +277,71 @@ function ConnectDialog({ server, onClose }: { server: ServerStatus; onClose: () 
                 if (!server.connectionLink) return;
                 openConnectionLink(server.connectionLink, server.game);
               }}
-              className="rounded-xl bg-accent-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-primary/80 flex items-center justify-center gap-2"
+              disabled={server.metadata.status === 'offline'}
+              className="rounded-xl bg-accent-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-primary/80 flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
             >
               <IconExternalLink size={16} />
               Kết Nối
             </button>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ServerModList({ mods }: { mods: ServerMod[] }) {
+  const required = mods.filter((mod) => mod.requirement === 'required');
+  const optional = mods.filter((mod) => mod.requirement === 'optional');
+
+  return (
+    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="mb-1 flex items-center gap-2 text-sm font-medium text-white/80">
+        <IconPackage size={17} />
+        Mod máy chủ
+      </div>
+      <p className="mb-4 text-xs leading-5 text-white/45">
+        Cài đúng phiên bản mod bắt buộc trước khi kết nối máy chủ.
+      </p>
+      <div className="space-y-4">
+        {required.length > 0 && <ModGroup title="Bắt buộc" description="Cần cài để kết nối" mods={required} required />}
+        {optional.length > 0 && <ModGroup title="Tuỳ chọn" description="Có thể cài thêm" mods={optional} />}
+      </div>
+    </div>
+  );
+}
+
+function ModGroup({ title, description, mods, required = false }: { title: string; description: string; mods: ServerMod[]; required?: boolean }) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div>
+          <span className={`text-xs font-semibold ${required ? 'text-accent-primary' : 'text-white/65'}`}>{title}</span>
+          <span className="ml-2 text-[11px] text-white/30">{description}</span>
+        </div>
+        <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-white/45">{mods.length}</span>
+      </div>
+      <div className="space-y-2">
+        {mods.map((mod) => (
+          <a
+            key={`${mod.provider}:${mod.namespace}/${mod.packageName}`}
+            href={mod.packageUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-3 rounded-xl bg-white/[0.035] p-2.5 transition-colors hover:bg-white/[0.07]"
+          >
+            {mod.iconUrl ? (
+              <img src={mod.iconUrl} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+            ) : (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/5 text-white/30"><IconPackage size={17} /></div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-white/85">{mod.displayName}</p>
+              <p className="truncate text-[11px] text-white/35">{mod.namespace} · v{mod.versionNumber}</p>
+            </div>
+            <IconExternalLink size={14} className="shrink-0 text-white/30" />
+          </a>
+        ))}
       </div>
     </div>
   );

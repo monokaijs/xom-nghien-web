@@ -14,7 +14,9 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import Select from '@/components/ui/Select';
+import ServerModPicker from '@/components/admin/ServerModPicker';
 import { Games, getGame } from '@/config/games';
+import type { ServerMod } from '@/types/server';
 
 interface ManagedServer {
   id: number;
@@ -25,6 +27,7 @@ interface ManagedServer {
   connectionGuide: string | null;
   description: string | null;
   metadataUrl: string | null;
+  mods: ServerMod[];
 }
 
 interface ServerForm {
@@ -34,6 +37,7 @@ interface ServerForm {
   connectionGuide: string;
   description: string;
   metadataUrl: string;
+  mods: ServerMod[];
 }
 
 const emptyForm: ServerForm = {
@@ -43,6 +47,7 @@ const emptyForm: ServerForm = {
   connectionGuide: '',
   description: '',
   metadataUrl: '',
+  mods: [],
 };
 
 const inputClass = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/20 transition-colors placeholder:text-white/25';
@@ -122,6 +127,7 @@ export default function GameServersPage() {
       connectionGuide: server.connectionGuide || '',
       description: server.description || '',
       metadataUrl: server.metadataUrl || '',
+      mods: server.mods || [],
     });
     setFormError(null);
     setDialogOpen(true);
@@ -149,6 +155,7 @@ export default function GameServersPage() {
       ...form,
       game: gameId,
       gameName: shouldUseDefaultName ? nextDefaultName : form.gameName,
+      mods: gameId === form.game ? form.mods : [],
     });
   };
 
@@ -281,6 +288,13 @@ export default function GameServersPage() {
                     )}
                     {server.description && <p className="text-sm text-white/60 mt-2 line-clamp-2">{server.description}</p>}
                     {server.metadataUrl && <p className="text-xs text-white/35 truncate mt-2 flex items-center gap-1.5"><IconExternalLink size={13} /> {server.metadataUrl}</p>}
+                    {server.mods.length > 0 && (
+                      <p className="mt-2 flex items-center gap-2 text-xs text-white/45">
+                        <span>{server.mods.filter((mod) => mod.requirement === 'required').length} required mods</span>
+                        <span className="text-white/20">·</span>
+                        <span>{server.mods.filter((mod) => mod.requirement === 'optional').length} optional</span>
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-1 self-start">
                     <button onClick={() => edit(server)} className="p-2 rounded-lg bg-white/10 text-white/70 hover:text-white" title="Edit"><IconEdit size={16} /></button>
@@ -390,6 +404,12 @@ export default function GameServersPage() {
                   className={inputClass}
                 />
               </Field>
+
+              <ServerModPicker
+                game={form.game}
+                mods={form.mods}
+                onChange={(mods) => setForm((current) => ({ ...current, mods }))}
+              />
 
               {formError && <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">{formError}</div>}
             </div>

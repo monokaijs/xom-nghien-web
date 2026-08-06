@@ -29,6 +29,21 @@ export interface ServerMetadata {
   queriedAt: string | null;
 }
 
+export type ServerModRequirement = 'required' | 'optional';
+
+export interface ServerMod {
+  provider: 'thunderstore';
+  community: string;
+  namespace: string;
+  packageName: string;
+  displayName: string;
+  versionNumber: string;
+  description: string | null;
+  iconUrl: string | null;
+  packageUrl: string;
+  requirement: ServerModRequirement;
+}
+
 export interface ServerStatus {
   id: string;
   name: string;
@@ -39,5 +54,6 @@ export interface ServerStatus {
   connectionGuide: string | null;
   description: string | null;
   metadataUrl: string | null;
+  mods: ServerMod[];
   metadata: ServerMetadata;
 }

@@ -184,6 +184,34 @@ export const servers = mysqlTable('servers', {
   uniqueAddress: unique('unique_address').on(table.address),
 }));
 
+export const serverMods = mysqlTable('server_mods', {
+  id: int('id').primaryKey().autoincrement(),
+  serverId: int('server_id')
+    .notNull()
+    .references(() => servers.id, { onDelete: 'cascade' }),
+  provider: varchar('provider', { length: 32 }).notNull(),
+  community: varchar('community', { length: 64 }).notNull(),
+  namespace: varchar('namespace', { length: 128 }).notNull(),
+  packageName: varchar('package_name', { length: 128 }).notNull(),
+  displayName: varchar('display_name', { length: 255 }).notNull(),
+  versionNumber: varchar('version_number', { length: 64 }).notNull(),
+  description: text('description'),
+  iconUrl: varchar('icon_url', { length: 2048 }),
+  packageUrl: varchar('package_url', { length: 2048 }).notNull(),
+  requirement: varchar('requirement', { length: 16 }).notNull(),
+  sortOrder: int('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  uniqueServerPackage: unique('uq_server_mods_package').on(
+    table.serverId,
+    table.provider,
+    table.namespace,
+    table.packageName,
+  ),
+  idxServerRequirement: index('idx_server_mods_requirement').on(table.serverId, table.requirement, table.sortOrder),
+}));
+
 export const voiceRooms = mysqlTable('voice_rooms', {
   id: varchar('id', { length: 36 }).primaryKey(),
   name: varchar('name', { length: 80 }).notNull(),
@@ -240,6 +268,8 @@ export type DiscordLinkToken = typeof discordLinkTokens.$inferSelect;
 export type NewDiscordLinkToken = typeof discordLinkTokens.$inferInsert;
 export type Server = typeof servers.$inferSelect;
 export type NewServer = typeof servers.$inferInsert;
+export type ServerMod = typeof serverMods.$inferSelect;
+export type NewServerMod = typeof serverMods.$inferInsert;
 export type VoiceRoomRecord = typeof voiceRooms.$inferSelect;
 export type NewVoiceRoomRecord = typeof voiceRooms.$inferInsert;
 export type VoiceRoomPresenceRecord = typeof voiceRoomPresence.$inferSelect;

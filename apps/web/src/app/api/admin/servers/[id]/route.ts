@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, eq, servers } from '@xom/db';
+import { db, eq, serverMods, servers } from '@xom/db';
 import { requireAdmin } from '@/lib/auth';
 import { parseGameServerInput } from '@/lib/game-servers';
+import { getServerModsById } from '@/lib/utils/server-mods';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -17,12 +18,14 @@ export const GET = requireAdmin(async (_request: NextRequest, _user, context: Ro
   }
 
   const { address, rcon_password, ...server } = rows[0];
+  const mods = await getServerModsById([server.id]);
   return NextResponse.json({
     server: {
       ...server,
       gameName: server.name,
       connectionLink: address,
       connectionGuide: server.connectionGuide || null,
+      mods: mods.get(server.id) || [],
     },
   });
 });
@@ -37,14 +40,25 @@ export const PUT = requireAdmin(async (request: NextRequest, _user, context: Rou
 
   try {
     const input = parseGameServerInput(await request.json());
-    await db.update(servers).set({
-      name: input.name,
-      game: input.game,
-      address: input.connectionLink,
-      connectionGuide: input.connectionGuide,
-      description: input.description,
-      metadataUrl: input.metadataUrl,
-    }).where(eq(servers.id, serverId));
+    await db.transaction(async (transaction) => {
+      await transaction.update(servers).set({
+        name: input.name,
+        game: input.game,
+        address: input.connectionLink,
+        connectionGuide: input.connectionGuide,
+        description: input.description,
+        metadataUrl: input.metadataUrl,
+      }).where(eq(servers.id, serverId));
+
+      await transaction.delete(serverMods).where(eq(serverMods.serverId, serverId));
+      if (input.mods.length > 0) {
+        await transaction.insert(serverMods).values(input.mods.map((mod, sortOrder) => ({
+          serverId,
+          ...mod,
+          sortOrder,
+        })));
+      }
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

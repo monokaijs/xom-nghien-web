@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { asc, db, desc, eq, servers, sql } from '@xom/db';
+import { asc, db, desc, eq, serverMods, servers, sql } from '@xom/db';
 import { requireAdmin } from '@/lib/auth';
 import { parseGameServerInput } from '@/lib/game-servers';
+import { getServerModsById } from '@/lib/utils/server-mods';
+import type { ServerMod } from '@/types/server';
 
-function toResponse(server: typeof servers.$inferSelect) {
+function toResponse(server: typeof servers.$inferSelect, mods: ServerMod[]) {
   const { address, rcon_password, ...rest } = server;
   return {
     ...rest,
     gameName: server.name,
     connectionLink: address,
     connectionGuide: server.connectionGuide || null,
+    mods,
   };
 }
 
@@ -19,7 +22,8 @@ function isDuplicateConnection(error: any) {
 
 export const GET = requireAdmin(async () => {
   const rows = await db.select().from(servers).orderBy(asc(servers.sortOrder), desc(servers.created_at));
-  return NextResponse.json({ servers: rows.map(toResponse) });
+  const mods = await getServerModsById(rows.map((server) => server.id));
+  return NextResponse.json({ servers: rows.map((server) => toResponse(server, mods.get(server.id) || [])) });
 });
 
 export const POST = requireAdmin(async (request: NextRequest) => {
@@ -28,18 +32,29 @@ export const POST = requireAdmin(async (request: NextRequest) => {
     const [order] = await db.select({
       value: sql<number>`COALESCE(MAX(${servers.sortOrder}), -1) + 1`,
     }).from(servers);
-    const result = await db.insert(servers).values({
-      name: input.name,
-      game: input.game,
-      address: input.connectionLink,
-      connectionGuide: input.connectionGuide,
-      description: input.description,
-      metadataUrl: input.metadataUrl,
-      sortOrder: Number(order?.value ?? 0),
-      rcon_password: null,
+    let serverId = 0;
+    await db.transaction(async (transaction) => {
+      const result = await transaction.insert(servers).values({
+        name: input.name,
+        game: input.game,
+        address: input.connectionLink,
+        connectionGuide: input.connectionGuide,
+        description: input.description,
+        metadataUrl: input.metadataUrl,
+        sortOrder: Number(order?.value ?? 0),
+        rcon_password: null,
+      });
+      serverId = result[0].insertId;
+      if (input.mods.length > 0) {
+        await transaction.insert(serverMods).values(input.mods.map((mod, sortOrder) => ({
+          serverId,
+          ...mod,
+          sortOrder,
+        })));
+      }
     });
 
-    return NextResponse.json({ success: true, serverId: result[0].insertId }, { status: 201 });
+    return NextResponse.json({ success: true, serverId }, { status: 201 });
   } catch (error: any) {
     if (isDuplicateConnection(error)) {
       return NextResponse.json({ error: 'This connection link is already in use' }, { status: 409 });

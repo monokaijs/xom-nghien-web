@@ -17,6 +17,14 @@ pub struct LauncherPackageRef {
 }
 
 impl LauncherPackageRef {
+    pub fn identity(&self) -> String {
+        format!(
+            "{}-{}",
+            self.namespace.to_ascii_lowercase(),
+            self.package_name.to_ascii_lowercase()
+        )
+    }
+
     pub fn coordinate(&self) -> String {
         format!(
             "{}-{}-{}",

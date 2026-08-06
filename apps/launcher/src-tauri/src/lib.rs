@@ -17,7 +17,7 @@ use crate::{
     steam::{GameAdapter, ValheimAdapter},
 };
 use anyhow::{Context, Result};
-use std::{fs, io::Write, path::PathBuf};
+use std::{collections::HashSet, fs, io::Write, path::PathBuf};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_updater::UpdaterExt;
@@ -89,11 +89,17 @@ async fn bootstrap(state: State<'_, AppState>) -> Result<BootstrapData, String> 
             .unwrap_or_default();
         for server in &mut servers {
             let metadata = store.ensure_server(&server.id, &server.name)?;
-            server.selected_optional_packages = metadata
+            let selected_identities: HashSet<_> = metadata
                 .requested_packages
                 .iter()
                 .filter(|package| package.origin == "optional" && package.enabled)
-                .map(|package| package.coordinate.clone())
+                .filter_map(|package| coordinate_identity(&package.coordinate))
+                .collect();
+            server.selected_optional_packages = server
+                .optional_mods
+                .iter()
+                .filter(|package| selected_identities.contains(&package.identity()))
+                .map(|package| package.coordinate())
                 .collect();
         }
         Ok(BootstrapData {
@@ -151,6 +157,9 @@ async fn install_mod(
         thunderstore::split_coordinate(&package_ref)?;
         let store = state.store();
         let mut metadata = store.load_metadata(&profile_id)?;
+        if metadata.kind != "personal" {
+            anyhow::bail!("Managed server profiles only allow mods from the server whitelist");
+        }
         metadata
             .requested_packages
             .retain(|item| item.coordinate != package_ref);
@@ -278,9 +287,13 @@ async fn launch_server(
             .context("Server no longer exists")?;
         let store = state.store();
         let mut metadata = store.ensure_server(&server.id, &server.name)?;
-        metadata
-            .requested_packages
-            .retain(|package| package.origin == "extra");
+        let selected_optional_identities: HashSet<_> = optional_packages
+            .iter()
+            .filter_map(|coordinate| coordinate_identity(coordinate))
+            .collect();
+        // Managed server profiles mirror the latest manifest. Replacing the
+        // request set removes obsolete versions and mods no longer whitelisted.
+        metadata.requested_packages.clear();
         metadata
             .requested_packages
             .extend(server.required_mods.iter().map(|package| RequestedPackage {
@@ -291,7 +304,7 @@ async fn launch_server(
         for package in &server.optional_mods {
             let coordinate = package.coordinate();
             metadata.requested_packages.push(RequestedPackage {
-                enabled: optional_packages.contains(&coordinate),
+                enabled: selected_optional_identities.contains(&package.identity()),
                 coordinate,
                 origin: "optional".into(),
             });
@@ -408,6 +421,15 @@ async fn sync_metadata(
     Ok(())
 }
 
+fn coordinate_identity(coordinate: &str) -> Option<String> {
+    let (namespace, name, _) = thunderstore::split_coordinate(coordinate).ok()?;
+    Some(format!(
+        "{}-{}",
+        namespace.to_ascii_lowercase(),
+        name.to_ascii_lowercase()
+    ))
+}
+
 async fn fetch_credentials(
     client: &reqwest::Client,
     base_url: &str,
@@ -489,4 +511,17 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running Xom Nghien Launcher");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn optional_mod_identity_survives_version_updates() {
+        assert_eq!(
+            coordinate_identity("Author-Whitelisted-Mod-1.0.0"),
+            coordinate_identity("Author-Whitelisted-Mod-2.0.0")
+        );
+    }
 }

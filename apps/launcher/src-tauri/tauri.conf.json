@@ -41,10 +41,6 @@
     "category": "Game",
     "shortDescription": "Valheim server and mod launcher",
     "longDescription": "Synchronizes Valheim mods and connects players to Xom Nghien servers.",
-    "resources": {
-      "../../../packages/valheim-launcher-bridge/bin/Release/netstandard2.0/XomNghien.ValheimBridge.dll": "XomNghien.ValheimBridge.dll",
-      "../../../packages/valheim-launcher-bridge/bin/Release/netstandard2.0/Newtonsoft.Json.dll": "Newtonsoft.Json.dll"
-    },
     "windows": {
       "nsis": {
         "installerIcon": "icons/icon.ico"

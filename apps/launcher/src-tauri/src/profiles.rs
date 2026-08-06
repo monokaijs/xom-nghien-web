@@ -23,6 +23,14 @@ use zip::ZipArchive;
 
 pub const LOADER_PACKAGE: &str = "denikson-BepInExPack_Valheim-5.4.2333";
 const LOADER_IDENTITY: &str = "denikson-bepinexpack_valheim";
+const BRIDGE_DLL: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../packages/valheim-launcher-bridge/bin/Release/netstandard2.0/XomNghien.ValheimBridge.dll"
+));
+const BRIDGE_JSON_DLL: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../packages/valheim-launcher-bridge/bin/Release/netstandard2.0/Newtonsoft.Json.dll"
+));
 
 pub struct ProfileStore {
     root: PathBuf,
@@ -152,7 +160,6 @@ impl ProfileStore {
         client: &Client,
         metadata: &ProfileMetadata,
         catalog: &[ThunderstorePackage],
-        bridge_path: Option<&Path>,
         concurrency: usize,
     ) -> Result<ProfileLock> {
         let (requested, mut locked) = resolve_with_runtime(catalog, &metadata.requested_packages)?;
@@ -185,19 +192,10 @@ impl ProfileStore {
                 .context("Downloaded package disappeared")?;
             package.files = extract_package(archive, &staging, &package.coordinate, &mut owners)?;
         }
-        if let Some(bridge) = bridge_path.filter(|path| path.is_file()) {
-            let plugins = staging.join("BepInEx/plugins/XomNghienLauncher");
-            fs::create_dir_all(&plugins)?;
-            fs::copy(bridge, plugins.join("XomNghien.ValheimBridge.dll"))?;
-            let json_dependency = bridge.with_file_name("Newtonsoft.Json.dll");
-            if !json_dependency.is_file() {
-                anyhow::bail!(
-                    "Launcher bridge dependency is missing: {}",
-                    json_dependency.display()
-                );
-            }
-            fs::copy(json_dependency, plugins.join("Newtonsoft.Json.dll"))?;
-        }
+        let plugins = staging.join("BepInEx/plugins/XomNghienLauncher");
+        fs::create_dir_all(&plugins)?;
+        fs::write(plugins.join("XomNghien.ValheimBridge.dll"), BRIDGE_DLL)?;
+        fs::write(plugins.join("Newtonsoft.Json.dll"), BRIDGE_JSON_DLL)?;
         preserve_mutable_config(&current, &staging)?;
         disable_bepinex_console(&staging)?;
 

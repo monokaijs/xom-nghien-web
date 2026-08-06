@@ -8,7 +8,6 @@ $launcherRoot = Split-Path -Parent $PSScriptRoot
 $repoRoot = Resolve-Path (Join-Path $launcherRoot '..\..')
 $packageJson = Get-Content (Join-Path $launcherRoot 'package.json') -Raw | ConvertFrom-Json
 $version = $packageJson.version
-$bridgeOutput = Join-Path $repoRoot 'packages\valheim-launcher-bridge\bin\Release\netstandard2.0'
 $targetOutput = Join-Path $launcherRoot 'src-tauri\target\release'
 $artifactsRoot = Join-Path $launcherRoot 'artifacts'
 $packageName = "Xom-Nghien-Launcher-v$version-windows-x64-portable"
@@ -26,9 +25,7 @@ try {
   }
 
   $launcherExe = Join-Path $targetOutput 'xom-nghien-launcher.exe'
-  $bridgeDll = Join-Path $bridgeOutput 'XomNghien.ValheimBridge.dll'
-  $jsonDll = Join-Path $bridgeOutput 'Newtonsoft.Json.dll'
-  foreach ($required in @($launcherExe, $bridgeDll, $jsonDll)) {
+  foreach ($required in @($launcherExe)) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
       throw "Required standalone file is missing: $required"
     }
@@ -52,14 +49,12 @@ try {
 
   New-Item -ItemType Directory -Path $stage | Out-Null
   Copy-Item -LiteralPath $launcherExe -Destination (Join-Path $stage 'Xom Nghien Launcher.exe')
-  Copy-Item -LiteralPath $bridgeDll -Destination $stage
-  Copy-Item -LiteralPath $jsonDll -Destination $stage
   Copy-Item -LiteralPath (Join-Path $launcherRoot 'THIRD_PARTY_NOTICES.md') -Destination $stage
 
   @"
 Xom Nghien Launcher v$version (Windows x64 portable)
 
-Run "Xom Nghien Launcher.exe" directly. Keep the two DLL files beside it.
+Run "Xom Nghien Launcher.exe" directly. The in-game bridge is embedded in the executable.
 Windows 10/11 and Microsoft Edge WebView2 are required.
 Launcher profiles and downloaded mods are stored in your normal Windows app-data folders.
 "@ | Set-Content -LiteralPath (Join-Path $stage 'README.txt') -Encoding UTF8

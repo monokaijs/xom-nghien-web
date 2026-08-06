@@ -17,12 +17,8 @@ use crate::{
     steam::{GameAdapter, ValheimAdapter},
 };
 use anyhow::{Context, Result};
-use std::{
-    fs,
-    io::Write,
-    path::{Path, PathBuf},
-};
-use tauri::{path::BaseDirectory, AppHandle, Manager, State};
+use std::{fs, io::Write, path::PathBuf};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_updater::UpdaterExt;
 
@@ -30,7 +26,6 @@ struct AppState {
     data_dir: PathBuf,
     cache_dir: PathBuf,
     client: reqwest::Client,
-    bridge_path: Option<PathBuf>,
 }
 
 impl AppState {
@@ -407,13 +402,7 @@ async fn sync_metadata(
     let catalog = thunderstore::catalog(&state.client, &state.catalog_path(), false).await?;
     let concurrency = state.settings().download_concurrency as usize;
     store
-        .sync(
-            &state.client,
-            metadata,
-            &catalog,
-            state.bridge_path.as_deref(),
-            concurrency,
-        )
+        .sync(&state.client, metadata, &catalog, concurrency)
         .await?;
     state.log("info", &format!("Synchronized profile {}", metadata.id));
     Ok(())
@@ -459,18 +448,6 @@ async fn command_result<T>(
     future.await.map_err(|error| format!("{error:#}"))
 }
 
-fn bridge_path(app: &tauri::App) -> Option<PathBuf> {
-    let bundled = app
-        .path()
-        .resolve("XomNghien.ValheimBridge.dll", BaseDirectory::Resource)
-        .ok();
-    if bundled.as_ref().is_some_and(|path| path.is_file()) {
-        return bundled;
-    }
-    let development = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../packages/valheim-launcher-bridge/bin/Release/netstandard2.0/XomNghien.ValheimBridge.dll");
-    development.is_file().then_some(development)
-}
-
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -484,7 +461,6 @@ pub fn run() {
             app.manage(AppState {
                 data_dir,
                 cache_dir,
-                bridge_path: bridge_path(app),
                 client: reqwest::Client::builder()
                     .user_agent(format!("XomNghienLauncher/{}", env!("CARGO_PKG_VERSION")))
                     .timeout(std::time::Duration::from_secs(45))

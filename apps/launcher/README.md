@@ -20,7 +20,7 @@ Build a portable Windows x64 launcher that can be extracted and run without an i
 pnpm --filter @xom/launcher standalone:build
 ```
 
-The ZIP and its SHA-256 checksum are written to `apps/launcher/artifacts/`. Keep the executable and bundled DLL files together. Windows 10/11 includes the WebView2 runtime on normal installations; systems without it must install the Microsoft Edge WebView2 Runtime.
+The ZIP and its SHA-256 checksum are written to `apps/launcher/artifacts/`. The in-game bridge and its runtime dependency are embedded in the launcher, so the portable package needs only the executable. Windows 10/11 includes the WebView2 runtime on normal installations; systems without it must install the Microsoft Edge WebView2 Runtime.
 
 The default website API is `https://xomnghien.com`; it can be changed in Settings. Profiles and package archives live in the operating system's application-data and cache folders. Vanilla Valheim files are not modified.
 

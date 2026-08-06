@@ -306,8 +306,27 @@ async fn launch_server(
 
         let credentials = fetch_credentials(&state.client, &settings.api_base_url, &server).await?;
         let current = store.profile_dir(&metadata.id)?.join("current");
+        let bridge = current.join(
+            "BepInEx/plugins/XomNghienLauncher/XomNghien.ValheimBridge.dll",
+        );
+        let bridge_json = current.join(
+            "BepInEx/plugins/XomNghienLauncher/Newtonsoft.Json.dll",
+        );
+        if !bridge.is_file() || !bridge_json.is_file() {
+            anyhow::bail!(
+                "Automatic server connection is unavailable because the launcher bridge is incomplete. Rebuild or reinstall the launcher"
+            );
+        }
+        let server_address = format!("{}:{}", credentials.host, credentials.port);
+        let server_password = credentials.password.clone();
         handoff::start(&current, credentials).await?;
-        launch::launch_valheim(&executable, &current, &settings.launch_arguments)?;
+        launch::launch_valheim(
+            &executable,
+            &current,
+            &server_address,
+            &server_password,
+            &settings.launch_arguments,
+        )?;
         state.log("info", &format!("Launched Valheim for server {server_id}"));
         if settings.minimize_on_launch {
             let _ = app

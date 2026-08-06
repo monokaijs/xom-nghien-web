@@ -7,6 +7,8 @@ use std::{
 pub fn launch_valheim(
     executable: &Path,
     profile_current: &Path,
+    server_address: &str,
+    server_password: &str,
     extra_arguments: &str,
 ) -> Result<()> {
     if !executable.is_file() {
@@ -15,14 +17,16 @@ pub fn launch_valheim(
             executable.display()
         );
     }
-    let args = shell_words::split(extra_arguments)
-        .context("Additional launch arguments contain invalid quoting")?;
-    let doorstop_args = doorstop_arguments(profile_current);
+    let args = game_arguments(
+        profile_current,
+        server_address,
+        server_password,
+        extra_arguments,
+    )?;
     #[cfg(target_os = "windows")]
     {
         Command::new(executable)
             .current_dir(profile_current)
-            .args(&doorstop_args)
             .args(args)
             .env("DOORSTOP_ENABLE", "TRUE")
             .env("BEPINEX_ROOT_PATH", profile_current)
@@ -40,7 +44,7 @@ pub fn launch_valheim(
             anyhow::bail!("The selected profile does not contain the macOS BepInEx loader");
         }
         Command::new("/usr/bin/arch")
-            .arg("-x86_64").arg(executable).args(&doorstop_args).args(args)
+            .arg("-x86_64").arg(executable).args(args)
             .current_dir(profile_current)
             .env("DOORSTOP_ENABLE", "TRUE")
             .env("DOORSTOP_INVOKE_DLL_PATH", preloader)
@@ -54,6 +58,33 @@ pub fn launch_valheim(
     Ok(())
 }
 
+fn game_arguments(
+    profile_current: &Path,
+    server_address: &str,
+    server_password: &str,
+    extra_arguments: &str,
+) -> Result<Vec<String>> {
+    if server_address.trim().is_empty() {
+        anyhow::bail!("Server address is empty");
+    }
+    if server_password.is_empty() {
+        anyhow::bail!("Server password is empty");
+    }
+
+    let mut args = doorstop_arguments(profile_current);
+    args.extend([
+        "+connect".into(),
+        server_address.into(),
+        "+password".into(),
+        server_password.into(),
+    ]);
+    args.extend(
+        shell_words::split(extra_arguments)
+            .context("Additional launch arguments contain invalid quoting")?,
+    );
+    Ok(args)
+}
+
 fn doorstop_arguments(profile_current: &Path) -> Vec<String> {
     let preloader = profile_current
         .join("BepInEx/core/BepInEx.Preloader.dll")
@@ -61,7 +92,12 @@ fn doorstop_arguments(profile_current: &Path) -> Vec<String> {
         .into_owned();
     let version =
         std::fs::read_to_string(profile_current.join(".doorstop_version")).unwrap_or_default();
-    if version.trim() == "4" {
+    if version
+        .trim()
+        .split('.')
+        .next()
+        .is_some_and(|major| major == "4")
+    {
         vec![
             "--doorstop-enabled".into(),
             "true".into(),
@@ -85,9 +121,40 @@ mod tests {
     #[test]
     fn selects_doorstop_v4_arguments_from_profile_marker() {
         let temp = tempfile::tempdir().unwrap();
-        std::fs::write(temp.path().join(".doorstop_version"), "4\n").unwrap();
+        std::fs::write(temp.path().join(".doorstop_version"), "4.4.0\n").unwrap();
         let args = doorstop_arguments(temp.path());
         assert_eq!(args[0], "--doorstop-enabled");
         assert_eq!(args[2], "--doorstop-target-assembly");
+    }
+
+    #[test]
+    fn selects_legacy_doorstop_arguments_without_v4_marker() {
+        let temp = tempfile::tempdir().unwrap();
+        let args = doorstop_arguments(temp.path());
+        assert_eq!(args[0], "--doorstop-enable");
+        assert_eq!(args[2], "--doorstop-target");
+    }
+
+    #[test]
+    fn includes_server_connection_and_password_arguments() {
+        let temp = tempfile::tempdir().unwrap();
+        std::fs::write(temp.path().join(".doorstop_version"), "4.4.0\n").unwrap();
+
+        let args = game_arguments(
+            temp.path(),
+            "cs2.xomnghien.com:2456",
+            "server-secret",
+            "-console",
+        )
+        .unwrap();
+
+        assert!(args.windows(4).any(|values| values
+            == [
+                "+connect",
+                "cs2.xomnghien.com:2456",
+                "+password",
+                "server-secret"
+            ]));
+        assert_eq!(args.last().map(String::as_str), Some("-console"));
     }
 }

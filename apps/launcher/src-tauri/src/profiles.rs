@@ -22,6 +22,7 @@ use walkdir::WalkDir;
 use zip::ZipArchive;
 
 pub const LOADER_PACKAGE: &str = "denikson-BepInExPack_Valheim-5.4.2333";
+const LOADER_IDENTITY: &str = "denikson-bepinexpack_valheim";
 
 pub struct ProfileStore {
     root: PathBuf,
@@ -154,18 +155,7 @@ impl ProfileStore {
         bridge_path: Option<&Path>,
         concurrency: usize,
     ) -> Result<ProfileLock> {
-        let mut requested = metadata.requested_packages.clone();
-        if !requested
-            .iter()
-            .any(|item| item.coordinate == LOADER_PACKAGE)
-        {
-            requested.push(RequestedPackage {
-                coordinate: LOADER_PACKAGE.into(),
-                origin: "runtime".into(),
-                enabled: true,
-            });
-        }
-        let mut locked = resolver::resolve(catalog, &requested)?;
+        let (requested, mut locked) = resolve_with_runtime(catalog, &metadata.requested_packages)?;
         let profile_dir = self.profile_dir(&metadata.id)?;
         let staging = profile_dir.join("staging");
         let current = profile_dir.join("current");
@@ -199,18 +189,28 @@ impl ProfileStore {
             let plugins = staging.join("BepInEx/plugins/XomNghienLauncher");
             fs::create_dir_all(&plugins)?;
             fs::copy(bridge, plugins.join("XomNghien.ValheimBridge.dll"))?;
+            let json_dependency = bridge.with_file_name("Newtonsoft.Json.dll");
+            if !json_dependency.is_file() {
+                anyhow::bail!(
+                    "Launcher bridge dependency is missing: {}",
+                    json_dependency.display()
+                );
+            }
+            fs::copy(json_dependency, plugins.join("Newtonsoft.Json.dll"))?;
         }
         preserve_mutable_config(&current, &staging)?;
+        disable_bepinex_console(&staging)?;
 
         let lock = ProfileLock {
             schema_version: 1,
             profile_version: metadata.schema_version,
             game: "valheim".into(),
             game_version: "steam-current".into(),
-            runtime_version: LOADER_PACKAGE
-                .rsplit_once('-')
-                .map_or("unknown", |(_, version)| version)
-                .into(),
+            runtime_version: locked
+                .get(LOADER_IDENTITY)
+                .context("Resolved profile is missing the BepInEx runtime")?
+                .version
+                .clone(),
             generated_at: Utc::now().to_rfc3339(),
             requested_packages: requested,
             packages: locked,
@@ -268,6 +268,31 @@ impl ProfileStore {
         fs::create_dir_all(&self.cache)?;
         Ok(())
     }
+}
+
+fn resolve_with_runtime(
+    catalog: &[ThunderstorePackage],
+    requested: &[RequestedPackage],
+) -> Result<(
+    Vec<RequestedPackage>,
+    std::collections::BTreeMap<String, LockedPackage>,
+)> {
+    let mut effective = requested.to_vec();
+    let mut locked = resolver::resolve(catalog, &effective)?;
+
+    // Thunderstore mods commonly pin the BepInEx pack as a dependency. Respect
+    // that server-selected runtime and only add our default when the dependency
+    // graph does not already contain a loader.
+    if !locked.contains_key(LOADER_IDENTITY) {
+        effective.push(RequestedPackage {
+            coordinate: LOADER_PACKAGE.into(),
+            origin: "runtime".into(),
+            enabled: true,
+        });
+        locked = resolver::resolve(catalog, &effective)?;
+    }
+
+    Ok((effective, locked))
 }
 
 fn extract_package(
@@ -365,6 +390,82 @@ fn preserve_mutable_config(current: &Path, staging: &Path) -> Result<()> {
     Ok(())
 }
 
+fn disable_bepinex_console(profile_root: &Path) -> Result<()> {
+    let path = profile_root.join("BepInEx/config/BepInEx.cfg");
+    let contents = fs::read_to_string(&path).unwrap_or_default();
+    let mut output = Vec::new();
+    let mut in_console = false;
+    let mut found_section = false;
+    let mut seen_enabled = false;
+    let mut seen_prevent_close = false;
+    let mut seen_tty = false;
+
+    let append_missing =
+        |output: &mut Vec<String>, enabled: bool, prevent_close: bool, tty: bool| {
+            if !enabled {
+                output.push("Enabled = false".into());
+            }
+            if !prevent_close {
+                output.push("PreventClose = false".into());
+            }
+            if !tty {
+                output.push("ForceBepInExTTYDriver = false".into());
+            }
+        };
+
+    for line in contents.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            if in_console {
+                append_missing(&mut output, seen_enabled, seen_prevent_close, seen_tty);
+            }
+            in_console = trimmed.eq_ignore_ascii_case("[Logging.Console]");
+            found_section |= in_console;
+            output.push(line.into());
+            continue;
+        }
+
+        if in_console {
+            let key = trimmed
+                .split_once('=')
+                .map(|(key, _)| key.trim())
+                .unwrap_or_default();
+            if key.eq_ignore_ascii_case("Enabled") {
+                output.push("Enabled = false".into());
+                seen_enabled = true;
+                continue;
+            }
+            if key.eq_ignore_ascii_case("PreventClose") {
+                output.push("PreventClose = false".into());
+                seen_prevent_close = true;
+                continue;
+            }
+            if key.eq_ignore_ascii_case("ForceBepInExTTYDriver") {
+                output.push("ForceBepInExTTYDriver = false".into());
+                seen_tty = true;
+                continue;
+            }
+        }
+        output.push(line.into());
+    }
+
+    if in_console {
+        append_missing(&mut output, seen_enabled, seen_prevent_close, seen_tty);
+    } else if !found_section {
+        if !output.is_empty() {
+            output.push(String::new());
+        }
+        output.push("[Logging.Console]".into());
+        append_missing(&mut output, false, false, false);
+    }
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, format!("{}\n", output.join("\n")))?;
+    Ok(())
+}
+
 fn validate_zip(path: &Path) -> Result<()> {
     let mut archive = ZipArchive::new(fs::File::open(path)?)?;
     for index in 0..archive.len() {
@@ -402,7 +503,75 @@ fn write_json(path: &Path, value: &impl serde::Serialize) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::thunderstore::{ThunderstorePackage, ThunderstoreVersion};
     use zip::write::SimpleFileOptions;
+
+    fn package(
+        owner: &str,
+        name: &str,
+        version: &str,
+        dependencies: &[&str],
+    ) -> ThunderstorePackage {
+        ThunderstorePackage {
+            name: name.into(),
+            full_name: format!("{owner}-{name}"),
+            owner: owner.into(),
+            package_url: String::new(),
+            date_updated: String::new(),
+            uuid4: String::new(),
+            rating_score: 0,
+            is_pinned: false,
+            is_deprecated: false,
+            has_nsfw_content: false,
+            categories: vec![],
+            versions: vec![ThunderstoreVersion {
+                name: name.into(),
+                full_name: format!("{owner}-{name}-{version}"),
+                description: String::new(),
+                icon: String::new(),
+                version_number: version.into(),
+                dependencies: dependencies.iter().map(|item| item.to_string()).collect(),
+                download_url: "https://example.invalid/mod.zip".into(),
+                downloads: 0,
+                date_created: String::new(),
+            }],
+        }
+    }
+
+    #[test]
+    fn uses_bepinex_version_selected_by_server_dependencies() {
+        let catalog = vec![
+            package(
+                "ServerAuthor",
+                "ServerMod",
+                "1.0.0",
+                &["denikson-BepInExPack_Valheim-5.4.2202"],
+            ),
+            package("denikson", "BepInExPack_Valheim", "5.4.2202", &[]),
+        ];
+        let requested = vec![RequestedPackage {
+            coordinate: "ServerAuthor-ServerMod-1.0.0".into(),
+            origin: "required".into(),
+            enabled: true,
+        }];
+
+        let (effective, locked) = resolve_with_runtime(&catalog, &requested).unwrap();
+
+        assert_eq!(effective, requested);
+        assert_eq!(locked[LOADER_IDENTITY].version, "5.4.2202");
+    }
+
+    #[test]
+    fn injects_default_bepinex_when_profile_has_no_runtime_dependency() {
+        let catalog = vec![package("denikson", "BepInExPack_Valheim", "5.4.2333", &[])];
+
+        let (effective, locked) = resolve_with_runtime(&catalog, &[]).unwrap();
+
+        assert_eq!(effective.len(), 1);
+        assert_eq!(effective[0].coordinate, LOADER_PACKAGE);
+        assert_eq!(effective[0].origin, "runtime");
+        assert_eq!(locked[LOADER_IDENTITY].version, "5.4.2333");
+    }
 
     #[test]
     fn rejects_archive_path_traversal() {
@@ -428,5 +597,25 @@ mod tests {
             strip_loader_prefix(Path::new("BepInEx/plugins/a.dll")),
             PathBuf::from("BepInEx/plugins/a.dll")
         );
+    }
+
+    #[test]
+    fn disables_bepinex_console_without_disabling_disk_logs() {
+        let temp = tempfile::tempdir().unwrap();
+        let config = temp.path().join("BepInEx/config/BepInEx.cfg");
+        fs::create_dir_all(config.parent().unwrap()).unwrap();
+        fs::write(
+            &config,
+            "[Logging.Console]\nEnabled = true\nPreventClose = true\nForceBepInExTTYDriver = true\n\n[Logging.Disk]\nEnabled = true\n",
+        )
+        .unwrap();
+
+        disable_bepinex_console(temp.path()).unwrap();
+        let updated = fs::read_to_string(config).unwrap();
+
+        assert!(updated.contains("[Logging.Console]\nEnabled = false"));
+        assert!(updated.contains("PreventClose = false"));
+        assert!(updated.contains("ForceBepInExTTYDriver = false"));
+        assert!(updated.contains("[Logging.Disk]\nEnabled = true"));
     }
 }

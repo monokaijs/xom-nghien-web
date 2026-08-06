@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Xom Nghien Launcher",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "com.xomnghien.launcher",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -28,7 +28,10 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "targets": ["nsis", "dmg"],
+    "targets": [
+      "nsis",
+      "dmg"
+    ],
     "category": "Game",
     "shortDescription": "Valheim server and mod launcher",
     "longDescription": "Synchronizes Valheim mods and connects players to Xom Nghien servers.",

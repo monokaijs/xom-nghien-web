@@ -51,6 +51,9 @@ importers:
 
   apps/launcher:
     dependencies:
+      '@fontsource-variable/manrope':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@tabler/icons-react':
         specifier: ^3.35.0
         version: 3.44.0(react@19.2.0)
@@ -906,6 +909,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@fontsource-variable/manrope@5.3.0':
+    resolution: {integrity: sha512-6D5dgokHsWDDMtmXHznKa0hK229NN+1a4BLPmUCLqcO1Pw5EEhWY5RFt0AcXnVRAljFFPfRtLkJePQj6LSsV6g==}
 
   '@ianlucas/cs2-lib@7.34.0':
     resolution: {integrity: sha512-HJAJ+csmmojFDQXnaZ1g+W+MVh09hYyDbg7NOoZYgu5O1U2r1eGJigpUZ4cl6NmnfZ3C9UfIUiYCZ4YPP6NR0Q==}
@@ -3380,6 +3386,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.1':
     optional: true
+
+  '@fontsource-variable/manrope@5.3.0': {}
 
   '@ianlucas/cs2-lib@7.34.0': {}
 

@@ -185,8 +185,9 @@ jobs:
           releaseBody: "Unsigned Valheim launcher beta. Windows SmartScreen and macOS Gatekeeper may display a warning. See apps/launcher/README.md for installation notes."
           releaseDraft: false
           prerelease: false
+          includeUpdaterJson: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' && secrets.TAURI_UPDATER_PUBLIC_KEY != '' }}
           args: >-
-            ${{ matrix.args }} --config '{"plugins":{"updater":{"pubkey":"${{ secrets.TAURI_UPDATER_PUBLIC_KEY }}","endpoints":["https://github.com/monokaijs/xom-nghien-web/releases/latest/download/latest.json"]}}}'
+            ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' && secrets.TAURI_UPDATER_PUBLIC_KEY != '' }}},"plugins":{"updater":{"pubkey":"${{ secrets.TAURI_UPDATER_PUBLIC_KEY }}","endpoints":["https://github.com/monokaijs/xom-nghien-web/releases/latest/download/latest.json"]}}}'
 
   checksums:
     needs: [prepare, release]

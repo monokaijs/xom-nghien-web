@@ -62,3 +62,5 @@ apps/launcher/src-tauri/icons/android/
 apps/launcher/src-tauri/icons/ios/
 apps/launcher/src-tauri/icons/Square*.png
 apps/launcher/src-tauri/icons/StoreLogo.png
+
+.dev-logs

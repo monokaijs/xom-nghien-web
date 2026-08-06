@@ -83,7 +83,7 @@ export default function App() {
         <nav>{nav.map(([id, label, icon]) => (
           <button key={id} className={page === id ? 'active' : ''} onClick={() => setPage(id)}>{icon}{label}</button>
         ))}</nav>
-        <div className="aside-footer"><span>v{data.appVersion}</span><small>{t('betaWarning')}</small></div>
+        <div className="aside-footer"><span>v{data.appVersion}</span></div>
       </aside>
 
       <main className="content">

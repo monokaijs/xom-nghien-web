@@ -6,11 +6,14 @@ import { getServerModsById } from '@/lib/utils/server-mods';
 import type { ServerMod } from '@/types/server';
 
 function toResponse(server: typeof servers.$inferSelect, mods: ServerMod[]) {
-  const { address, rcon_password, ...rest } = server;
+  const { address, rcon_password, connectionHost, connectionPort, joinPassword, ...rest } = server;
   return {
     ...rest,
     gameName: server.name,
     connectionLink: address,
+    connectionHost,
+    connectionPort,
+    joinPassword,
     connectionGuide: server.connectionGuide || null,
     mods,
   };
@@ -38,6 +41,9 @@ export const POST = requireAdmin(async (request: NextRequest) => {
         name: input.name,
         game: input.game,
         address: input.connectionLink,
+        connectionHost: input.connectionHost,
+        connectionPort: input.connectionPort,
+        joinPassword: input.joinPassword,
         connectionGuide: input.connectionGuide,
         description: input.description,
         metadataUrl: input.metadataUrl,

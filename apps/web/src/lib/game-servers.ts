@@ -9,6 +9,9 @@ export interface GameServerInput {
   game: string;
   name: string;
   connectionLink: string | null;
+  connectionHost: string | null;
+  connectionPort: number | null;
+  joinPassword: string | null;
   connectionGuide: string | null;
   description: string | null;
   metadataUrl: string | null;
@@ -20,6 +23,12 @@ export function parseGameServerInput(body: Record<string, unknown>): GameServerI
   const gameDefinition = getGame(game);
   const name = String(body.gameName || body.name || '').trim() || gameDefinition?.name || '';
   const connectionLink = String(body.connectionLink || '').trim() || null;
+  const connectionHost = String(body.connectionHost || '').trim() || null;
+  const rawConnectionPort = body.connectionPort === '' || body.connectionPort == null
+    ? null
+    : Number(body.connectionPort);
+  const connectionPort = rawConnectionPort === null ? null : rawConnectionPort;
+  const joinPassword = String(body.joinPassword || '').trim() || null;
   const connectionGuide = String(body.connectionGuide || '').trim() || null;
   const description = String(body.description || '').trim() || null;
   const metadataUrl = String(body.metadataUrl || '').trim() || null;
@@ -39,6 +48,21 @@ export function parseGameServerInput(body: Record<string, unknown>): GameServerI
 
   if (!connectionLink && !connectionGuide) {
     throw new Error('Add a connection link or connection guidance');
+  }
+
+  if (game === 'valheim') {
+    if (!connectionHost || connectionPort === null || !joinPassword) {
+      throw new Error('Valheim launcher host, port, and join password are required');
+    }
+    if (!isValidHost(connectionHost)) {
+      throw new Error('Valheim launcher host must be a hostname or IP address');
+    }
+    if (!Number.isSafeInteger(connectionPort) || connectionPort < 1 || connectionPort > 65535) {
+      throw new Error('Valheim launcher port must be between 1 and 65535');
+    }
+    if (joinPassword.length > 255) {
+      throw new Error('Valheim join password must be 255 characters or fewer');
+    }
   }
 
   if (connectionLink && connectionLink.length > 255) {
@@ -72,11 +96,21 @@ export function parseGameServerInput(body: Record<string, unknown>): GameServerI
     game,
     name,
     connectionLink,
+    connectionHost: game === 'valheim' ? connectionHost : null,
+    connectionPort: game === 'valheim' ? connectionPort : null,
+    joinPassword: game === 'valheim' ? joinPassword : null,
     connectionGuide,
     description,
     metadataUrl,
     mods,
   };
+}
+
+function isValidHost(value: string) {
+  return value.length <= 255
+    && !value.includes('://')
+    && !/[\s/?#]/.test(value)
+    && !value.includes(':');
 }
 
 export function openConnectionLink(connectionLink: string, game: string) {

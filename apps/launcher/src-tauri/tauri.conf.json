@@ -1,0 +1,47 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Xom Nghien Launcher",
+  "version": "0.1.0",
+  "identifier": "com.xomnghien.launcher",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Xom Nghien Launcher",
+        "width": 1180,
+        "height": 760,
+        "minWidth": 900,
+        "minHeight": 650,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: https://gcdn.thunderstore.io https://*.thunderstore.io data:; connect-src ipc: http://ipc.localhost https://xomnghien.com https://thunderstore.io https://*.thunderstore.io; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": ["nsis", "dmg"],
+    "category": "Game",
+    "shortDescription": "Valheim server and mod launcher",
+    "longDescription": "Synchronizes Valheim mods and connects players to Xom Nghien servers.",
+    "resources": {
+      "../../../packages/valheim-launcher-bridge/bin/Release/netstandard2.0/XomNghien.ValheimBridge.dll": "XomNghien.ValheimBridge.dll"
+    },
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico"
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "12.0"
+    }
+  }
+}

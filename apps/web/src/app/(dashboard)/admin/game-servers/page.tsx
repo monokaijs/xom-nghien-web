@@ -24,6 +24,9 @@ interface ManagedServer {
   gameName?: string;
   game: string;
   connectionLink: string | null;
+  connectionHost: string | null;
+  connectionPort: number | null;
+  joinPassword: string | null;
   connectionGuide: string | null;
   description: string | null;
   metadataUrl: string | null;
@@ -34,6 +37,9 @@ interface ServerForm {
   game: string;
   gameName: string;
   connectionLink: string;
+  connectionHost: string;
+  connectionPort: string;
+  joinPassword: string;
   connectionGuide: string;
   description: string;
   metadataUrl: string;
@@ -44,6 +50,9 @@ const emptyForm: ServerForm = {
   game: Games[0].id,
   gameName: Games[0].name,
   connectionLink: '',
+  connectionHost: '',
+  connectionPort: '2456',
+  joinPassword: '',
   connectionGuide: '',
   description: '',
   metadataUrl: '',
@@ -124,6 +133,9 @@ export default function GameServersPage() {
       game: server.game,
       gameName: server.gameName || server.name || getGame(server.game)?.name || '',
       connectionLink: server.connectionLink || '',
+      connectionHost: server.connectionHost || '',
+      connectionPort: server.connectionPort?.toString() || '2456',
+      joinPassword: server.joinPassword || '',
       connectionGuide: server.connectionGuide || '',
       description: server.description || '',
       metadataUrl: server.metadataUrl || '',
@@ -372,6 +384,46 @@ export default function GameServersPage() {
                     />
                   </Field>
                 </div>
+
+                {form.game === 'valheim' && (
+                  <>
+                    <Field label="Launcher host" required hint="Hostname or IP used by the desktop launcher">
+                      <input
+                        required
+                        maxLength={255}
+                        value={form.connectionHost}
+                        onChange={(event) => setForm({ ...form, connectionHost: event.target.value })}
+                        placeholder="valheim.example.com"
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Launcher port" required>
+                      <input
+                        required
+                        type="number"
+                        min={1}
+                        max={65535}
+                        value={form.connectionPort}
+                        onChange={(event) => setForm({ ...form, connectionPort: event.target.value })}
+                        className={inputClass}
+                      />
+                    </Field>
+                    <div className="md:col-span-2">
+                      <Field label="Join password" required hint="Sent only through the launcher connection endpoint; never shown on the public game page">
+                        <input
+                          required
+                          type="password"
+                          autoComplete="new-password"
+                          maxLength={255}
+                          value={form.joinPassword}
+                          onChange={(event) => setForm({ ...form, joinPassword: event.target.value })}
+                          placeholder="Server password"
+                          className={inputClass}
+                        />
+                      </Field>
+                    </div>
+                  </>
+                )}
               </div>
 
               <Field label="Connection guidance" hint="Shown before players open the direct connection">

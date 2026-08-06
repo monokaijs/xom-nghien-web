@@ -17,13 +17,16 @@ export const GET = requireAdmin(async (_request: NextRequest, _user, context: Ro
     return NextResponse.json({ error: 'Server not found' }, { status: 404 });
   }
 
-  const { address, rcon_password, ...server } = rows[0];
+  const { address, rcon_password, connectionHost, connectionPort, joinPassword, ...server } = rows[0];
   const mods = await getServerModsById([server.id]);
   return NextResponse.json({
     server: {
       ...server,
       gameName: server.name,
       connectionLink: address,
+      connectionHost,
+      connectionPort,
+      joinPassword,
       connectionGuide: server.connectionGuide || null,
       mods: mods.get(server.id) || [],
     },
@@ -45,6 +48,9 @@ export const PUT = requireAdmin(async (request: NextRequest, _user, context: Rou
         name: input.name,
         game: input.game,
         address: input.connectionLink,
+        connectionHost: input.connectionHost,
+        connectionPort: input.connectionPort,
+        joinPassword: input.joinPassword,
         connectionGuide: input.connectionGuide,
         description: input.description,
         metadataUrl: input.metadataUrl,

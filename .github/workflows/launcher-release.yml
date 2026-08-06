@@ -176,8 +176,6 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: apps/launcher
           tagName: ${{ needs.prepare.outputs.tag }}
@@ -185,9 +183,8 @@ jobs:
           releaseBody: "Unsigned Valheim launcher beta. Windows SmartScreen and macOS Gatekeeper may display a warning. See apps/launcher/README.md for installation notes."
           releaseDraft: false
           prerelease: false
-          includeUpdaterJson: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' && secrets.TAURI_UPDATER_PUBLIC_KEY != '' }}
-          args: >-
-            ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' && secrets.TAURI_UPDATER_PUBLIC_KEY != '' }}},"plugins":{"updater":{"pubkey":"${{ secrets.TAURI_UPDATER_PUBLIC_KEY }}","endpoints":["https://github.com/monokaijs/xom-nghien-web/releases/latest/download/latest.json"]}}}'
+          includeUpdaterJson: false
+          args: ${{ matrix.args }}
       - name: Package portable Windows launcher
         if: runner.os == 'Windows'
         shell: pwsh

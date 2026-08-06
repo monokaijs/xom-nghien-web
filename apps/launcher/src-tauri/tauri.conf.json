@@ -13,6 +13,7 @@
     "windows": [
       {
         "title": "Xom Nghien Launcher",
+        "center": true,
         "width": 1180,
         "height": 760,
         "minWidth": 900,
@@ -25,15 +26,9 @@
       "csp": "default-src 'self'; img-src 'self' asset: https://shared.fastly.steamstatic.com https://gcdn.thunderstore.io https://*.thunderstore.io data:; connect-src ipc: http://ipc.localhost https://xomnghien.com https://thunderstore.io https://*.thunderstore.io; style-src 'self' 'unsafe-inline'"
     }
   },
-  "plugins": {
-    "updater": {
-      "pubkey": "",
-      "endpoints": []
-    }
-  },
   "bundle": {
     "active": true,
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "targets": [
       "nsis",
       "dmg"

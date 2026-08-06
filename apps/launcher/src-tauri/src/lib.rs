@@ -10,22 +10,42 @@ mod thunderstore;
 
 use crate::{
     models::{
-        BootstrapData, CatalogPackage, ConnectResponse, LauncherServer, ProfileDetails,
-        ProfileMetadata, ProfileSummary, RequestedPackage, Settings,
+        BootstrapData, CatalogPackage, ConnectResponse, ProfileDetails, ProfileMetadata,
+        ProfileSummary, RequestedPackage, Settings,
     },
     profiles::ProfileStore,
     steam::{GameAdapter, ValheimAdapter},
 };
 use anyhow::{Context, Result};
-use std::{collections::HashSet, fs, io::Write, path::PathBuf};
+use serde::Deserialize;
+use std::{
+    collections::HashSet,
+    fs,
+    io::{Cursor, Write},
+    path::PathBuf,
+};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
-use tauri_plugin_updater::UpdaterExt;
 
 struct AppState {
     data_dir: PathBuf,
     cache_dir: PathBuf,
     client: reqwest::Client,
+}
+
+const GITHUB_LATEST_RELEASE_URL: &str =
+    "https://api.github.com/repos/monokaijs/xom-nghien-web/releases/latest";
+
+#[derive(Deserialize)]
+struct GithubRelease {
+    tag_name: String,
+    assets: Vec<GithubReleaseAsset>,
+}
+
+#[derive(Deserialize)]
+struct GithubReleaseAsset {
+    name: String,
+    browser_download_url: String,
 }
 
 impl AppState {
@@ -109,6 +129,18 @@ async fn bootstrap(state: State<'_, AppState>) -> Result<BootstrapData, String> 
             profiles: store.list(),
             app_version: env!("CARGO_PKG_VERSION").into(),
         })
+    })
+    .await
+}
+
+#[tauri::command]
+async fn server_connection(
+    state: State<'_, AppState>,
+    server_id: String,
+) -> Result<ConnectResponse, String> {
+    command_result(async {
+        let settings = state.settings();
+        fetch_credentials(&state.client, &settings.api_base_url, &server_id).await
     })
     .await
 }
@@ -312,7 +344,8 @@ async fn launch_server(
         store.write_metadata(&metadata)?;
         sync_metadata(&state, &store, &metadata).await?;
 
-        let credentials = fetch_credentials(&state.client, &settings.api_base_url, &server).await?;
+        let credentials =
+            fetch_credentials(&state.client, &settings.api_base_url, &server.id).await?;
         let current = store.profile_dir(&metadata.id)?.join("current");
         let bridge = current.join(
             "BepInEx/plugins/XomNghienLauncher/XomNghien.ValheimBridge.dll",
@@ -388,22 +421,168 @@ async fn open_logs_folder(app: AppHandle, state: State<'_, AppState>) -> Result<
 }
 
 #[tauri::command]
-async fn available_update(app: AppHandle) -> Result<Option<String>, String> {
-    command_result(async { Ok(app.updater()?.check().await?.map(|update| update.version)) }).await
+fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
+    const ALLOWED_URLS: [&str; 3] = [
+        "https://xomnghien.com",
+        "https://discord.gg/WYaqghEaMe",
+        "https://thunderstore.io/c/valheim/",
+    ];
+    if !ALLOWED_URLS.contains(&url.as_str()) {
+        return Err("This external URL is not allowed".into());
+    }
+    app.opener()
+        .open_url(url, None::<String>)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-async fn install_update(app: AppHandle) -> Result<(), String> {
+async fn available_update(state: State<'_, AppState>) -> Result<Option<String>, String> {
     command_result(async {
-        let update = app
-            .updater()?
-            .check()
-            .await?
-            .context("No launcher update is available")?;
-        update.download_and_install(|_, _| {}, || {}).await?;
-        app.restart();
+        #[cfg(not(target_os = "windows"))]
+        return Ok(None);
+
+        #[cfg(target_os = "windows")]
+        {
+            let release = latest_launcher_release(&state.client).await?;
+            let version = release
+                .tag_name
+                .strip_prefix("launcher-v")
+                .context("Latest GitHub release is not a launcher release")?;
+            Ok(
+                (version_tuple(version)? > version_tuple(env!("CARGO_PKG_VERSION"))?)
+                    .then(|| version.to_owned()),
+            )
+        }
     })
     .await
+}
+
+#[tauri::command]
+async fn install_update(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    command_result(async {
+        #[cfg(not(target_os = "windows"))]
+        anyhow::bail!("Automatic launcher updates are currently available on Windows only");
+
+        #[cfg(target_os = "windows")]
+        install_unsigned_windows_update(&state).await?;
+
+        app.exit(0);
+        #[allow(unreachable_code)]
+        Ok(())
+    })
+    .await
+}
+
+async fn latest_launcher_release(client: &reqwest::Client) -> Result<GithubRelease> {
+    let response = client
+        .get(GITHUB_LATEST_RELEASE_URL)
+        .header("Accept", "application/vnd.github+json")
+        .header("X-GitHub-Api-Version", "2022-11-28")
+        .send()
+        .await?
+        .error_for_status()?;
+    Ok(response.json().await?)
+}
+
+fn version_tuple(version: &str) -> Result<(u64, u64, u64)> {
+    let mut parts = version.split('.');
+    let parsed = (
+        parts.next().context("Missing major version")?.parse()?,
+        parts.next().context("Missing minor version")?.parse()?,
+        parts.next().context("Missing patch version")?.parse()?,
+    );
+    if parts.next().is_some() {
+        anyhow::bail!("Invalid launcher version: {version}");
+    }
+    Ok(parsed)
+}
+
+#[cfg(target_os = "windows")]
+async fn install_unsigned_windows_update(state: &AppState) -> Result<()> {
+    use std::os::windows::process::CommandExt;
+
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let release = latest_launcher_release(&state.client).await?;
+    let version = release
+        .tag_name
+        .strip_prefix("launcher-v")
+        .context("Latest GitHub release is not a launcher release")?;
+    if version_tuple(version)? <= version_tuple(env!("CARGO_PKG_VERSION"))? {
+        anyhow::bail!("No launcher update is available");
+    }
+    let asset = release
+        .assets
+        .iter()
+        .find(|asset| asset.name.ends_with("windows-x64-portable.zip"))
+        .context("The latest launcher release has no Windows portable asset")?;
+    state.log(
+        "info",
+        &format!("Downloading unsigned launcher update {version}"),
+    );
+    let archive_bytes = state
+        .client
+        .get(&asset.browser_download_url)
+        .timeout(std::time::Duration::from_secs(300))
+        .send()
+        .await?
+        .error_for_status()?
+        .bytes()
+        .await?;
+    let mut archive = zip::ZipArchive::new(Cursor::new(archive_bytes))?;
+    let entry_index = (0..archive.len())
+        .find(|index| {
+            archive
+                .by_index(*index)
+                .is_ok_and(|entry| entry.name().ends_with("Xom Nghien Launcher.exe"))
+        })
+        .context("Downloaded release does not contain the launcher executable")?;
+
+    let update_dir = state.cache_dir.join("launcher-update");
+    fs::create_dir_all(&update_dir)?;
+    let staged_exe = update_dir.join(format!("Xom-Nghien-Launcher-{version}.exe"));
+    let mut entry = archive.by_index(entry_index)?;
+    let mut output = fs::File::create(&staged_exe)?;
+    std::io::copy(&mut entry, &mut output)?;
+    output.sync_all()?;
+
+    let current_exe = std::env::current_exe()?;
+    let backup_exe = current_exe.with_extension("previous.exe");
+    let script_path = update_dir.join("install-update.ps1");
+    let quote = |path: &std::path::Path| path.to_string_lossy().replace('\'', "''");
+    let script = format!(
+        "$ErrorActionPreference = 'Stop'\n\
+         Wait-Process -Id {} -ErrorAction SilentlyContinue\n\
+         Copy-Item -LiteralPath '{}' -Destination '{}' -Force\n\
+         Move-Item -LiteralPath '{}' -Destination '{}' -Force\n\
+         Start-Process -FilePath '{}'\n\
+         Remove-Item -LiteralPath $PSCommandPath -Force\n",
+        std::process::id(),
+        quote(&current_exe),
+        quote(&backup_exe),
+        quote(&staged_exe),
+        quote(&current_exe),
+        quote(&current_exe),
+    );
+    fs::write(&script_path, script)?;
+    std::process::Command::new("powershell.exe")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-WindowStyle",
+            "Hidden",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+        ])
+        .arg(&script_path)
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .context("Could not start the launcher update installer")?;
+    state.log(
+        "info",
+        &format!("Installing unsigned launcher update {version}"),
+    );
+    Ok(())
 }
 
 async fn sync_metadata(
@@ -433,11 +612,10 @@ fn coordinate_identity(coordinate: &str) -> Option<String> {
 async fn fetch_credentials(
     client: &reqwest::Client,
     base_url: &str,
-    server: &LauncherServer,
+    server_id: &str,
 ) -> Result<ConnectResponse> {
-    let entry =
-        keyring::Entry::new("com.xomnghien.launcher", &format!("server:{}", server.id)).ok();
-    match api::connect(client, base_url, &server.id).await {
+    let entry = keyring::Entry::new("com.xomnghien.launcher", &format!("server:{server_id}")).ok();
+    match api::connect(client, base_url, server_id).await {
         Ok(credentials) => {
             if let Some(entry) = entry {
                 let _ = entry.set_password(&serde_json::to_string(&credentials)?);
@@ -474,7 +652,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(tauri_plugin_window_state::StateFlags::POSITION)
+                .build(),
+        )
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             let cache_dir = app.path().app_cache_dir()?;
@@ -492,6 +674,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             bootstrap,
+            server_connection,
             save_settings,
             create_profile,
             delete_profile,
@@ -506,6 +689,7 @@ pub fn run() {
             open_profile_folder,
             clear_cache,
             open_logs_folder,
+            open_external_url,
             available_update,
             install_update
         ])
@@ -523,5 +707,12 @@ mod tests {
             coordinate_identity("Author-Whitelisted-Mod-1.0.0"),
             coordinate_identity("Author-Whitelisted-Mod-2.0.0")
         );
+    }
+
+    #[test]
+    fn compares_launcher_versions_numerically() {
+        assert!(version_tuple("0.10.0").unwrap() > version_tuple("0.9.9").unwrap());
+        assert!(version_tuple("1.0.0").unwrap() > version_tuple("0.99.99").unwrap());
+        assert!(version_tuple("1.0").is_err());
     }
 }

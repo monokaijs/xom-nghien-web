@@ -27,6 +27,15 @@ export interface LauncherServer {
   selectedOptionalPackages: string[];
 }
 
+export interface LauncherConnection {
+  schemaVersion: number;
+  serverId: string;
+  host: string;
+  port: number;
+  password: string;
+  fetchedAt: string;
+}
+
 export interface ProfileSummary {
   id: string;
   name: string;

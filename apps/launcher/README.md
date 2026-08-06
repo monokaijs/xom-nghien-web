@@ -30,10 +30,10 @@ The default website API is `https://xomnghien.com`; it can be changed in Setting
 - macOS: open the DMG, drag the app to Applications, then Control-click the app and choose **Open** if Gatekeeper blocks the unsigned beta.
 - Apple Silicon: install Rosetta when prompted, or run `softwareupdate --install-rosetta` in Terminal.
 
-## Release signing
+## Automatic updates
 
-The `launcher-v*` workflow requires an updater key generated with `pnpm --filter @xom/launcher tauri signer generate`. Configure `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, and the matching `TAURI_UPDATER_PUBLIC_KEY` as GitHub Actions secrets. These updater signatures protect update integrity and are separate from future Apple Developer ID and Windows Authenticode signing.
+On Windows, the launcher checks the repository's latest GitHub Release at startup. When a newer `launcher-v*` release exists, it downloads the `windows-x64-portable.zip` asset, replaces the running executable after shutdown, and relaunches automatically. This custom update path intentionally does not validate a Tauri signature or the published checksum.
 
 ## Publishing a release
 
-Open **Actions → Launcher Release → Run workflow**, choose `patch`, `minor`, or `major`, and run it from `main`. The workflow synchronizes the npm, Cargo, Cargo lockfile, and Tauri versions; commits the version bump to `main`; creates the `launcher-v*` tag; builds the Windows installer, Windows portable ZIP, and universal macOS installer; publishes the GitHub Release and updater manifest; and uploads SHA-256 checksums. Re-running the same workflow run reuses its existing version and tag.
+Open **Actions → Launcher Release → Run workflow**, choose `patch`, `minor`, or `major`, and run it from `main`. The workflow synchronizes the npm, Cargo, Cargo lockfile, and Tauri versions; commits the version bump to `main`; creates the `launcher-v*` tag; builds the Windows installer, Windows portable ZIP, and universal macOS installer; publishes the GitHub Release; and uploads SHA-256 checksums. Re-running the same workflow run reuses its existing version and tag.

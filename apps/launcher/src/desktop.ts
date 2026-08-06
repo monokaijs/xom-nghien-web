@@ -1,5 +1,5 @@
 import { invoke as nativeInvoke } from '@tauri-apps/api/core';
-import type { BootstrapData, CatalogPackage, ProfileDetails } from './types';
+import type { BootstrapData, CatalogPackage, LauncherConnection, ProfileDetails } from './types';
 
 const previewMod = {
   provider: 'thunderstore' as const,
@@ -39,6 +39,15 @@ const previewCatalog: CatalogPackage[] = [{
 export async function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if ('__TAURI_INTERNALS__' in window) return nativeInvoke<T>(command, args);
   if (command === 'bootstrap') return previewData as T;
+  if (command === 'server_connection') return {
+    schemaVersion: 1, serverId: '1', host: 'valheim.xomnghien.com', port: 2456,
+    password: 'xomnghien', fetchedAt: new Date().toISOString(),
+  } as LauncherConnection as T;
+  if (command === 'open_external_url') {
+    const url = String(args?.url || '');
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return undefined as T;
+  }
   if (command === 'search_mods') return previewCatalog as T;
   if (command === 'profile_details') return {
     metadata: { id: 'server-1', name: 'Xóm Nghiện Valheim', kind: 'server', serverId: '1', requestedPackages: [{ coordinate: previewMod.namespace + '-' + previewMod.packageName + '-' + previewMod.versionNumber, origin: 'required', enabled: true }] },

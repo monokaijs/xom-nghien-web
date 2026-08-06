@@ -3,15 +3,18 @@ import { open } from '@tauri-apps/plugin-dialog';
 import {
   IconAdjustments, IconCloudDownload, IconDeviceGamepad2, IconFolder, IconLanguage,
   IconChevronDown, IconPlayerPlay, IconPlus, IconRefresh, IconSearch, IconServer, IconSettings, IconTrash,
-  IconPackage, IconX,
+  IconBrandDiscord, IconCopy, IconExternalLink, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand,
+  IconPackage, IconTrophy, IconWorld, IconX,
 } from '@tabler/icons-react';
 import { translator } from './i18n';
 import { invoke } from './desktop';
 import type {
-  BootstrapData, CatalogPackage, LauncherPackageRef, LauncherServer, LauncherSettings, Page, ProfileDetails, ProfileSummary,
+  BootstrapData, CatalogPackage, LauncherConnection, LauncherPackageRef, LauncherServer, LauncherSettings, Page, ProfileDetails, ProfileSummary,
 } from './types';
 
 type Activity = { id: number; message: string; state: 'running' | 'done' | 'error' };
+type ConnectionState = { status: 'loading' } | { status: 'ready'; data: LauncherConnection } | { status: 'error' };
+const SIDEBAR_COLLAPSED_KEY = 'xom-launcher:sidebar-collapsed';
 
 export default function App() {
   const [data, setData] = useState<BootstrapData | null>(null);
@@ -21,8 +24,17 @@ export default function App() {
   const [optional, setOptional] = useState<Record<string, string[]>>({});
   const [selectedProfile, setSelectedProfile] = useState<string>('');
   const [activity, setActivity] = useState<Activity[]>([]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
   const locale = data?.settings.language || 'en';
   const t = useMemo(() => translator(locale), [locale]);
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? t('goodMorning') : hour < 18 ? t('goodAfternoon') : t('goodEvening');
 
   const refresh = async () => {
     try {
@@ -37,14 +49,27 @@ export default function App() {
 
   useEffect(() => { void refresh(); }, []);
   useEffect(() => {
+    try {
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
+    } catch {
+      // Keep the sidebar functional when storage is unavailable.
+    }
+  }, [sidebarCollapsed]);
+  useEffect(() => {
     if (!data) return;
     setOptional(Object.fromEntries(data.servers.map((server) => [server.id, server.selectedOptionalPackages])));
   }, [data]);
   useEffect(() => {
     if (!data?.settings.checkForUpdates) return;
     invoke<string | null>('available_update').then((version) => {
-      if (version && confirm(`Launcher ${version} is available. Install it now?`)) void invoke('install_update');
-    }).catch(() => undefined);
+      if (!version) return;
+      setBusy('launcher-update');
+      setActivity((items) => [{ id: Date.now(), message: `Installing launcher ${version}...`, state: 'running' }, ...items]);
+      void invoke('install_update').catch((reason) => {
+        setBusy(null);
+        setError(`Launcher update failed: ${String(reason)}`);
+      });
+    }).catch((reason) => setError(`Launcher update check failed: ${String(reason)}`));
   }, [data?.settings.checkForUpdates]);
 
   const runTask = async (label: string, key: string, action: () => Promise<unknown>) => {
@@ -77,18 +102,30 @@ export default function App() {
   ];
 
   return (
-    <div className="shell">
-      <aside>
-        <div className="brand"><div className="brand-mark">XN</div><div><strong>Xóm Nghiện</strong><span>Launcher beta</span></div></div>
+    <div className={`shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <aside className="launcher-sidebar">
+        <div className="brand"><div className="brand-mark">XN</div><div><strong>Xóm Nghiện</strong><span>v{data.appVersion}</span></div></div>
         <div className="game-pill"><IconDeviceGamepad2 size={20} /><div><strong>{t('valheim')}</strong><span>Steam</span></div></div>
-        <nav>{nav.map(([id, label, icon]) => (
-          <button key={id} className={page === id ? 'active' : ''} onClick={() => setPage(id)}>{icon}{label}</button>
+        <nav>{nav.filter(([id]) => id !== 'settings').map(([id, label, icon]) => (
+          <button key={id} className={page === id ? 'active' : ''} onClick={() => setPage(id)} title={sidebarCollapsed ? label : undefined}>{icon}<span>{label}</span></button>
         ))}</nav>
-        <div className="aside-footer"><span>v{data.appVersion}</span></div>
+        <button type="button" className="sidebar-toggle" onClick={() => setSidebarCollapsed((collapsed) => !collapsed)} title={sidebarCollapsed ? t('expandSidebar') : t('collapseSidebar')} aria-label={sidebarCollapsed ? t('expandSidebar') : t('collapseSidebar')} aria-expanded={!sidebarCollapsed}>
+          {sidebarCollapsed ? <IconLayoutSidebarLeftExpand size={18} /> : <IconLayoutSidebarLeftCollapse size={18} />}
+        </button>
+        <div className="sidebar-bottom">
+          <button type="button" className={`sidebar-settings ${page === 'settings' ? 'active' : ''}`} onClick={() => setPage('settings')} title={sidebarCollapsed ? t('settings') : undefined}><IconSettings size={20} /><span>{t('settings')}</span></button>
+          <div className="sidebar-avatar" title="Xóm Nghiện">
+            <span className="sidebar-avatar-media">XN</span>
+            <span className="sidebar-avatar-copy"><strong>Xóm Nghiện</strong><small>{t('community')}</small></span>
+          </div>
+        </div>
       </aside>
 
       <main className="content">
-        <header><div><span className="eyebrow">VALHEIM</span><h1>{nav.find(([id]) => id === page)?.[1]}</h1></div><button className="icon-button" onClick={() => void refresh()} title="Refresh"><IconRefresh size={19} /></button></header>
+        <header>{page === 'servers'
+          ? <div className="launcher-greeting"><h1>{greeting}, <strong>{t('greetingUser')}</strong></h1></div>
+          : <div><span className="eyebrow">VALHEIM</span><h1>{nav.find(([id]) => id === page)?.[1]}</h1></div>
+        }<button className="icon-button" onClick={() => void refresh()} title="Refresh"><IconRefresh size={19} /></button></header>
         {error && <div className="alert">{error}<button onClick={() => setError(null)}>×</button></div>}
         {!data.detectedGamePath && page !== 'settings' && <div className="notice">{t('gameMissing')}</div>}
 
@@ -111,7 +148,27 @@ function ServersPage({ servers, optional, setOptional, busy, runTask, t }: {
   t: ReturnType<typeof translator>;
 }) {
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
+  const [connections, setConnections] = useState<Record<string, ConnectionState>>({});
+  const [copiedField, setCopiedField] = useState<'address' | 'password' | null>(null);
   const selectedServer = servers.find((server) => server.id === selectedServerId) || null;
+  const connection = selectedServer ? connections[selectedServer.id] : undefined;
+
+  const loadConnection = async (serverId: string) => {
+    setConnections((all) => ({ ...all, [serverId]: { status: 'loading' } }));
+    try {
+      const details = await invoke<LauncherConnection>('server_connection', { serverId });
+      setConnections((all) => ({ ...all, [serverId]: { status: 'ready', data: details } }));
+    } catch {
+      setConnections((all) => ({ ...all, [serverId]: { status: 'error' } }));
+    }
+  };
+
+  const copyConnectionValue = (value: string, field: 'address' | 'password') => {
+    void navigator.clipboard.writeText(value).then(() => {
+      setCopiedField(field);
+      window.setTimeout(() => setCopiedField(null), 1800);
+    }).catch(() => undefined);
+  };
 
   useEffect(() => {
     if (!selectedServer) return;
@@ -122,59 +179,155 @@ function ServersPage({ servers, optional, setOptional, busy, runTask, t }: {
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [selectedServer]);
 
-  if (!servers.length) return <Empty text={t('noServers')} />;
+  useEffect(() => {
+    if (!selectedServerId || connections[selectedServerId]) return;
+    void loadConnection(selectedServerId);
+  }, [selectedServerId]);
+
   return <>
-    <div className="server-grid">{servers.map((server) => {
-      const modCount = server.requiredMods.length + server.optionalMods.length;
-      return <button
-        type="button"
-        className="server-card"
-        key={server.id}
-        onClick={() => setSelectedServerId(server.id)}
-      >
-        <span className="server-card-shade" />
-        <span className="server-card-top">
-          <strong>{server.name}</strong>
-          <span className={`status-pill ${server.status}`}><span className="status-dot" />{t(server.status)}</span>
-        </span>
-        <span className="server-card-bottom">
-          <span className="server-card-meta">
-            <small>{server.host}:{server.port}</small>
-            <span><IconPackage size={14} />{modCount} {modCount === 1 ? 'mod' : 'mods'}</span>
-          </span>
-          <span className="server-play" aria-hidden="true"><IconPlayerPlay size={20} fill="currentColor" /></span>
-        </span>
-      </button>;
-    })}</div>
+    <div className="home-hero-row">
+      <LauncherHero t={t} />
+      <RelatedResources t={t} />
+    </div>
+
+    <div className="home-dashboard-grid">
+      <section id="server-list" className="server-section" aria-labelledby="server-list-title">
+        <div className="section-heading-row"><h2 id="server-list-title">{t('servers')}</h2>{servers.length > 0 && <span>{servers.length}</span>}</div>
+        {!servers.length ? <Empty text={t('noServers')} /> : <div className="server-grid">{servers.map((server) => {
+          const modCount = server.requiredMods.length + server.optionalMods.length;
+          return <button
+            type="button"
+            className="server-card"
+            key={server.id}
+            onClick={() => setSelectedServerId(server.id)}
+          >
+            <span className="server-card-shade" />
+            <span className="server-card-top">
+              <strong>{server.name}</strong>
+              <span className={`status-pill ${server.status}`}><span className="status-dot" />{t(server.status)}</span>
+            </span>
+            <span className="server-card-bottom">
+              <span className="server-card-meta">
+                <small>{server.host}:{server.port}</small>
+                <span><IconPackage size={14} />{modCount} {modCount === 1 ? 'mod' : 'mods'}</span>
+              </span>
+              <span className="server-play" aria-hidden="true"><IconPlayerPlay size={20} fill="currentColor" /></span>
+            </span>
+          </button>;
+        })}</div>}
+      </section>
+      <aside className="leaderboard-column" aria-labelledby="leaderboard-column-title">
+        <div className="leaderboard-column-heading"><div><h2 id="leaderboard-column-title">{t('leaderboard')}</h2><p>{t('leaderboardSubtitle')}</p></div><span>{t('comingSoon')}</span></div>
+        <LeaderboardComingSoon t={t} />
+      </aside>
+    </div>
 
     {selectedServer && <div className="server-dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setSelectedServerId(null)}>
       <section className="server-dialog" role="dialog" aria-modal="true" aria-labelledby="server-dialog-title">
-        <header className="server-dialog-header">
-          <div><span className={`status-pill ${selectedServer.status}`}><span className="status-dot" />{t(selectedServer.status)}</span><h2 id="server-dialog-title">{selectedServer.name}</h2><p>{selectedServer.description || `${selectedServer.host}:${selectedServer.port}`}</p></div>
-          <button type="button" className="dialog-close" onClick={() => setSelectedServerId(null)} aria-label="Close"><IconX size={19} /></button>
-        </header>
-        <div className="server-dialog-content">
-          <ModGroup title={t('required')} mods={selectedServer.requiredMods} />
-          {selectedServer.optionalMods.length > 0 && <OptionalModGroup
-            server={selectedServer}
-            enabled={optional[selectedServer.id] || []}
-            setOptional={setOptional}
-            title={t('optional')}
-          />}
-          {selectedServer.requiredMods.length === 0 && selectedServer.optionalMods.length === 0 && <p className="no-mods">No mods required. You can launch immediately.</p>}
+        <button type="button" className="dialog-close" onClick={() => setSelectedServerId(null)} aria-label="Close"><IconX size={19} /></button>
+        <div className="server-dialog-layout">
+          <div className="server-dialog-left">
+            <header className="server-dialog-header">
+              <span className={`status-pill ${selectedServer.status}`}><span className="status-dot" />{t(selectedServer.status)}</span>
+              <h2 id="server-dialog-title">{selectedServer.name}</h2>
+              <p>{selectedServer.description || t('serverDescriptionFallback')}</p>
+              <div className="server-facts">
+                <span><IconDeviceGamepad2 size={15} />{t('valheim')}</span>
+                <span><IconPackage size={15} />{selectedServer.requiredMods.length + selectedServer.optionalMods.length} {t('mods')}</span>
+              </div>
+            </header>
+            <div className="server-dialog-content">
+              <ModGroup title={t('required')} mods={selectedServer.requiredMods} />
+              {selectedServer.optionalMods.length > 0 && <OptionalModGroup
+                server={selectedServer}
+                enabled={optional[selectedServer.id] || []}
+                setOptional={setOptional}
+                title={t('optional')}
+              />}
+              {selectedServer.requiredMods.length === 0 && selectedServer.optionalMods.length === 0 && <div className="no-mods"><IconPackage size={22} /><strong>{t('noMods')}</strong><span>{t('noModsDescription')}</span></div>}
+            </div>
+          </div>
+          <aside className="server-dialog-right">
+            <div className="connect-panel">
+              <div className="connect-icon"><IconPlayerPlay size={24} fill="currentColor" /></div>
+              <span className="connect-eyebrow">{t('automaticConnect')}</span>
+              <h3>{t('readyToPlay')}</h3>
+              <p>{t('connectDescription')}</p>
+              <button className="primary connect-button" disabled={busy !== null} onClick={() => {
+                const enabled = optional[selectedServer.id] || [];
+                void runTask(t('syncing'), `server:${selectedServer.id}`, () => invoke('launch_server', { serverId: selectedServer.id, optionalPackages: enabled }));
+              }}>
+                <IconPlayerPlay size={20} fill="currentColor" />{busy === `server:${selectedServer.id}` ? t('syncing') : t('play')}
+              </button>
+            </div>
+            <div className="manual-connect">
+              <div className="section-heading"><div><span>{t('manualConnect')}</span><p>{t('manualConnectDescription')}</p></div></div>
+              <div className="connection-address">
+                <div><span>{t('serverAddress')}</span><strong>{selectedServer.host}:{selectedServer.port}</strong></div>
+                <button type="button" onClick={() => copyConnectionValue(`${selectedServer.host}:${selectedServer.port}`, 'address')} aria-label={t('copyAddress')} title={t('copyAddress')}><IconCopy size={17} /></button>
+              </div>
+              <dl className="connection-details">
+                <div><dt>{t('host')}</dt><dd>{selectedServer.host}</dd></div>
+                <div><dt>{t('port')}</dt><dd>{selectedServer.port}</dd></div>
+              </dl>
+              <div className={`connection-password ${connection?.status || 'loading'}`}>
+                <div><span>{t('password')}</span>
+                  {connection?.status === 'ready' && <strong>{connection.data.password}</strong>}
+                  {(!connection || connection.status === 'loading') && <strong>{t('loadingPassword')}</strong>}
+                  {connection?.status === 'error' && <strong>{t('passwordUnavailable')}</strong>}
+                </div>
+                {connection?.status === 'ready' && <button type="button" onClick={() => copyConnectionValue(connection.data.password, 'password')} aria-label={t('copyPassword')} title={t('copyPassword')}><IconCopy size={17} /></button>}
+                {connection?.status === 'error' && <button type="button" onClick={() => void loadConnection(selectedServer.id)} aria-label={t('retryPassword')} title={t('retryPassword')}><IconRefresh size={17} /></button>}
+              </div>
+              {copiedField && <span className="copy-feedback" role="status">{copiedField === 'password' ? t('passwordCopied') : t('copied')}</span>}
+            </div>
+          </aside>
         </div>
-        <footer className="server-dialog-footer">
-          <span>{selectedServer.host}:{selectedServer.port}</span>
-          <button className="primary" disabled={busy !== null} onClick={() => {
-            const enabled = optional[selectedServer.id] || [];
-            void runTask(t('syncing'), `server:${selectedServer.id}`, () => invoke('launch_server', { serverId: selectedServer.id, optionalPackages: enabled }));
-          }}>
-            <IconPlayerPlay size={20} />{busy === `server:${selectedServer.id}` ? t('syncing') : t('play')}
-          </button>
-        </footer>
       </section>
     </div>}
   </>;
+}
+
+function LauncherHero({ t }: { t: ReturnType<typeof translator> }) {
+  return <section className="launcher-hero">
+    <div className="launcher-hero-shade" />
+    <div className="launcher-hero-copy">
+      <span>{t('community')}</span>
+      <h2>{t('heroTitle')}</h2>
+      <p>{t('heroDescription')}</p>
+      <button type="button" onClick={() => void invoke('open_external_url', { url: 'https://discord.gg/WYaqghEaMe' })}><IconBrandDiscord size={17} />{t('joinDiscord')}</button>
+    </div>
+    <span className="hero-figure" aria-hidden="true" />
+  </section>;
+}
+
+function RelatedResources({ t }: { t: ReturnType<typeof translator> }) {
+  const resources = [
+    { title: t('website'), description: t('websiteDescription'), url: 'https://xomnghien.com', icon: <IconWorld size={21} /> },
+    { title: 'Discord', description: t('discordDescription'), url: 'https://discord.gg/WYaqghEaMe', icon: <IconBrandDiscord size={21} /> },
+    { title: 'Thunderstore', description: t('thunderstoreDescription'), url: 'https://thunderstore.io/c/valheim/', icon: <IconPackage size={21} /> },
+  ];
+  return <section className="hero-resources" aria-labelledby="related-resources-title">
+    <div className="hero-resources-heading"><h2 id="related-resources-title">{t('relatedResources')}</h2><p>{t('relatedResourcesDescription')}</p></div>
+    <div className="resource-grid">{resources.map((resource) => <button type="button" key={resource.url} className="resource-card" onClick={() => void invoke('open_external_url', { url: resource.url })}>
+      <span className="resource-icon">{resource.icon}</span>
+      <span className="resource-copy"><strong>{resource.title}</strong><small>{resource.description}</small></span>
+      <IconExternalLink className="resource-arrow" size={17} />
+    </button>)}</div>
+  </section>;
+}
+
+function LeaderboardComingSoon({ t }: { t: ReturnType<typeof translator> }) {
+  return <section className="leaderboard-soon">
+    <div className="leaderboard-glow" />
+    <div className="leaderboard-podium" aria-hidden="true">
+      <span className="podium second"><b>2</b></span>
+      <span className="podium first"><IconTrophy size={28} /><b>1</b></span>
+      <span className="podium third"><b>3</b></span>
+    </div>
+    <h2>{t('leaderboardComingTitle')}</h2>
+    <p>{t('leaderboardComingDescription')}</p>
+  </section>;
 }
 
 function OptionalModGroup({ server, enabled, setOptional, title }: {

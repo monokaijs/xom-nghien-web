@@ -188,6 +188,22 @@ jobs:
           includeUpdaterJson: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' && secrets.TAURI_UPDATER_PUBLIC_KEY != '' }}
           args: >-
             ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' && secrets.TAURI_UPDATER_PUBLIC_KEY != '' }}},"plugins":{"updater":{"pubkey":"${{ secrets.TAURI_UPDATER_PUBLIC_KEY }}","endpoints":["https://github.com/monokaijs/xom-nghien-web/releases/latest/download/latest.json"]}}}'
+      - name: Package portable Windows launcher
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: apps/launcher/scripts/package-standalone.ps1 -SkipBuild
+      - name: Upload portable Windows launcher
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          $files = Get-ChildItem apps/launcher/artifacts -File | Where-Object { $_.Name -match 'portable\.zip(\.sha256)?$' }
+          if ($files.Count -ne 2) { throw "Expected portable ZIP and checksum, found $($files.Count) files." }
+          foreach ($file in $files) {
+            gh release upload $env:RELEASE_TAG $file.FullName --repo $env:GITHUB_REPOSITORY --clobber
+          }
 
   checksums:
     needs: [prepare, release]

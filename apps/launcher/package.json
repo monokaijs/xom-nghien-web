@@ -9,6 +9,7 @@
     "build": "vite build",
     "predesktop:build": "dotnet build ../../packages/valheim-launcher-bridge/XomNghien.ValheimBridge.csproj -c Release",
     "desktop:build": "tauri build --config src-tauri/tauri.local.conf.json",
+    "standalone:build": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/package-standalone.ps1",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "tsc --noEmit",

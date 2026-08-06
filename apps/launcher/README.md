@@ -12,6 +12,16 @@ dotnet build packages/valheim-launcher-bridge/XomNghien.ValheimBridge.csproj -c 
 pnpm --filter @xom/launcher tauri dev
 ```
 
+## Standalone Windows package
+
+Build a portable Windows x64 launcher that can be extracted and run without an installer:
+
+```powershell
+pnpm --filter @xom/launcher standalone:build
+```
+
+The ZIP and its SHA-256 checksum are written to `apps/launcher/artifacts/`. Keep the executable and bundled DLL files together. Windows 10/11 includes the WebView2 runtime on normal installations; systems without it must install the Microsoft Edge WebView2 Runtime.
+
 The default website API is `https://xomnghien.com`; it can be changed in Settings. Profiles and package archives live in the operating system's application-data and cache folders. Vanilla Valheim files are not modified.
 
 ## Unsigned beta installation
@@ -26,4 +36,4 @@ The `launcher-v*` workflow requires an updater key generated with `pnpm --filter
 
 ## Publishing a release
 
-Open **Actions → Launcher Release → Run workflow**, choose `patch`, `minor`, or `major`, and run it from `main`. The workflow synchronizes the npm, Cargo, Cargo lockfile, and Tauri versions; commits the version bump to `main`; creates the `launcher-v*` tag; builds Windows and universal macOS installers; publishes the GitHub Release and updater manifest; and uploads SHA-256 checksums. Re-running the same workflow run reuses its existing version and tag.
+Open **Actions → Launcher Release → Run workflow**, choose `patch`, `minor`, or `major`, and run it from `main`. The workflow synchronizes the npm, Cargo, Cargo lockfile, and Tauri versions; commits the version bump to `main`; creates the `launcher-v*` tag; builds the Windows installer, Windows portable ZIP, and universal macOS installer; publishes the GitHub Release and updater manifest; and uploads SHA-256 checksums. Re-running the same workflow run reuses its existing version and tag.

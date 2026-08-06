@@ -3,6 +3,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import {
   IconAdjustments, IconCloudDownload, IconDeviceGamepad2, IconFolder, IconLanguage,
   IconChevronDown, IconPlayerPlay, IconPlus, IconRefresh, IconSearch, IconServer, IconSettings, IconTrash,
+  IconPackage, IconX,
 } from '@tabler/icons-react';
 import { translator } from './i18n';
 import { invoke } from './desktop';
@@ -109,23 +110,84 @@ function ServersPage({ servers, optional, setOptional, busy, runTask, t }: {
   runTask: (label: string, key: string, action: () => Promise<unknown>) => Promise<void>;
   t: ReturnType<typeof translator>;
 }) {
+  const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
+  const selectedServer = servers.find((server) => server.id === selectedServerId) || null;
+
+  useEffect(() => {
+    if (!selectedServer) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelectedServerId(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [selectedServer]);
+
   if (!servers.length) return <Empty text={t('noServers')} />;
-  return <div className="server-grid">{servers.map((server) => {
-    const enabled = optional[server.id] || [];
-    return <article className="server-card" key={server.id}>
-      <div className="server-hero"><div className={`status ${server.status}`} /> <span>{t(server.status)}</span></div>
-      <h2>{server.name}</h2><p>{server.description || `${server.host}:${server.port}`}</p>
-      <ModGroup title={t('required')} mods={server.requiredMods} />
-      {server.optionalMods.length > 0 && <div className="mod-group"><h3>{t('optional')}</h3>{server.optionalMods.map((mod) => {
-        const key = packageKey(mod);
-        return <label className="mod-row" key={key}><input type="checkbox" checked={enabled.includes(key)} onChange={() => setOptional((all) => ({
-          ...all, [server.id]: enabled.includes(key) ? enabled.filter((item) => item !== key) : [...enabled, key],
-        }))} /><ModIdentity mod={mod} /></label>;
-      })}</div>}
-      <button className="primary" disabled={busy !== null} onClick={() => void runTask(t('syncing'), `server:${server.id}`, () => invoke('launch_server', { serverId: server.id, optionalPackages: enabled }))}>
-        <IconPlayerPlay size={20} />{busy === `server:${server.id}` ? t('syncing') : t('play')}
-      </button>
-    </article>;
+  return <>
+    <div className="server-grid">{servers.map((server) => {
+      const modCount = server.requiredMods.length + server.optionalMods.length;
+      return <button
+        type="button"
+        className="server-card"
+        key={server.id}
+        onClick={() => setSelectedServerId(server.id)}
+      >
+        <span className="server-card-shade" />
+        <span className="server-card-top">
+          <strong>{server.name}</strong>
+          <span className={`status-pill ${server.status}`}><span className="status-dot" />{t(server.status)}</span>
+        </span>
+        <span className="server-card-bottom">
+          <span className="server-card-meta">
+            <small>{server.host}:{server.port}</small>
+            <span><IconPackage size={14} />{modCount} {modCount === 1 ? 'mod' : 'mods'}</span>
+          </span>
+          <span className="server-play" aria-hidden="true"><IconPlayerPlay size={20} fill="currentColor" /></span>
+        </span>
+      </button>;
+    })}</div>
+
+    {selectedServer && <div className="server-dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setSelectedServerId(null)}>
+      <section className="server-dialog" role="dialog" aria-modal="true" aria-labelledby="server-dialog-title">
+        <header className="server-dialog-header">
+          <div><span className={`status-pill ${selectedServer.status}`}><span className="status-dot" />{t(selectedServer.status)}</span><h2 id="server-dialog-title">{selectedServer.name}</h2><p>{selectedServer.description || `${selectedServer.host}:${selectedServer.port}`}</p></div>
+          <button type="button" className="dialog-close" onClick={() => setSelectedServerId(null)} aria-label="Close"><IconX size={19} /></button>
+        </header>
+        <div className="server-dialog-content">
+          <ModGroup title={t('required')} mods={selectedServer.requiredMods} />
+          {selectedServer.optionalMods.length > 0 && <OptionalModGroup
+            server={selectedServer}
+            enabled={optional[selectedServer.id] || []}
+            setOptional={setOptional}
+            title={t('optional')}
+          />}
+          {selectedServer.requiredMods.length === 0 && selectedServer.optionalMods.length === 0 && <p className="no-mods">No mods required. You can launch immediately.</p>}
+        </div>
+        <footer className="server-dialog-footer">
+          <span>{selectedServer.host}:{selectedServer.port}</span>
+          <button className="primary" disabled={busy !== null} onClick={() => {
+            const enabled = optional[selectedServer.id] || [];
+            void runTask(t('syncing'), `server:${selectedServer.id}`, () => invoke('launch_server', { serverId: selectedServer.id, optionalPackages: enabled }));
+          }}>
+            <IconPlayerPlay size={20} />{busy === `server:${selectedServer.id}` ? t('syncing') : t('play')}
+          </button>
+        </footer>
+      </section>
+    </div>}
+  </>;
+}
+
+function OptionalModGroup({ server, enabled, setOptional, title }: {
+  server: LauncherServer;
+  enabled: string[];
+  setOptional: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
+  title: string;
+}) {
+  return <div className="mod-group"><h3>{title}</h3>{server.optionalMods.map((mod) => {
+    const key = packageKey(mod);
+    return <label className="mod-row selectable" key={key}><input type="checkbox" checked={enabled.includes(key)} onChange={() => setOptional((all) => ({
+      ...all, [server.id]: enabled.includes(key) ? enabled.filter((item) => item !== key) : [...enabled, key],
+    }))} /><ModIdentity mod={mod} /></label>;
   })}</div>;
 }
 

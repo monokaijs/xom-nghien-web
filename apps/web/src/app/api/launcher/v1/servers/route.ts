@@ -44,6 +44,8 @@ export async function GET(request: NextRequest) {
   };
 
   const response = NextResponse.json(body);
-  response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=15, stale-while-revalidate=60');
+  // The status is live heartbeat data. Do not let a CDN hand the launcher a
+  // stale online/offline value that disagrees with the web server card.
+  response.headers.set('Cache-Control', 'private, no-store');
   return response;
 }

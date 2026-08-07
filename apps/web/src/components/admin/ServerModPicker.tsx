@@ -139,7 +139,10 @@ export default function ServerModPicker({ game, mods, onChange }: ServerModPicke
           {error && <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>}
 
           {query.trim().length >= 2 && !loading && !error && results.length === 0 && (
-            <p className="mt-4 text-center text-sm text-white/40">No matching mods found.</p>
+            <div className="mt-4 text-center text-sm text-white/40">
+              <p>No matching mods found.</p>
+              <p className="mt-1 text-xs text-white/30">Newly uploaded package? Paste its <span className="font-mono">author-package</span> dependency string.</p>
+            </div>
           )}
 
           {results.length > 0 && (

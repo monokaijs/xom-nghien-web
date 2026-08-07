@@ -1,5 +1,5 @@
 import { invoke as nativeInvoke } from '@tauri-apps/api/core';
-import type { BootstrapData, CatalogPackage, LauncherConnection, ProfileDetails, ProfileImportPreview, ProfileSummary } from './types';
+import type { BootstrapData, CatalogPackage, LauncherConnection, ModUpdateInfo, ProfileDetails, ProfileImportPreview, ProfileSummary, ProfileUpdateCheck } from './types';
 
 const previewMod = {
   provider: 'thunderstore' as const,
@@ -53,13 +53,25 @@ export async function invoke<T>(command: string, args?: Record<string, unknown>)
     return undefined as T;
   }
   if (command === 'search_mods') return previewCatalog as T;
-  if (command === 'profile_details' || command === 'add_profile_mod' || command === 'set_package_enabled' || command === 'remove_package' || command === 'sync_profile') return {
-    metadata: { id: 'personal-preview', name: 'Solo Adventure', kind: 'personal', serverId: null, requestedPackages: [{ coordinate: 'Azumatt-AzuCraftyBoxes-1.8.0', origin: 'extra', enabled: true }] },
+  if (command === 'profile_details' || command === 'add_profile_mod' || command === 'set_package_enabled' || command === 'set_profile_auto_update' || command === 'remove_package' || command === 'sync_profile' || command === 'update_profile_mod' || command === 'update_profile_mods') return {
+    metadata: { id: 'personal-preview', name: 'Solo Adventure', kind: 'personal', serverId: null, autoUpdate: false, requestedPackages: [{ coordinate: 'Azumatt-AzuCraftyBoxes-1.8.0', origin: 'extra', enabled: true }] },
     lock: { generatedAt: new Date().toISOString(), requestedPackages: [], packages: {} },
     directModCount: 1,
     dependencyCount: 0,
     syncState: 'pending',
   } as ProfileDetails as T;
+  if (command === 'check_profile_mod_updates') return {
+    profileId: 'personal-preview', checkedAt: new Date().toISOString(), updates: [{
+      coordinate: 'Azumatt-AzuCraftyBoxes-1.8.0', namespace: 'Azumatt', name: 'AzuCraftyBoxes',
+      currentVersion: '1.8.0', latestVersion: '1.9.0', latestCoordinate: 'Azumatt-AzuCraftyBoxes-1.9.0',
+      updateAvailable: true, isDeprecated: false,
+    }],
+  } as ProfileUpdateCheck as T;
+  if (command === 'check_mod_update') return {
+    coordinate: 'Azumatt-AzuCraftyBoxes-1.8.0', namespace: 'Azumatt', name: 'AzuCraftyBoxes',
+    currentVersion: '1.8.0', latestVersion: '1.9.0', latestCoordinate: 'Azumatt-AzuCraftyBoxes-1.9.0',
+    updateAvailable: true, isDeprecated: false,
+  } as ModUpdateInfo as T;
   if (command === 'create_profile' || command === 'rename_profile' || command === 'import_profile' || command === 'install_vietnamese_translation') return {
     id: 'personal-preview', name: String(args?.name || 'Solo Adventure'), kind: 'personal', serverId: null,
     directModCount: 0, dependencyCount: 0, syncState: 'notInstalled', updatedAt: null,

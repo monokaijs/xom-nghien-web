@@ -11,15 +11,21 @@ mod thunderstore;
 
 use crate::{
     models::{
-        BootstrapData, CatalogPackage, ConnectResponse, ProfileDetails, ProfileImportMod,
-        ProfileImportPreview, ProfileMetadata, ProfileSummary, RequestedPackage, Settings,
+        BootstrapData, CatalogPackage, ConnectResponse, ModUpdateInfo, ProfileDetails,
+        ProfileImportMod, ProfileImportPreview, ProfileMetadata, ProfileSummary,
+        ProfileUpdateCheck, RequestedPackage, Settings,
     },
     profiles::ProfileStore,
     steam::{GameAdapter, ValheimAdapter},
 };
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use std::{collections::HashSet, fs, io::Write, path::PathBuf};
+use std::{
+    collections::{HashSet, VecDeque},
+    fs,
+    io::Write,
+    path::PathBuf,
+};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
@@ -249,7 +255,19 @@ async fn install_vietnamese_translation(
 ) -> Result<ProfileSummary, String> {
     command_result(async {
         let catalog = thunderstore::catalog(&state.client, &state.catalog_path(), false).await?;
-        let package_ref = latest_vietnamese_translation(&catalog)?;
+        let translation = catalog
+            .iter()
+            .find(|package| {
+                package
+                    .owner
+                    .eq_ignore_ascii_case(VIETNAMESE_TRANSLATION_NAMESPACE)
+                    && package
+                        .name
+                        .eq_ignore_ascii_case(VIETNAMESE_TRANSLATION_PACKAGE)
+            })
+            .context("The Valheim Vietnamese translation is unavailable on Thunderstore")?;
+        let translation = thunderstore::fresh_package(&state.client, translation).await?;
+        let package_ref = latest_vietnamese_translation(std::slice::from_ref(&translation))?;
         let store = state.store();
         let mut metadata = if let Some(profile_id) = profile_id {
             let metadata = store.load_metadata(&profile_id)?;
@@ -286,6 +304,105 @@ async fn profile_details(
     profile_id: String,
 ) -> Result<ProfileDetails, String> {
     command_result(async { state.store().details(&profile_id) }).await
+}
+
+#[tauri::command]
+async fn set_profile_auto_update(
+    state: State<'_, AppState>,
+    profile_id: String,
+    enabled: bool,
+) -> Result<ProfileDetails, String> {
+    command_result(async {
+        let store = state.store();
+        let mut metadata = store.load_metadata(&profile_id)?;
+        ensure_personal_profile(&metadata)?;
+        metadata.auto_update = enabled;
+        store.write_metadata(&metadata)?;
+        store.details(&profile_id)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn check_profile_mod_updates(
+    state: State<'_, AppState>,
+    profile_id: String,
+) -> Result<ProfileUpdateCheck, String> {
+    command_result(async {
+        let store = state.store();
+        let metadata = store.load_metadata(&profile_id)?;
+        ensure_personal_profile(&metadata)?;
+        let catalog = thunderstore::catalog(&state.client, &state.catalog_path(), false).await?;
+        let catalog =
+            fresh_direct_packages(&state.client, catalog, &metadata.requested_packages).await?;
+        Ok(ProfileUpdateCheck {
+            profile_id,
+            checked_at: chrono::Utc::now().to_rfc3339(),
+            updates: mod_updates(&catalog, &metadata.requested_packages)?,
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+async fn check_mod_update(
+    state: State<'_, AppState>,
+    profile_id: String,
+    coordinate: String,
+) -> Result<ModUpdateInfo, String> {
+    command_result(async {
+        let store = state.store();
+        let metadata = store.load_metadata(&profile_id)?;
+        ensure_personal_profile(&metadata)?;
+        let requested = metadata
+            .requested_packages
+            .iter()
+            .find(|request| request.coordinate == coordinate && request.origin != "runtime")
+            .context("Package is not directly installed in this profile")?;
+        let catalog = thunderstore::catalog(&state.client, &state.catalog_path(), false).await?;
+        let catalog =
+            fresh_direct_packages(&state.client, catalog, std::slice::from_ref(requested)).await?;
+        update_info(&catalog, &coordinate)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn update_profile_mods(
+    state: State<'_, AppState>,
+    profile_id: String,
+) -> Result<ProfileDetails, String> {
+    command_result(async {
+        let store = state.store();
+        let metadata = store.load_metadata(&profile_id)?;
+        ensure_personal_profile(&metadata)?;
+        apply_profile_updates(&state, &store, metadata, None).await?;
+        store.details(&profile_id)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn update_profile_mod(
+    state: State<'_, AppState>,
+    profile_id: String,
+    coordinate: String,
+) -> Result<ProfileDetails, String> {
+    command_result(async {
+        let store = state.store();
+        let metadata = store.load_metadata(&profile_id)?;
+        ensure_personal_profile(&metadata)?;
+        if !metadata
+            .requested_packages
+            .iter()
+            .any(|request| request.coordinate == coordinate && request.origin != "runtime")
+        {
+            anyhow::bail!("Package is not directly installed in this profile");
+        }
+        apply_profile_updates(&state, &store, metadata, Some(&coordinate)).await?;
+        store.details(&profile_id)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -374,9 +491,12 @@ async fn launch_profile(
             .or_else(|| adapter.detect_executable())
             .context("Valheim was not detected. Choose its executable in Settings")?;
         let store = state.store();
-        let metadata = store.load_metadata(&profile_id)?;
+        let mut metadata = store.load_metadata(&profile_id)?;
         if metadata.kind != "personal" {
             anyhow::bail!("Use the Servers page to launch a managed server profile");
+        }
+        if metadata.auto_update {
+            metadata = apply_profile_updates(&state, &store, metadata, None).await?;
         }
         if store.details(&profile_id)?.sync_state != "ready" {
             sync_metadata(&state, &store, &metadata).await?;
@@ -757,12 +877,181 @@ async fn sync_metadata(
 ) -> Result<()> {
     state.log("info", &format!("Synchronizing profile {}", metadata.id));
     let catalog = thunderstore::catalog(&state.client, &state.catalog_path(), false).await?;
+    sync_metadata_with_catalog(state, store, metadata, &catalog).await
+}
+
+async fn sync_metadata_with_catalog(
+    state: &AppState,
+    store: &ProfileStore,
+    metadata: &ProfileMetadata,
+    catalog: &[thunderstore::ThunderstorePackage],
+) -> Result<()> {
     let concurrency = state.settings().download_concurrency as usize;
     store
-        .sync(&state.client, metadata, &catalog, concurrency)
+        .sync(&state.client, metadata, catalog, concurrency)
         .await?;
     state.log("info", &format!("Synchronized profile {}", metadata.id));
     Ok(())
+}
+
+fn ensure_personal_profile(metadata: &ProfileMetadata) -> Result<()> {
+    if metadata.kind != "personal" {
+        anyhow::bail!("Mod updates are only available for personal profiles");
+    }
+    Ok(())
+}
+
+async fn fresh_direct_packages(
+    client: &reqwest::Client,
+    mut catalog: Vec<thunderstore::ThunderstorePackage>,
+    requested: &[RequestedPackage],
+) -> Result<Vec<thunderstore::ThunderstorePackage>> {
+    let mut targets = Vec::new();
+    let mut selected = HashSet::new();
+    for request in requested
+        .iter()
+        .filter(|request| request.origin != "runtime")
+    {
+        let (namespace, name, _) = thunderstore::split_coordinate(&request.coordinate)?;
+        let index = catalog
+            .iter()
+            .position(|package| {
+                package.owner.eq_ignore_ascii_case(namespace)
+                    && package.name.eq_ignore_ascii_case(name)
+            })
+            .with_context(|| format!("Thunderstore package {namespace}-{name} was not found"))?;
+        if selected.insert(index) {
+            targets.push((index, catalog[index].clone()));
+        }
+    }
+    let fresh = futures_util::future::try_join_all(
+        targets
+            .iter()
+            .map(|(_, package)| thunderstore::fresh_package(client, package)),
+    )
+    .await?;
+    for ((index, _), package) in targets.into_iter().zip(fresh) {
+        catalog[index] = package;
+    }
+    Ok(catalog)
+}
+
+async fn fresh_profile_catalog(
+    client: &reqwest::Client,
+    mut catalog: Vec<thunderstore::ThunderstorePackage>,
+    requested: &[RequestedPackage],
+) -> Result<Vec<thunderstore::ThunderstorePackage>> {
+    let mut queue: VecDeque<String> = requested
+        .iter()
+        .filter(|request| request.enabled)
+        .map(|request| request.coordinate.clone())
+        .collect();
+    queue.push_back(profiles::LOADER_PACKAGE.into());
+    let mut fetched = HashSet::new();
+    while let Some(coordinate) = queue.pop_front() {
+        let (namespace, name, version) = thunderstore::split_coordinate(&coordinate)?;
+        let identity = format!(
+            "{}-{}",
+            namespace.to_ascii_lowercase(),
+            name.to_ascii_lowercase()
+        );
+        if !fetched.insert(identity) {
+            continue;
+        }
+        let index = catalog
+            .iter()
+            .position(|package| {
+                package.owner.eq_ignore_ascii_case(namespace)
+                    && package.name.eq_ignore_ascii_case(name)
+            })
+            .with_context(|| format!("Thunderstore package {namespace}-{name} was not found"))?;
+        let fresh = thunderstore::fresh_package(client, &catalog[index]).await?;
+        let selected = fresh
+            .versions
+            .iter()
+            .find(|candidate| candidate.version_number == version)
+            .with_context(|| {
+                format!("Thunderstore package {namespace}-{name} does not have version {version}")
+            })?;
+        queue.extend(selected.dependencies.iter().cloned());
+        catalog[index] = fresh;
+    }
+    Ok(catalog)
+}
+
+fn update_info(
+    catalog: &[thunderstore::ThunderstorePackage],
+    coordinate: &str,
+) -> Result<ModUpdateInfo> {
+    let (namespace, name, current_version) = thunderstore::split_coordinate(coordinate)?;
+    let package = catalog
+        .iter()
+        .find(|package| {
+            package.owner.eq_ignore_ascii_case(namespace) && package.name.eq_ignore_ascii_case(name)
+        })
+        .with_context(|| format!("Thunderstore package {namespace}-{name} was not found"))?;
+    let latest = thunderstore::latest_version(package)?;
+    Ok(ModUpdateInfo {
+        coordinate: coordinate.into(),
+        namespace: package.owner.clone(),
+        name: package.name.clone(),
+        current_version: current_version.into(),
+        latest_version: latest.version_number.clone(),
+        latest_coordinate: format!(
+            "{}-{}-{}",
+            package.owner, package.name, latest.version_number
+        ),
+        update_available: latest.version_number != current_version,
+        is_deprecated: package.is_deprecated,
+    })
+}
+
+fn mod_updates(
+    catalog: &[thunderstore::ThunderstorePackage],
+    requested: &[RequestedPackage],
+) -> Result<Vec<ModUpdateInfo>> {
+    requested
+        .iter()
+        .filter(|request| request.origin != "runtime")
+        .map(|request| update_info(catalog, &request.coordinate))
+        .collect()
+}
+
+async fn apply_profile_updates(
+    state: &AppState,
+    store: &ProfileStore,
+    mut metadata: ProfileMetadata,
+    only_coordinate: Option<&str>,
+) -> Result<ProfileMetadata> {
+    let catalog = thunderstore::catalog(&state.client, &state.catalog_path(), false).await?;
+    let mut catalog =
+        fresh_direct_packages(&state.client, catalog, &metadata.requested_packages).await?;
+    let updates = mod_updates(&catalog, &metadata.requested_packages)?;
+    let mut changed = false;
+    for update in updates.iter().filter(|update| {
+        update.update_available
+            && only_coordinate.map_or(true, |coordinate| coordinate == update.coordinate)
+    }) {
+        if let Some(request) = metadata
+            .requested_packages
+            .iter_mut()
+            .find(|request| request.coordinate == update.coordinate)
+        {
+            request.coordinate = update.latest_coordinate.clone();
+            changed = true;
+        }
+    }
+    if !changed {
+        return Ok(metadata);
+    }
+    store.write_metadata(&metadata)?;
+    catalog = fresh_profile_catalog(&state.client, catalog, &metadata.requested_packages).await?;
+    state.log(
+        "info",
+        &format!("Updating mods for personal profile {}", metadata.id),
+    );
+    sync_metadata_with_catalog(state, store, &metadata, &catalog).await?;
+    Ok(metadata)
 }
 
 fn coordinate_identity(coordinate: &str) -> Option<String> {
@@ -802,10 +1091,7 @@ fn latest_vietnamese_translation(catalog: &[thunderstore::ThunderstorePackage]) 
     if package.is_deprecated {
         anyhow::bail!("The Valheim Vietnamese translation is currently deprecated");
     }
-    let version = package
-        .versions
-        .first()
-        .context("The Valheim Vietnamese translation has no installable version")?;
+    let version = thunderstore::latest_version(package)?;
     Ok(format!(
         "{}-{}-{}",
         package.owner, package.name, version.version_number
@@ -932,6 +1218,11 @@ pub fn run() {
             rename_profile,
             delete_profile,
             profile_details,
+            set_profile_auto_update,
+            check_profile_mod_updates,
+            check_mod_update,
+            update_profile_mods,
+            update_profile_mod,
             set_package_enabled,
             remove_package,
             reset_profile,
@@ -1015,6 +1306,7 @@ mod tests {
             name: "Test".into(),
             kind: "personal".into(),
             server_id: None,
+            auto_update: false,
             requested_packages: vec![RequestedPackage {
                 coordinate: "Author-Cool-Mod-1.0.0".into(),
                 origin: "extra".into(),
@@ -1034,11 +1326,25 @@ mod tests {
 
     #[test]
     fn selects_the_latest_vietnamese_translation_coordinate() {
-        let package = translation_package("0.2.0");
+        let mut package = translation_package("0.2.0");
+        package
+            .versions
+            .push(translation_package("0.10.0").versions.remove(0));
 
         assert_eq!(
             latest_vietnamese_translation(&[package]).unwrap(),
-            "Creaton-Valheim_Viet_Hoa-0.2.0"
+            "Creaton-Valheim_Viet_Hoa-0.10.0"
         );
+    }
+
+    #[test]
+    fn reports_an_available_mod_update_from_fresh_package_data() {
+        let package = translation_package("0.2.2");
+        let update = update_info(&[package], "Creaton-Valheim_Viet_Hoa-0.2.1").unwrap();
+
+        assert!(update.update_available);
+        assert_eq!(update.current_version, "0.2.1");
+        assert_eq!(update.latest_version, "0.2.2");
+        assert_eq!(update.latest_coordinate, "Creaton-Valheim_Viet_Hoa-0.2.2");
     }
 }

@@ -1,6 +1,7 @@
 use crate::models::CatalogPackage;
 use anyhow::{Context, Result};
 use reqwest::Client;
+use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
@@ -38,6 +39,39 @@ pub struct ThunderstoreVersion {
     pub download_url: String,
     pub downloads: u64,
     pub date_created: String,
+}
+
+pub async fn fresh_package(
+    client: &Client,
+    package: &ThunderstorePackage,
+) -> Result<ThunderstorePackage> {
+    let cache_bust = chrono::Utc::now().timestamp_millis();
+    let url = format!("{CATALOG_URL}{}/?cacheBust={cache_bust}", package.uuid4);
+    client
+        .get(url)
+        .header(reqwest::header::CACHE_CONTROL, "no-cache, no-store")
+        .header(reqwest::header::PRAGMA, "no-cache")
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await
+        .context("Thunderstore returned invalid individual package data")
+}
+
+pub fn latest_version(package: &ThunderstorePackage) -> Result<&ThunderstoreVersion> {
+    package
+        .versions
+        .iter()
+        .filter_map(|candidate| {
+            Version::parse(&candidate.version_number)
+                .ok()
+                .map(|version| (version, candidate))
+        })
+        .max_by(|(left, _), (right, _)| left.cmp(right))
+        .map(|(_, candidate)| candidate)
+        .or_else(|| package.versions.first())
+        .context("Thunderstore package has no installable version")
 }
 
 pub async fn catalog(
@@ -150,5 +184,36 @@ mod tests {
             split_coordinate("Team-My-Cool-Mod-1.2.3").unwrap(),
             ("Team", "My-Cool-Mod", "1.2.3")
         );
+    }
+
+    #[test]
+    fn selects_highest_semantic_version_instead_of_api_order() {
+        let version = |value: &str| ThunderstoreVersion {
+            name: "Mod".into(),
+            full_name: format!("Team-Mod-{value}"),
+            description: String::new(),
+            icon: String::new(),
+            version_number: value.into(),
+            dependencies: vec![],
+            download_url: String::new(),
+            downloads: 0,
+            date_created: String::new(),
+        };
+        let package = ThunderstorePackage {
+            name: "Mod".into(),
+            full_name: "Team-Mod".into(),
+            owner: "Team".into(),
+            package_url: String::new(),
+            date_updated: String::new(),
+            uuid4: "package-id".into(),
+            rating_score: 0,
+            is_pinned: false,
+            is_deprecated: false,
+            has_nsfw_content: false,
+            categories: vec![],
+            versions: vec![version("1.9.0"), version("1.10.0"), version("1.2.0")],
+        };
+
+        assert_eq!(latest_version(&package).unwrap().version_number, "1.10.0");
     }
 }

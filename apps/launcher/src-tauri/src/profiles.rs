@@ -83,6 +83,7 @@ impl ProfileStore {
             name: trimmed.into(),
             kind: "personal".into(),
             server_id: None,
+            auto_update: false,
             requested_packages,
         };
         self.write_metadata(&metadata)?;
@@ -146,6 +147,7 @@ impl ProfileStore {
             name: name.into(),
             kind: "server".into(),
             server_id: Some(server_id.into()),
+            auto_update: false,
             requested_packages: Vec::new(),
         };
         self.write_metadata(&metadata)?;
@@ -744,6 +746,7 @@ mod tests {
             name: "Test".into(),
             kind: "personal".into(),
             server_id: None,
+            auto_update: false,
             requested_packages: vec![RequestedPackage {
                 coordinate: "Author-Mod-2.0.0".into(),
                 origin: "extra".into(),

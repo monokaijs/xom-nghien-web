@@ -117,6 +117,8 @@ pub struct ProfileMetadata {
     pub kind: String,
     pub server_id: Option<String>,
     #[serde(default)]
+    pub auto_update: bool,
+    #[serde(default)]
     pub requested_packages: Vec<RequestedPackage>,
 }
 
@@ -184,6 +186,27 @@ pub struct ProfileDetails {
     pub direct_mod_count: usize,
     pub dependency_count: usize,
     pub sync_state: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModUpdateInfo {
+    pub coordinate: String,
+    pub namespace: String,
+    pub name: String,
+    pub current_version: String,
+    pub latest_version: String,
+    pub latest_coordinate: String,
+    pub update_available: bool,
+    pub is_deprecated: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileUpdateCheck {
+    pub profile_id: String,
+    pub checked_at: String,
+    pub updates: Vec<ModUpdateInfo>,
 }
 
 #[derive(Clone, Debug, Serialize)]

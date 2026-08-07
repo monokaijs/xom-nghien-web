@@ -60,6 +60,7 @@ export interface ProfileDetails {
     name: string;
     kind: 'server' | 'personal';
     serverId: string | null;
+    autoUpdate: boolean;
     requestedPackages: RequestedPackage[];
   };
   lock: {
@@ -78,6 +79,23 @@ export interface ProfileDetails {
   directModCount: number;
   dependencyCount: number;
   syncState: ProfileSyncState;
+}
+
+export interface ModUpdateInfo {
+  coordinate: string;
+  namespace: string;
+  name: string;
+  currentVersion: string;
+  latestVersion: string;
+  latestCoordinate: string;
+  updateAvailable: boolean;
+  isDeprecated: boolean;
+}
+
+export interface ProfileUpdateCheck {
+  profileId: string;
+  checkedAt: string;
+  updates: ModUpdateInfo[];
 }
 
 export interface CatalogPackage {

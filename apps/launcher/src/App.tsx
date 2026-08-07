@@ -11,7 +11,8 @@ import { invoke } from './desktop';
 import { coordinateIdentity, personalProfiles, requestIsSynced } from './profile-ui';
 import type {
   BootstrapData, CatalogPackage, LauncherConnection, LauncherPackageRef, LauncherServer,
-  LauncherSettings, Page, ProfileDetails, ProfileImportPreview, ProfileSummary, RequestedPackage,
+  LauncherSettings, ModUpdateInfo, Page, ProfileDetails, ProfileImportPreview, ProfileSummary,
+  ProfileUpdateCheck, RequestedPackage,
 } from './types';
 
 type TaskState = { message: string; state: 'running' | 'done' | 'error' } | null;
@@ -276,17 +277,49 @@ function ProfilesPage({ profiles, selectedProfile, setSelectedProfile, busy, run
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<CatalogPackage[]>([]);
   const [searching, setSearching] = useState(false);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [updates, setUpdates] = useState<Record<string, ModUpdateInfo>>({});
+  const [updatesCheckedAt, setUpdatesCheckedAt] = useState<string | null>(null);
   const [createName, setCreateName] = useState('');
   const [renameName, setRenameName] = useState('');
   const [modal, setModal] = useState<'create' | 'rename' | 'delete' | null>(null);
   const [importing, setImporting] = useState<{ path: string; preview: ProfileImportPreview; name: string } | null>(null);
   const selectedSummary = profiles.find((profile) => profile.id === selectedProfile) || null;
+  const availableUpdateCount = Object.values(updates).filter((update) => update.updateAvailable).length;
 
   const loadDetails = async (profileId = selectedProfile) => {
     if (!profileId) { setDetails(null); return; }
     try { setDetails(await invoke<ProfileDetails>('profile_details', { profileId })); } catch { setDetails(null); }
   };
-  useEffect(() => { void loadDetails(); setTab('installed'); }, [selectedProfile]);
+  const storeUpdateCheck = (check: ProfileUpdateCheck) => {
+    setUpdates(Object.fromEntries(check.updates.map((update) => [coordinateIdentity(update.coordinate), update])));
+    setUpdatesCheckedAt(check.checkedAt);
+  };
+  const fetchUpdates = async (profileId = selectedProfile) => {
+    if (!profileId) { setUpdates({}); setUpdatesCheckedAt(null); return; }
+    setCheckingUpdates(true);
+    try { storeUpdateCheck(await invoke<ProfileUpdateCheck>('check_profile_mod_updates', { profileId })); }
+    finally { setCheckingUpdates(false); }
+  };
+  useEffect(() => {
+    let active = true;
+    setUpdates({});
+    setUpdatesCheckedAt(null);
+    setTab('installed');
+    if (!selectedProfile) {
+      setDetails(null);
+      return () => { active = false; };
+    }
+    setCheckingUpdates(true);
+    void invoke<ProfileDetails>('profile_details', { profileId: selectedProfile })
+      .then((next) => { if (active) setDetails(next); })
+      .catch(() => { if (active) setDetails(null); });
+    void invoke<ProfileUpdateCheck>('check_profile_mod_updates', { profileId: selectedProfile })
+      .then((check) => { if (active) storeUpdateCheck(check); })
+      .catch(() => undefined)
+      .finally(() => { if (active) setCheckingUpdates(false); });
+    return () => { active = false; };
+  }, [selectedProfile]);
   useEffect(() => {
     if (tab !== 'discover') return;
     const timer = window.setTimeout(() => {
@@ -301,6 +334,24 @@ function ProfilesPage({ profiles, selectedProfile, setSelectedProfile, busy, run
     if (!outcome.ok) return;
     setDetails(outcome.value);
     await refresh();
+  };
+  const checkAllUpdates = async () => {
+    if (!selectedProfile) return;
+    const outcome = await runTask(t('checkingModUpdates'), `updates:${selectedProfile}`, () => invoke<ProfileUpdateCheck>('check_profile_mod_updates', { profileId: selectedProfile }));
+    if (outcome.ok) storeUpdateCheck(outcome.value);
+  };
+  const checkOneUpdate = async (mod: RequestedPackage) => {
+    const outcome = await runTask(`${t('checkingUpdate')} ${coordinateDisplayName(mod.coordinate)}`, `update-check:${mod.coordinate}`, () => invoke<ModUpdateInfo>('check_mod_update', { profileId: selectedProfile, coordinate: mod.coordinate }));
+    if (outcome.ok) setUpdates((current) => ({ ...current, [coordinateIdentity(mod.coordinate)]: outcome.value }));
+  };
+  const applyUpdates = async (mod?: RequestedPackage) => {
+    const command = mod ? 'update_profile_mod' : 'update_profile_mods';
+    const key = mod ? `mod-update:${mod.coordinate}` : `mod-updates:${selectedProfile}`;
+    const outcome = await runTask(mod ? `${t('updating')} ${coordinateDisplayName(mod.coordinate)}` : t('updatingMods'), key, () => invoke<ProfileDetails>(command, mod ? { profileId: selectedProfile, coordinate: mod.coordinate } : { profileId: selectedProfile }));
+    if (!outcome.ok) return;
+    setDetails(outcome.value);
+    await refresh();
+    await fetchUpdates(selectedProfile);
   };
   const sync = async (launch: boolean) => {
     if (!selectedProfile) return;
@@ -331,7 +382,8 @@ function ProfilesPage({ profiles, selectedProfile, setSelectedProfile, busy, run
           <button className="danger" onClick={() => setModal('delete')}><IconTrash size={15} />{t('deleteProfile')}</button>
         </div></details></div></div>
         <div className="profile-tabs"><button className={tab === 'installed' ? 'active' : ''} onClick={() => setTab('installed')}>{t('installed')}<span>{details.directModCount}</span></button><button className={tab === 'discover' ? 'active' : ''} onClick={() => setTab('discover')}>{t('discoverMods')}</button></div>
-        {tab === 'installed' ? <InstalledMods details={details} busy={busy} onToggle={(mod, enabled) => void mutate(`${enabled ? t('enabling') : t('disabling')} ${mod.coordinate}`, `toggle:${mod.coordinate}`, () => invoke('set_package_enabled', { profileId: selectedProfile, coordinate: mod.coordinate, enabled }))} onRemove={(mod) => void mutate(`${t('removing')} ${mod.coordinate}`, `remove:${mod.coordinate}`, () => invoke('remove_package', { profileId: selectedProfile, coordinate: mod.coordinate }))} t={t} /> : <DiscoverMods query={query} setQuery={setQuery} results={results} searching={searching} details={details} busy={busy} onAdd={(mod) => void mutate(`${t('adding')} ${mod.name}`, `add:${mod.fullName}`, () => invoke('add_profile_mod', { profileId: selectedProfile, packageRef: `${mod.namespace}-${mod.name}-${mod.versionNumber}` }))} t={t} />}
+        {tab === 'installed' && <div className="mod-update-toolbar"><label className="auto-update-control"><span><strong>{t('autoUpdateMods')}</strong><small>{t('autoUpdateModsDescription')}</small></span><span className="switch"><input type="checkbox" checked={details.metadata.autoUpdate} disabled={busy !== null} onChange={(event) => void mutate(t('savingAutoUpdate'), `auto-update:${selectedProfile}`, () => invoke('set_profile_auto_update', { profileId: selectedProfile, enabled: event.target.checked }))} /><span /></span></label><div><span className="update-check-time">{checkingUpdates ? t('checking') : updatesCheckedAt ? `${t('checked')} ${formatDate(updatesCheckedAt, localeOf(t))}` : t('notChecked')}</span><button disabled={busy !== null || checkingUpdates} onClick={() => void checkAllUpdates()}><IconRefresh size={16} />{t('checkAll')}</button>{availableUpdateCount > 0 && <button className="primary" disabled={busy !== null} onClick={() => void applyUpdates()}><IconDownload size={16} />{t('updateAll')} ({availableUpdateCount})</button>}</div></div>}
+        {tab === 'installed' ? <InstalledMods details={details} busy={busy} updates={updates} onCheckUpdate={(mod) => void checkOneUpdate(mod)} onUpdate={(mod) => void applyUpdates(mod)} onToggle={(mod, enabled) => void mutate(`${enabled ? t('enabling') : t('disabling')} ${mod.coordinate}`, `toggle:${mod.coordinate}`, () => invoke('set_package_enabled', { profileId: selectedProfile, coordinate: mod.coordinate, enabled }))} onRemove={(mod) => void mutate(`${t('removing')} ${mod.coordinate}`, `remove:${mod.coordinate}`, () => invoke('remove_package', { profileId: selectedProfile, coordinate: mod.coordinate }))} t={t} /> : <DiscoverMods query={query} setQuery={setQuery} results={results} searching={searching} details={details} busy={busy} onAdd={(mod) => void mutate(`${t('adding')} ${mod.name}`, `add:${mod.fullName}`, () => invoke('add_profile_mod', { profileId: selectedProfile, packageRef: `${mod.namespace}-${mod.name}-${mod.versionNumber}` }))} t={t} />}
         </div>
         {details.syncState !== 'ready' && <div className="pending-bar"><div><strong>{details.syncState === 'notInstalled' ? t('profileNotInstalled') : t('changesPending')}</strong><span>{details.syncState === 'notInstalled' ? t('profileNotInstalledDescription') : t('changesPendingDescription')}</span></div><div><button disabled={busy !== null} onClick={() => void sync(false)}><IconRefresh size={17} />{t('syncNow')}</button><button className="primary" disabled={busy !== null} onClick={() => void sync(true)}><IconPlayerPlay size={17} fill="currentColor" />{t('syncAndPlay')}</button></div></div>}
       </>}</section>
@@ -344,14 +396,15 @@ function ProfilesPage({ profiles, selectedProfile, setSelectedProfile, busy, run
   </div>;
 }
 
-function InstalledMods({ details, busy, onToggle, onRemove, t }: { details: ProfileDetails; busy: string | null; onToggle: (mod: RequestedPackage, enabled: boolean) => void; onRemove: (mod: RequestedPackage) => void; t: ReturnType<typeof translator> }) {
+function InstalledMods({ details, busy, updates, onCheckUpdate, onUpdate, onToggle, onRemove, t }: { details: ProfileDetails; busy: string | null; updates: Record<string, ModUpdateInfo>; onCheckUpdate: (mod: RequestedPackage) => void; onUpdate: (mod: RequestedPackage) => void; onToggle: (mod: RequestedPackage, enabled: boolean) => void; onRemove: (mod: RequestedPackage) => void; t: ReturnType<typeof translator> }) {
   const direct = details.metadata.requestedPackages.filter((mod) => mod.origin !== 'runtime');
   const directIdentities = new Set(direct.map((mod) => coordinateIdentity(mod.coordinate)));
   const dependencies = Object.entries(details.lock?.packages || {}).filter(([identity]) => identity !== 'denikson-bepinexpack_valheim' && !directIdentities.has(identity));
   if (!direct.length) return <Empty compact title={t('noModsInstalled')} description={t('noModsInstalledDescription')} />;
   return <div className="installed-mods"><div className="installed-list">{direct.map((mod) => {
     const synced = requestIsSynced(mod, details.lock?.requestedPackages || []);
-    return <div className="installed-row" key={mod.coordinate}><div className="mod-placeholder">M</div><div className="installed-identity"><strong>{coordinateDisplayName(mod.coordinate)}</strong><span>{mod.coordinate} · <b>{mod.origin}</b>{!synced && <em>{t('pending')}</em>}</span></div><label className="switch"><input type="checkbox" checked={mod.enabled} disabled={busy !== null} onChange={(event) => onToggle(mod, event.target.checked)} /><span /></label><button className="row-trash" disabled={busy !== null} onClick={() => onRemove(mod)} title={t('remove')}><IconTrash size={17} /></button></div>;
+    const update = updates[coordinateIdentity(mod.coordinate)];
+    return <div className="installed-row" key={mod.coordinate}><div className="mod-placeholder">M</div><div className="installed-identity"><strong>{coordinateDisplayName(mod.coordinate)}</strong><span>{mod.coordinate} · <b>{mod.origin}</b>{!synced && <em>{t('pending')}</em>}{update?.updateAvailable && <em className="update-available">{t('updateAvailable')} {update.latestVersion}</em>}</span></div><div className="installed-actions">{update?.updateAvailable ? <button className="row-update" disabled={busy !== null} onClick={() => onUpdate(mod)} title={`${t('update')} ${update.latestVersion}`}><IconDownload size={16} /><span>{t('update')}</span></button> : <button className="row-update-check" disabled={busy !== null} onClick={() => onCheckUpdate(mod)} title={t('checkForModUpdate')}><IconRefresh size={16} /></button>}<label className="switch" title={mod.enabled ? t('enabled') : t('disabled')}><input type="checkbox" checked={mod.enabled} disabled={busy !== null} onChange={(event) => onToggle(mod, event.target.checked)} /><span /></label><button className="row-trash" disabled={busy !== null} onClick={() => onRemove(mod)} title={t('remove')}><IconTrash size={17} /></button></div></div>;
   })}</div>{dependencies.length > 0 && <details className="dependency-list"><summary><IconChevronDown size={16} />{dependencies.length} {t('dependencies')}</summary>{dependencies.map(([identity, mod]) => <div key={identity}><span>{mod.namespace}-{mod.name}</span><small>{mod.version}</small></div>)}</details>}</div>;
 }
 

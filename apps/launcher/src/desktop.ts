@@ -17,9 +17,10 @@ const previewMod = {
 const previewData: BootstrapData = {
   settings: {
     apiBaseUrl: 'https://xomnghien.com', gamePath: '/Applications/Valheim.app/Contents/MacOS/valheim',
-    language: 'en', downloadConcurrency: 4, launchArguments: '', minimizeOnLaunch: true,
+    language: 'vi', downloadConcurrency: 4, launchArguments: '', minimizeOnLaunch: true,
     checkForUpdates: false, logLevel: 'info',
   },
+  firstRun: true,
   detectedGamePath: '/Applications/Valheim.app/Contents/MacOS/valheim',
   appVersion: '0.1.0-preview',
   servers: [{

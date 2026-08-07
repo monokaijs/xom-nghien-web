@@ -118,6 +118,7 @@ export interface LauncherSettings {
 
 export interface BootstrapData {
   settings: LauncherSettings;
+  firstRun: boolean;
   detectedGamePath: string | null;
   servers: LauncherServer[];
   profiles: ProfileSummary[];

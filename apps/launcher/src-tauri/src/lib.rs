@@ -93,6 +93,7 @@ impl AppState {
 #[tauri::command]
 async fn bootstrap(state: State<'_, AppState>) -> Result<BootstrapData, String> {
     command_result(async {
+        let first_run = !state.settings_path().exists();
         let settings = state.settings();
         let adapter = ValheimAdapter;
         let detected = settings
@@ -122,6 +123,7 @@ async fn bootstrap(state: State<'_, AppState>) -> Result<BootstrapData, String> 
         }
         Ok(BootstrapData {
             settings,
+            first_run,
             detected_game_path: detected.map(|path| path.to_string_lossy().into_owned()),
             servers,
             profiles: store.list(),

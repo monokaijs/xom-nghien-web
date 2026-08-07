@@ -82,16 +82,10 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        let language = std::env::var("LANG")
-            .ok()
-            .filter(|value| value.to_ascii_lowercase().starts_with("vi"))
-            .map(|_| "vi")
-            .unwrap_or("en")
-            .to_owned();
         Self {
             api_base_url: "https://xomnghien.com".into(),
             game_path: None,
-            language,
+            language: "vi".into(),
             download_concurrency: 4,
             launch_arguments: String::new(),
             minimize_on_launch: true,
@@ -227,6 +221,7 @@ pub struct CatalogPackage {
 #[serde(rename_all = "camelCase")]
 pub struct BootstrapData {
     pub settings: Settings,
+    pub first_run: bool,
     pub detected_game_path: Option<String>,
     pub servers: Vec<LauncherServer>,
     pub profiles: Vec<ProfileSummary>,

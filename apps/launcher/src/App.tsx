@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { open, save as saveDialog } from '@tauri-apps/plugin-dialog';
 import {
-  IconAdjustments, IconAlertTriangle, IconChevronDown, IconCopy, IconDeviceGamepad2,
-  IconDots, IconDownload, IconFolder, IconLanguage, IconPackage, IconPlayerPlay,
+  IconAdjustments, IconAlertTriangle, IconChevronDown, IconChevronLeft, IconChevronRight, IconCopy, IconDeviceGamepad2,
+  IconBrandDiscord, IconCheck, IconDots, IconDownload, IconExternalLink, IconFolder, IconLanguage, IconPackage, IconPlayerPlay,
   IconPlus, IconRefresh, IconSearch, IconServer, IconSettings, IconTrash, IconUpload,
-  IconX,
+  IconTrophy, IconUser, IconWorld, IconX,
 } from '@tabler/icons-react';
 import { translator } from './i18n';
 import { invoke } from './desktop';
@@ -27,7 +27,8 @@ export default function App() {
   const [busy, setBusy] = useState<string | null>(null);
   const [task, setTask] = useState<TaskState>(null);
   const [optional, setOptional] = useState<Record<string, string[]>>({});
-  const locale = data?.settings.language || 'en';
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.localStorage.getItem('xom-launcher-sidebar-collapsed') === 'true');
+  const locale = data?.settings.language || 'vi';
   const t = useMemo(() => translator(locale), [locale]);
 
   const refresh = async () => {
@@ -43,12 +44,13 @@ export default function App() {
   };
 
   useEffect(() => { void refresh(); }, []);
+  useEffect(() => { window.localStorage.setItem('xom-launcher-sidebar-collapsed', String(sidebarCollapsed)); }, [sidebarCollapsed]);
   useEffect(() => {
     if (!data) return;
     setOptional(Object.fromEntries(data.servers.map((server) => [server.id, server.selectedOptionalPackages])));
   }, [data]);
   useEffect(() => {
-    if (!data?.settings.checkForUpdates) return;
+    if (!data?.settings.checkForUpdates || data.firstRun) return;
     invoke<string | null>('available_update').then((version) => {
       if (!version) return;
       void runTask(`Installing launcher ${version}…`, 'launcher-update', () => invoke('install_update'));
@@ -81,19 +83,26 @@ export default function App() {
     ['profiles', t('myProfiles'), <IconAdjustments key="profiles" />],
     ['settings', t('settings'), <IconSettings key="settings" />],
   ];
+  const completeFirstRun = async (language: LauncherSettings['language']) => {
+    const settings = { ...data.settings, language };
+    const copy = translator(language);
+    const result = await runTask(copy('savingLanguage'), 'first-run-language', () => invoke('save_settings', { settings }));
+    if (result.ok) setData({ ...data, settings, firstRun: false });
+  };
 
-  return <div className="shell launcher-shell">
+  return <div className={`shell launcher-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
     <aside className="launcher-sidebar">
       <div className="brand"><div className="brand-mark">XN</div><div><strong>Xóm Nghiện</strong><span>v{data.appVersion}</span></div></div>
       <div className="game-pill"><IconDeviceGamepad2 size={20} /><div><strong>{t('valheim')}</strong><span>Steam</span></div></div>
-      <nav>{nav.filter(([id]) => id !== 'settings').map(([id, label, icon]) => <button key={id} className={page === id ? 'active' : ''} onClick={() => setPage(id)}>{icon}<span>{label}</span></button>)}</nav>
+      <nav>{nav.filter(([id]) => id !== 'settings').map(([id, label, icon]) => <button key={id} className={page === id ? 'active' : ''} aria-label={label} title={sidebarCollapsed ? label : undefined} onClick={() => setPage(id)}>{icon}<span>{label}</span></button>)}</nav>
+      <button className="sidebar-toggle" aria-label={sidebarCollapsed ? t('expandSidebar') : t('collapseSidebar')} title={sidebarCollapsed ? t('expandSidebar') : t('collapseSidebar')} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>{sidebarCollapsed ? <IconChevronRight size={16} /> : <IconChevronLeft size={16} />}</button>
       <div className="sidebar-bottom">
-        <button className={`sidebar-settings ${page === 'settings' ? 'active' : ''}`} onClick={() => setPage('settings')}><IconSettings size={20} /><span>{t('settings')}</span></button>
-        <div className="sidebar-avatar"><span className="sidebar-avatar-media">XN</span><span className="sidebar-avatar-copy"><strong>Xóm Nghiện</strong><small>{t('community')}</small></span></div>
+        <button className={`sidebar-settings ${page === 'settings' ? 'active' : ''}`} aria-label={t('settings')} title={sidebarCollapsed ? t('settings') : undefined} onClick={() => setPage('settings')}><IconSettings size={20} /><span>{t('settings')}</span></button>
+        <div className="sidebar-avatar"><span className="sidebar-avatar-media"><IconUser size={20} /></span><span className="sidebar-avatar-copy"><strong>{t('guest')}</strong></span></div>
       </div>
     </aside>
     <main className="content">
-      <header className="page-header"><div><span className="eyebrow">VALHEIM</span><h1>{nav.find(([id]) => id === page)?.[1]}</h1></div><button className="icon-button" onClick={() => void refresh()} title={t('refresh')}><IconRefresh size={19} /></button></header>
+      <header className="page-header"><div><span className="eyebrow">VALHEIM</span><h1>{nav.find(([id]) => id === page)?.[1]}</h1></div>{page !== 'profiles' && <button className="icon-button" onClick={() => void refresh()} title={t('refresh')}><IconRefresh size={19} /></button>}</header>
       {error && <div className="alert" role="alert">{error}<button onClick={() => setError(null)} aria-label={t('close')}>×</button></div>}
       {!data.detectedGamePath && page !== 'settings' && <div className="notice">{t('gameMissing')}</div>}
       {page === 'servers' && <ServersPage servers={data.servers} profiles={personalProfiles(data.profiles)} optional={optional} setOptional={setOptional} busy={busy} runTask={runTask} onTranslationInstalled={async (profileId) => { await refresh(); setSelectedProfile(profileId); setPage('profiles'); }} t={t} />}
@@ -104,7 +113,30 @@ export default function App() {
       {task.state === 'running' ? <span className="task-spinner" /> : task.state === 'done' ? <span>✓</span> : <IconAlertTriangle size={18} />}
       <span>{task.message}</span>{task.state !== 'running' && <button onClick={() => setTask(null)} aria-label={t('close')}><IconX size={15} /></button>}
     </div>}
+    {data.firstRun && <FirstRunLanguageDialog initialLanguage={data.settings.language} busy={busy !== null} onComplete={completeFirstRun} />}
   </div>;
+}
+
+function FirstRunLanguageDialog({ initialLanguage, busy, onComplete }: {
+  initialLanguage: LauncherSettings['language'];
+  busy: boolean;
+  onComplete: (language: LauncherSettings['language']) => Promise<void>;
+}) {
+  const [language, setLanguage] = useState(initialLanguage);
+  const copy = useMemo(() => translator(language), [language]);
+  return <Modal label={copy('chooseLauncherLanguage')} onClose={() => {}} dismissible={false}>
+    <form className="dialog-form first-run-dialog" onSubmit={(event) => { event.preventDefault(); void onComplete(language); }}>
+      <div className="first-run-icon"><IconLanguage size={24} /></div>
+      <span className="eyebrow">XÓM NGHIỆN LAUNCHER</span>
+      <h2>{copy('chooseLauncherLanguage')}</h2>
+      <p>{copy('chooseLauncherLanguageDescription')}</p>
+      <div className="language-options" role="group" aria-label={copy('chooseLauncherLanguage')}>
+        <button type="button" className={language === 'en' ? 'selected' : ''} aria-pressed={language === 'en'} onClick={() => setLanguage('en')}><span className="language-flag" aria-hidden="true">🇬🇧</span><strong>English</strong></button>
+        <button type="button" className={language === 'vi' ? 'selected' : ''} aria-pressed={language === 'vi'} onClick={() => setLanguage('vi')}><span className="language-flag" aria-hidden="true">🇻🇳</span><strong>Tiếng Việt</strong></button>
+      </div>
+      <button className="primary first-run-continue" disabled={busy}>{copy('continue')}</button>
+    </form>
+  </Modal>;
 }
 
 function ServersPage({ servers, profiles, optional, setOptional, busy, runTask, onTranslationInstalled, t }: {
@@ -137,15 +169,20 @@ function ServersPage({ servers, profiles, optional, setOptional, busy, runTask, 
   }, []);
 
   return <>
-    <section className="task-intro"><div><h2>{t('chooseServer')}</h2><p>{t('serverPageDescription')}</p></div><span>{servers.length} {t('servers').toLocaleLowerCase()}</span></section>
-    <TranslationCard profiles={profiles} busy={busy} runTask={runTask} onInstalled={onTranslationInstalled} t={t} />
-    {!servers.length ? <Empty title={t('noServers')} description={t('noServersDescription')} /> : <div className="server-grid focused-server-grid">{servers.map((server) => {
-      const modCount = server.requiredMods.length + server.optionalMods.length;
-      return <button className="server-card" key={server.id} onClick={() => setSelectedServerId(server.id)}>
-        <span className="server-card-shade" /><span className="server-card-top"><strong>{server.name}</strong><StatusPill status={server.status} label={t(server.status)} /></span>
-        <span className="server-card-bottom"><span className="server-card-meta"><small>{server.host}:{server.port}</small><span><IconPackage size={14} />{modCount} {t('mods')}</span></span><span className="server-play"><IconPlayerPlay size={20} fill="currentColor" /></span></span>
-      </button>;
-    })}</div>}
+    <div className="home-hero-row"><LauncherHero t={t} /><TranslationCard profiles={profiles} busy={busy} runTask={runTask} onInstalled={onTranslationInstalled} t={t} /></div>
+    <div className="home-dashboard-grid">
+      <section className="server-section" aria-labelledby="server-list-title"><div className="section-heading-row"><h2 id="server-list-title">{t('servers')}</h2>{servers.length > 0 && <span>{servers.length}</span>}</div>
+        {!servers.length ? <Empty title={t('noServers')} description={t('noServersDescription')} /> : <div className="server-grid focused-server-grid">{servers.map((server) => {
+          const modCount = server.requiredMods.length + server.optionalMods.length;
+          return <button className="server-card" key={server.id} onClick={() => setSelectedServerId(server.id)}>
+            <span className="server-card-shade" /><span className="server-card-top"><strong>{server.name}</strong><StatusPill status={server.status} label={t(server.status)} /></span>
+            <span className="server-card-bottom"><span className="server-card-meta"><small>{server.host}:{server.port}</small><span><IconPackage size={14} />{modCount} {t('mods')}</span></span><span className="server-play"><IconPlayerPlay size={20} fill="currentColor" /></span></span>
+          </button>;
+        })}</div>}
+        <RelatedResources t={t} />
+      </section>
+      <aside className="leaderboard-column" aria-labelledby="leaderboard-column-title"><div className="leaderboard-column-heading"><div><h2 id="leaderboard-column-title">{t('leaderboard')}</h2></div></div><LeaderboardComingSoon t={t} /></aside>
+    </div>
     {selected && <Modal onClose={() => setSelectedServerId(null)} label={selected.name} wide>
       <div className="server-detail">
         <section className="server-detail-main"><StatusPill status={selected.status} label={t(selected.status)} /><h2>{selected.name}</h2><p>{selected.description || t('serverDescriptionFallback')}</p>
@@ -167,6 +204,18 @@ function ServersPage({ servers, profiles, optional, setOptional, busy, runTask, 
   </>;
 }
 
+function RelatedResources({ t }: { t: ReturnType<typeof translator> }) {
+  const resources = [
+    { title: t('xomNghienWebsite'), description: t('xomNghienWebsiteDescription'), url: 'https://xomnghien.com', icon: <IconWorld size={18} /> },
+    { title: t('valheimThunderstore'), description: t('valheimThunderstoreDescription'), url: 'https://thunderstore.io/c/valheim/', icon: <IconPackage size={18} /> },
+    { title: t('communityDiscord'), description: t('communityDiscordDescription'), url: 'https://discord.gg/WYaqghEaMe', icon: <IconBrandDiscord size={18} /> },
+  ];
+  return <section className="related-resources" aria-labelledby="related-resources-title">
+    <div className="related-resources-heading"><h3 id="related-resources-title">{t('relatedResources')}</h3></div>
+    <div className="resource-grid">{resources.map((resource) => <button type="button" className="resource-card" key={resource.url} onClick={() => void invoke('open_external_url', { url: resource.url })}><span className="resource-icon">{resource.icon}</span><span className="resource-copy"><strong>{resource.title}</strong><small>{resource.description}</small></span><IconExternalLink className="resource-arrow" size={15} /></button>)}</div>
+  </section>;
+}
+
 function TranslationCard({ profiles, busy, runTask, onInstalled, t }: {
   profiles: ProfileSummary[];
   busy: string | null;
@@ -175,6 +224,7 @@ function TranslationCard({ profiles, busy, runTask, onInstalled, t }: {
   t: ReturnType<typeof translator>;
 }) {
   const [target, setTarget] = useState(profiles[0]?.id || 'new');
+  const [dialogOpen, setDialogOpen] = useState(false);
   useEffect(() => {
     if (target === 'new' || profiles.some((profile) => profile.id === target)) return;
     setTarget(profiles[0]?.id || 'new');
@@ -182,14 +232,34 @@ function TranslationCard({ profiles, busy, runTask, onInstalled, t }: {
 
   const install = async () => {
     const result = await runTask(t('installingVietnamese'), 'vietnamese-translation', () => invoke<ProfileSummary>('install_vietnamese_translation', { profileId: target === 'new' ? null : target }));
-    if (result.ok) await onInstalled(result.value.id);
+    if (result.ok) {
+      setDialogOpen(false);
+      await onInstalled(result.value.id);
+    }
   };
 
-  return <section className="translation-card" aria-labelledby="translation-card-title">
-    <div className="translation-card-icon"><IconLanguage size={28} /></div>
-    <div className="translation-card-copy"><span>{t('vietnameseTranslation')}</span><h2 id="translation-card-title">{t('playInVietnamese')}</h2><p>{t('translationDescription')}</p><small>{t('translationAttribution')}</small></div>
-    <div className="translation-card-action"><label>{t('installToProfile')}<select value={target} onChange={(event) => setTarget(event.target.value)}>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}<option value="new">{t('newDefaultProfile')}</option></select></label><button className="primary" disabled={busy !== null} onClick={() => void install()}><IconDownload size={17} />{t('installVietnamese')}</button></div>
-  </section>;
+  return <>
+    <section className="translation-card home-translation-card" aria-labelledby="translation-card-title">
+      <div className="translation-card-copy"><span>{t('vietnameseTranslation')}</span><h2 id="translation-card-title">{t('playInVietnamese')}</h2><p>{t('translationDescription')}</p><small>{t('translationAttribution')}</small></div>
+      <div className="translation-card-action"><button className="primary" disabled={busy !== null} onClick={() => setDialogOpen(true)}><IconDownload size={17} />{t('installVietnamese')}</button></div>
+    </section>
+    {dialogOpen && <Modal label={t('chooseTranslationProfile')} onClose={() => setDialogOpen(false)}>
+      <form className="dialog-form translation-install-dialog" onSubmit={(event) => { event.preventDefault(); void install(); }}>
+        <h2>{t('chooseTranslationProfile')}</h2>
+        <p>{t('chooseTranslationProfileDescription')}</p>
+        <label>{t('installToProfile')}<select autoFocus value={target} onChange={(event) => setTarget(event.target.value)}>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}<option value="new">{t('newDefaultProfile')}</option></select></label>
+        <div className="dialog-actions"><button type="button" onClick={() => setDialogOpen(false)}>{t('cancel')}</button><button className="primary" disabled={busy !== null}><IconDownload size={16} />{t('installVietnamese')}</button></div>
+      </form>
+    </Modal>}
+  </>;
+}
+
+function LauncherHero({ t }: { t: ReturnType<typeof translator> }) {
+  return <section className="launcher-hero"><div className="launcher-hero-shade" /><div className="launcher-hero-copy"><span>{t('community')}</span><h2>{t('heroTitle')}</h2><p>{t('heroDescription')}</p><button type="button" onClick={() => void invoke('open_external_url', { url: 'https://discord.gg/WYaqghEaMe' })}><IconBrandDiscord size={17} />{t('joinDiscord')}</button></div><span className="hero-figure" aria-hidden="true" /></section>;
+}
+
+function LeaderboardComingSoon({ t }: { t: ReturnType<typeof translator> }) {
+  return <section className="leaderboard-soon"><div className="leaderboard-glow" /><div className="leaderboard-podium" aria-hidden="true"><span className="podium second"><b>2</b></span><span className="podium first"><IconTrophy size={28} /><b>1</b></span><span className="podium third"><b>3</b></span></div><h2>{t('leaderboardComingTitle')}</h2><p>{t('leaderboardComingDescription')}</p></section>;
 }
 
 function ProfilesPage({ profiles, selectedProfile, setSelectedProfile, busy, runTask, refresh, t }: {
@@ -248,10 +318,11 @@ function ProfilesPage({ profiles, selectedProfile, setSelectedProfile, busy, run
   };
 
   return <div className="profiles-page">
-    <section className="profiles-toolbar"><div><h2>{t('personalProfiles')}</h2><p>{t('profilesDescription')}</p></div><div><button onClick={() => void chooseImport()}><IconUpload size={17} />{t('importProfile')}</button><button className="primary" onClick={() => { setCreateName(''); setModal('create'); }}><IconPlus size={17} />{t('createProfile')}</button></div></section>
-    {!profiles.length ? <Empty title={t('noPersonalProfiles')} description={t('noPersonalProfilesDescription')} action={<button className="primary" onClick={() => setModal('create')}><IconPlus size={17} />{t('createFirstProfile')}</button>} /> : <div className="profile-layout">
+    <section className="profiles-toolbar"><div><button onClick={() => void chooseImport()}><IconUpload size={17} />{t('importProfile')}</button><button className="primary" onClick={() => { setCreateName(''); setModal('create'); }}><IconPlus size={17} />{t('createProfile')}</button></div></section>
+    {!profiles.length ? <Empty title={t('noPersonalProfiles')} description={t('noPersonalProfilesDescription')} /> : <div className="profile-layout">
       <aside className="profile-rail">{profiles.map((profile) => <button key={profile.id} className={`profile-select ${selectedProfile === profile.id ? 'active' : ''}`} onClick={() => setSelectedProfile(profile.id)}><span className="profile-select-icon"><IconPackage size={19} /></span><span><strong>{profile.name}</strong><small>{profile.directModCount} {t('mods')} · {syncLabel(profile.syncState, t)}</small></span></button>)}</aside>
       <section className="profile-workspace">{!details || !selectedSummary ? <div className="workspace-loading">{t('loading')}</div> : <>
+        <div className="profile-workspace-scroll">
         <div className="profile-workspace-header"><div><div className="profile-title-line"><h2>{selectedSummary.name}</h2><span className={`sync-badge ${details.syncState}`}>{syncLabel(details.syncState, t)}</span></div><p>{details.directModCount} {t('mods')} · {details.dependencyCount} {t('dependencies')} · {details.lock ? `${t('lastSynced')} ${formatDate(details.lock.generatedAt, localeOf(t))}` : t('neverSynced')}</p></div><div className="profile-primary-actions"><button className="primary" disabled={busy !== null} onClick={() => void sync(true)}><IconPlayerPlay size={18} fill="currentColor" />{t('syncAndPlay')}</button><details className="action-menu"><summary aria-label={t('moreActions')}><IconDots size={20} /></summary><div>
           <button onClick={() => { setRenameName(selectedSummary.name); setModal('rename'); }}>{t('rename')}</button>
           <button onClick={async () => { const path = await saveDialog({ title: t('exportProfile'), defaultPath: `${safeFileName(selectedSummary.name)}.r2z`, filters: [{ name: 'r2modman profile', extensions: ['r2z'] }] }); if (path) await runTask(t('exportingProfile'), 'export', () => invoke('export_profile', { profileId: selectedProfile, path })); }}><IconDownload size={15} />{t('exportProfile')}</button>
@@ -261,6 +332,7 @@ function ProfilesPage({ profiles, selectedProfile, setSelectedProfile, busy, run
         </div></details></div></div>
         <div className="profile-tabs"><button className={tab === 'installed' ? 'active' : ''} onClick={() => setTab('installed')}>{t('installed')}<span>{details.directModCount}</span></button><button className={tab === 'discover' ? 'active' : ''} onClick={() => setTab('discover')}>{t('discoverMods')}</button></div>
         {tab === 'installed' ? <InstalledMods details={details} busy={busy} onToggle={(mod, enabled) => void mutate(`${enabled ? t('enabling') : t('disabling')} ${mod.coordinate}`, `toggle:${mod.coordinate}`, () => invoke('set_package_enabled', { profileId: selectedProfile, coordinate: mod.coordinate, enabled }))} onRemove={(mod) => void mutate(`${t('removing')} ${mod.coordinate}`, `remove:${mod.coordinate}`, () => invoke('remove_package', { profileId: selectedProfile, coordinate: mod.coordinate }))} t={t} /> : <DiscoverMods query={query} setQuery={setQuery} results={results} searching={searching} details={details} busy={busy} onAdd={(mod) => void mutate(`${t('adding')} ${mod.name}`, `add:${mod.fullName}`, () => invoke('add_profile_mod', { profileId: selectedProfile, packageRef: `${mod.namespace}-${mod.name}-${mod.versionNumber}` }))} t={t} />}
+        </div>
         {details.syncState !== 'ready' && <div className="pending-bar"><div><strong>{details.syncState === 'notInstalled' ? t('profileNotInstalled') : t('changesPending')}</strong><span>{details.syncState === 'notInstalled' ? t('profileNotInstalledDescription') : t('changesPendingDescription')}</span></div><div><button disabled={busy !== null} onClick={() => void sync(false)}><IconRefresh size={17} />{t('syncNow')}</button><button className="primary" disabled={busy !== null} onClick={() => void sync(true)}><IconPlayerPlay size={17} fill="currentColor" />{t('syncAndPlay')}</button></div></div>}
       </>}</section>
     </div>}
@@ -296,12 +368,17 @@ function DiscoverMods({ query, setQuery, results, searching, details, busy, onAd
 function SettingsPage({ settings, detectedPath, onSaved, runTask, t }: { settings: LauncherSettings; detectedPath: string | null; onSaved: () => Promise<void>; runTask: TaskRunner; t: ReturnType<typeof translator> }) {
   const [form, setForm] = useState(settings);
   const pickGame = async () => { const path = await open({ multiple: false, directory: false, title: t('chooseValheimExecutable') }); if (path && !Array.isArray(path)) setForm({ ...form, gamePath: path }); };
-  return <div className="settings-form"><label>{t('websiteApiUrl')}<input value={form.apiBaseUrl} onChange={(event) => setForm({ ...form, apiBaseUrl: event.target.value })} /></label><label>{t('valheimExecutable')}<div className="path-input"><input value={form.gamePath || detectedPath || ''} onChange={(event) => setForm({ ...form, gamePath: event.target.value || null })} /><button onClick={() => void pickGame()}>…</button></div></label><div className="settings-grid"><label><IconLanguage size={16} />{t('language')}<select value={form.language} onChange={(event) => setForm({ ...form, language: event.target.value as LauncherSettings['language'] })}><option value="en">English</option><option value="vi">Tiếng Việt</option></select></label><label>{t('concurrentDownloads')}<input type="number" min={1} max={8} value={form.downloadConcurrency} onChange={(event) => setForm({ ...form, downloadConcurrency: Number(event.target.value) })} /></label></div><label>{t('launchArguments')}<input value={form.launchArguments} onChange={(event) => setForm({ ...form, launchArguments: event.target.value })} /></label><label className="check"><input type="checkbox" checked={form.minimizeOnLaunch} onChange={(event) => setForm({ ...form, minimizeOnLaunch: event.target.checked })} />{t('minimizeOnLaunch')}</label><label className="check"><input type="checkbox" checked={form.checkForUpdates} onChange={(event) => setForm({ ...form, checkForUpdates: event.target.checked })} />{t('checkForUpdates')}</label><div className="settings-actions"><button className="primary" onClick={async () => { const result = await runTask(t('savingSettings'), 'settings', () => invoke('save_settings', { settings: form })); if (result.ok) await onSaved(); }}>{t('save')}</button><button onClick={() => void runTask(t('clearingCache'), 'cache', () => invoke('clear_cache'))}>{t('clearCache')}</button><button onClick={() => void invoke('open_logs_folder')}>{t('openLogs')}</button></div></div>;
+  return <div className="settings-form"><label>{t('websiteApiUrl')}<input value={form.apiBaseUrl} onChange={(event) => setForm({ ...form, apiBaseUrl: event.target.value })} /></label><label>{t('valheimExecutable')}<div className="path-input"><input value={form.gamePath || detectedPath || ''} onChange={(event) => setForm({ ...form, gamePath: event.target.value || null })} /><button onClick={() => void pickGame()}>…</button></div></label><div className="settings-grid"><label><span className="setting-label"><IconLanguage size={16} />{t('language')}</span><select value={form.language} onChange={(event) => setForm({ ...form, language: event.target.value as LauncherSettings['language'] })}><option value="en">English</option><option value="vi">Tiếng Việt</option></select></label><label>{t('concurrentDownloads')}<input type="number" min={1} max={8} value={form.downloadConcurrency} onChange={(event) => setForm({ ...form, downloadConcurrency: Number(event.target.value) })} /></label></div><label>{t('launchArguments')}<input value={form.launchArguments} onChange={(event) => setForm({ ...form, launchArguments: event.target.value })} /></label><label className="check"><input type="checkbox" checked={form.minimizeOnLaunch} onChange={(event) => setForm({ ...form, minimizeOnLaunch: event.target.checked })} /><span className="checkbox-control" aria-hidden="true"><IconCheck size={13} stroke={3} /></span><span>{t('minimizeOnLaunch')}</span></label><label className="check"><input type="checkbox" checked={form.checkForUpdates} onChange={(event) => setForm({ ...form, checkForUpdates: event.target.checked })} /><span className="checkbox-control" aria-hidden="true"><IconCheck size={13} stroke={3} /></span><span>{t('checkForUpdates')}</span></label><div className="settings-actions"><button className="primary" onClick={async () => { const result = await runTask(t('savingSettings'), 'settings', () => invoke('save_settings', { settings: form })); if (result.ok) await onSaved(); }}>{t('save')}</button><button onClick={() => void runTask(t('clearingCache'), 'cache', () => invoke('clear_cache'))}>{t('clearCache')}</button><button onClick={() => void invoke('open_logs_folder')}>{t('openLogs')}</button></div></div>;
 }
 
-function Modal({ children, onClose, label, wide = false }: { children: React.ReactNode; onClose: () => void; label: string; wide?: boolean }) {
-  useEffect(() => { const close = (event: KeyboardEvent) => event.key === 'Escape' && onClose(); window.addEventListener('keydown', close); return () => window.removeEventListener('keydown', close); }, [onClose]);
-  return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className={`modal-card ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={label}><button className="dialog-close" onClick={onClose} aria-label={label}><IconX size={19} /></button>{children}</section></div>;
+function Modal({ children, onClose, label, wide = false, dismissible = true }: { children: React.ReactNode; onClose: () => void; label: string; wide?: boolean; dismissible?: boolean }) {
+  useEffect(() => {
+    if (!dismissible) return;
+    const close = (event: KeyboardEvent) => event.key === 'Escape' && onClose();
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [dismissible, onClose]);
+  return <div className="modal-backdrop" onMouseDown={(event) => dismissible && event.target === event.currentTarget && onClose()}><section className={`modal-card ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={label}>{dismissible && <button className="dialog-close" onClick={onClose} aria-label={label}><IconX size={19} /></button>}{children}</section></div>;
 }
 
 function Empty({ title, description, action, compact = false }: { title: string; description: string; action?: React.ReactNode; compact?: boolean }) { return <div className={`empty ${compact ? 'compact' : ''}`}><IconDeviceGamepad2 size={compact ? 32 : 44} /><strong>{title}</strong><p>{description}</p>{action}</div>; }

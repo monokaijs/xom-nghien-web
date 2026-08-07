@@ -453,13 +453,14 @@ fn extract_package(
         let enclosed = entry
             .enclosed_name()
             .context("Package contains an unsafe path")?;
-        let relative = strip_loader_prefix(&enclosed);
-        if relative.as_os_str().is_empty() {
+        let archive_relative = strip_loader_prefix(&enclosed);
+        if archive_relative.as_os_str().is_empty() {
             continue;
         }
-        if is_package_metadata(&relative) {
+        if is_package_metadata(&archive_relative) {
             continue;
         }
+        let relative = package_install_path(&archive_relative, coordinate)?;
         let normalized = relative.to_string_lossy().replace('\\', "/");
         let output = destination.join(&relative);
         if entry.is_dir() {
@@ -497,12 +498,51 @@ fn strip_loader_prefix(path: &Path) -> PathBuf {
     let mut components = path.components();
     if components
         .next()
-        .is_some_and(|part| part.as_os_str() == "BepInExPack_Valheim")
+        .and_then(|part| part.as_os_str().to_str())
+        .is_some_and(|part| part.eq_ignore_ascii_case("BepInExPack_Valheim"))
     {
         components.as_path().to_owned()
     } else {
         path.to_owned()
     }
+}
+
+fn package_install_path(path: &Path, coordinate: &str) -> Result<PathBuf> {
+    // Thunderstore's BepInEx installer treats the standard loader folders as
+    // routes and groups every other package file under its own plugin folder.
+    if package_identity(coordinate).as_deref() == Some(LOADER_IDENTITY) {
+        return Ok(path.to_owned());
+    }
+
+    let mut components = path.components();
+    let first = components
+        .next()
+        .and_then(|component| component.as_os_str().to_str())
+        .context("Package contains a non-Unicode top-level path")?;
+    let remainder = components.as_path();
+
+    if first.eq_ignore_ascii_case("BepInEx") {
+        return Ok(PathBuf::from("BepInEx").join(remainder));
+    }
+
+    for directory in ["plugins", "core", "patchers", "monomod", "config"] {
+        if first.eq_ignore_ascii_case(directory) {
+            return Ok(PathBuf::from("BepInEx").join(directory).join(remainder));
+        }
+    }
+
+    let (namespace, name, _) = crate::thunderstore::split_coordinate(coordinate)?;
+    let package_directory = format!("{namespace}-{name}");
+    if !package_directory
+        .chars()
+        .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'))
+    {
+        anyhow::bail!("Package coordinate contains an unsafe plugin directory");
+    }
+    Ok(PathBuf::from("BepInEx")
+        .join("plugins")
+        .join(package_directory)
+        .join(path))
 }
 
 fn preserve_mutable_config(current: &Path, staging: &Path) -> Result<()> {
@@ -786,6 +826,88 @@ mod tests {
         assert_eq!(
             strip_loader_prefix(Path::new("BepInEx/plugins/a.dll")),
             PathBuf::from("BepInEx/plugins/a.dll")
+        );
+    }
+
+    #[test]
+    fn routes_thunderstore_bepinex_folders_into_the_profile() {
+        assert_eq!(
+            package_install_path(
+                Path::new("plugins/Jotunn.dll"),
+                "ValheimModding-Jotunn-2.29.2"
+            )
+            .unwrap(),
+            PathBuf::from("BepInEx/plugins/Jotunn.dll")
+        );
+        assert_eq!(
+            package_install_path(
+                Path::new("config/jotunn.cfg"),
+                "ValheimModding-Jotunn-2.29.2"
+            )
+            .unwrap(),
+            PathBuf::from("BepInEx/config/jotunn.cfg")
+        );
+        assert_eq!(
+            package_install_path(
+                Path::new("BepInEx/patchers/preloader.dll"),
+                "Author-Mod-1.0.0"
+            )
+            .unwrap(),
+            PathBuf::from("BepInEx/patchers/preloader.dll")
+        );
+    }
+
+    #[test]
+    fn installs_unrouted_mod_contents_in_a_package_plugin_directory() {
+        let temp = tempfile::tempdir().unwrap();
+        let archive_path = temp.path().join("vietnamese.zip");
+        let file = fs::File::create(&archive_path).unwrap();
+        let mut writer = zip::ZipWriter::new(file);
+        writer
+            .start_file("ValheimVietnameseFont.dll", SimpleFileOptions::default())
+            .unwrap();
+        writer.write_all(b"plugin").unwrap();
+        writer
+            .start_file(
+                "Translations/Vietnamese/ValheimVietHoa.json",
+                SimpleFileOptions::default(),
+            )
+            .unwrap();
+        writer.write_all(b"{}").unwrap();
+        writer.finish().unwrap();
+
+        let destination = temp.path().join("profile");
+        let files = extract_package(
+            &archive_path,
+            &destination,
+            "Creaton-Valheim_Viet_Hoa-0.2.0",
+            &mut HashMap::new(),
+        )
+        .unwrap();
+        let plugin_root = destination.join("BepInEx/plugins/Creaton-Valheim_Viet_Hoa");
+
+        assert!(plugin_root.join("ValheimVietnameseFont.dll").is_file());
+        assert!(plugin_root
+            .join("Translations/Vietnamese/ValheimVietHoa.json")
+            .is_file());
+        assert_eq!(
+            files,
+            vec![
+                "BepInEx/plugins/Creaton-Valheim_Viet_Hoa/ValheimVietnameseFont.dll",
+                "BepInEx/plugins/Creaton-Valheim_Viet_Hoa/Translations/Vietnamese/ValheimVietHoa.json",
+            ]
+        );
+    }
+
+    #[test]
+    fn keeps_bepinex_runtime_files_at_the_profile_root() {
+        assert_eq!(
+            package_install_path(
+                Path::new("winhttp.dll"),
+                "denikson-BepInExPack_Valheim-5.4.2333"
+            )
+            .unwrap(),
+            PathBuf::from("winhttp.dll")
         );
     }
 

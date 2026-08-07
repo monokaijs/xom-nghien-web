@@ -82,8 +82,6 @@ jobs:
           const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
           const current = packageJson.version.match(/^(\d+)\.(\d+)\.(\d+)$/);
           if (!current) throw new Error(`Invalid current launcher version: ${packageJson.version}`);
-          const previous = current[0];
-
           let [major, minor, patch] = current.slice(1).map(Number);
           if (bump === 'major') [major, minor, patch] = [major + 1, 0, 0];
           if (bump === 'minor') [minor, patch] = [minor + 1, 0];
@@ -106,10 +104,10 @@ jobs:
           fs.writeFileSync(cargoPath, updatedCargo);
 
           const lock = fs.readFileSync(lockPath, 'utf8');
-          const packageMarker = `name = "xom-nghien-launcher"\nversion = "${previous}"`;
+          const packagePattern = /(\[\[package\]\]\r?\nname = "xom-nghien-launcher"\r?\nversion = ")\d+\.\d+\.\d+("\r?\n)/;
           const updatedLock = lock.replace(
-            packageMarker,
-            `name = "xom-nghien-launcher"\nversion = "${next}"`,
+            packagePattern,
+            `$1${next}$2`,
           );
           if (updatedLock === lock) throw new Error('Could not update Cargo.lock version');
           fs.writeFileSync(lockPath, updatedLock);

@@ -1030,7 +1030,7 @@ async fn apply_profile_updates(
     let mut changed = false;
     for update in updates.iter().filter(|update| {
         update.update_available
-            && only_coordinate.map_or(true, |coordinate| coordinate == update.coordinate)
+            && only_coordinate.is_none_or(|coordinate| coordinate == update.coordinate)
     }) {
         if let Some(request) = metadata
             .requested_packages

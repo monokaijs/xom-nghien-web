@@ -1,5 +1,7 @@
 use crate::models::{ConnectResponse, HandoffContext};
-use anyhow::{Context, Result};
+#[cfg(unix)]
+use anyhow::Context;
+use anyhow::Result;
 use chrono::{Duration, Utc};
 use rand::RngCore;
 use std::{
@@ -70,11 +72,11 @@ async fn serve_once(
     let _ = tokio::fs::remove_file(context_path).await;
 }
 
-fn restrict_context_permissions(path: &Path) -> Result<()> {
+fn restrict_context_permissions(_path: &Path) -> Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(path, fs::Permissions::from_mode(0o600))
+        fs::set_permissions(_path, fs::Permissions::from_mode(0o600))
             .context("Could not restrict connection context permissions")?;
     }
     Ok(())

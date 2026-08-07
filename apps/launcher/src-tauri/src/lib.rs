@@ -707,6 +707,7 @@ async fn install_unsigned_windows_update(state: &AppState) -> Result<()> {
          Wait-Process -Id {} -ErrorAction SilentlyContinue\n\
          Copy-Item -LiteralPath '{}' -Destination '{}' -Force\n\
          Move-Item -LiteralPath '{}' -Destination '{}' -Force\n\
+         Remove-Item -LiteralPath '{}' -Force -ErrorAction SilentlyContinue\n\
          Start-Process -FilePath '{}'\n\
          Remove-Item -LiteralPath $PSCommandPath -Force\n",
         std::process::id(),
@@ -714,6 +715,7 @@ async fn install_unsigned_windows_update(state: &AppState) -> Result<()> {
         quote(&backup_exe),
         quote(&staged_exe),
         quote(&current_exe),
+        quote(&backup_exe),
         quote(&current_exe),
     );
     fs::write(&script_path, script)?;
@@ -736,6 +738,16 @@ async fn install_unsigned_windows_update(state: &AppState) -> Result<()> {
         &format!("Installing unsigned launcher update {version}"),
     );
     Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn remove_previous_launcher_backup() {
+    if let Ok(current_exe) = std::env::current_exe() {
+        let backup_exe = current_exe.with_extension("previous.exe");
+        if backup_exe.is_file() {
+            let _ = fs::remove_file(backup_exe);
+        }
+    }
 }
 
 async fn sync_metadata(
@@ -892,6 +904,9 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            #[cfg(target_os = "windows")]
+            remove_previous_launcher_backup();
+
             let data_dir = app.path().app_data_dir()?;
             let cache_dir = app.path().app_cache_dir()?;
             fs::create_dir_all(data_dir.join("profiles"))?;
@@ -904,6 +919,9 @@ pub fn run() {
                     .timeout(std::time::Duration::from_secs(45))
                     .build()?,
             });
+            if let Some(window) = app.get_webview_window("main") {
+                window.set_focus()?;
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

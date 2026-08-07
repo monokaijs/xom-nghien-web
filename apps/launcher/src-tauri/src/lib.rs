@@ -31,8 +31,8 @@ struct AppState {
 
 const GITHUB_LATEST_RELEASE_URL: &str =
     "https://api.github.com/repos/monokaijs/xom-nghien-web/releases/latest";
-const VIETNAMESE_TRANSLATION_NAMESPACE: &str = "Vietnamgang";
-const VIETNAMESE_TRANSLATION_PACKAGE: &str = "ValheimVietnamesePack";
+const VIETNAMESE_TRANSLATION_NAMESPACE: &str = "Creaton";
+const VIETNAMESE_TRANSLATION_PACKAGE: &str = "Valheim_Viet_Hoa";
 
 #[derive(Deserialize)]
 struct GithubRelease {
@@ -1014,11 +1014,11 @@ mod tests {
 
     #[test]
     fn selects_the_latest_vietnamese_translation_coordinate() {
-        let package = translation_package("1.0.2");
+        let package = translation_package("0.2.0");
 
         assert_eq!(
             latest_vietnamese_translation(&[package]).unwrap(),
-            "Vietnamgang-ValheimVietnamesePack-1.0.2"
+            "Creaton-Valheim_Viet_Hoa-0.2.0"
         );
     }
 }

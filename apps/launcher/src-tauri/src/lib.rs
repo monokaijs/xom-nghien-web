@@ -2,6 +2,7 @@ mod api;
 mod handoff;
 mod launch;
 mod models;
+mod profile_transfer;
 mod profiles;
 mod resolver;
 mod settings;
@@ -10,20 +11,15 @@ mod thunderstore;
 
 use crate::{
     models::{
-        BootstrapData, CatalogPackage, ConnectResponse, ProfileDetails, ProfileMetadata,
-        ProfileSummary, RequestedPackage, Settings,
+        BootstrapData, CatalogPackage, ConnectResponse, ProfileDetails, ProfileImportMod,
+        ProfileImportPreview, ProfileMetadata, ProfileSummary, RequestedPackage, Settings,
     },
     profiles::ProfileStore,
     steam::{GameAdapter, ValheimAdapter},
 };
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use std::{
-    collections::HashSet,
-    fs,
-    io::{Cursor, Write},
-    path::PathBuf,
-};
+use std::{collections::HashSet, fs, io::Write, path::PathBuf};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
@@ -35,6 +31,8 @@ struct AppState {
 
 const GITHUB_LATEST_RELEASE_URL: &str =
     "https://api.github.com/repos/monokaijs/xom-nghien-web/releases/latest";
+const VIETNAMESE_TRANSLATION_NAMESPACE: &str = "Vietnamgang";
+const VIETNAMESE_TRANSLATION_PACKAGE: &str = "ValheimVietnamesePack";
 
 #[derive(Deserialize)]
 struct GithubRelease {
@@ -157,7 +155,21 @@ async fn create_profile(
 ) -> Result<ProfileSummary, String> {
     command_result(async {
         let metadata = state.store().create_personal(&name)?;
-        Ok(to_summary(metadata))
+        summary_for(&state.store(), &metadata.id)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn rename_profile(
+    state: State<'_, AppState>,
+    profile_id: String,
+    name: String,
+) -> Result<ProfileSummary, String> {
+    command_result(async {
+        let store = state.store();
+        let metadata = store.rename_personal(&profile_id, &name)?;
+        summary_for(&store, &metadata.id)
     })
     .await
 }
@@ -180,29 +192,77 @@ async fn search_mods(
 }
 
 #[tauri::command]
-async fn install_mod(
+async fn add_profile_mod(
     state: State<'_, AppState>,
     profile_id: String,
     package_ref: String,
-) -> Result<(), String> {
+) -> Result<ProfileDetails, String> {
     command_result(async {
-        thunderstore::split_coordinate(&package_ref)?;
+        let (namespace, package_name, version) = thunderstore::split_coordinate(&package_ref)?;
+        let catalog = thunderstore::catalog(&state.client, &state.catalog_path(), false).await?;
+        let available = catalog.iter().any(|package| {
+            package.owner.eq_ignore_ascii_case(namespace)
+                && package.name.eq_ignore_ascii_case(package_name)
+                && package
+                    .versions
+                    .iter()
+                    .any(|candidate| candidate.version_number == version)
+        });
+        if !available {
+            anyhow::bail!("Thunderstore package {package_ref} was not found");
+        }
         let store = state.store();
         let mut metadata = store.load_metadata(&profile_id)?;
         if metadata.kind != "personal" {
             anyhow::bail!("Managed server profiles only allow mods from the server whitelist");
         }
-        metadata
-            .requested_packages
-            .retain(|item| item.coordinate != package_ref);
-        metadata.requested_packages.push(RequestedPackage {
-            coordinate: package_ref,
-            origin: "extra".into(),
-            enabled: true,
-        });
+        upsert_extra_package(&mut metadata, package_ref)?;
+        store.write_metadata(&metadata)?;
+        store.details(&profile_id)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn sync_profile(
+    state: State<'_, AppState>,
+    profile_id: String,
+) -> Result<ProfileDetails, String> {
+    command_result(async {
+        let store = state.store();
+        let metadata = store.load_metadata(&profile_id)?;
+        if metadata.kind != "personal" {
+            anyhow::bail!("Managed server profiles synchronize when their server is launched");
+        }
+        sync_metadata(&state, &store, &metadata).await?;
+        store.details(&profile_id)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn install_vietnamese_translation(
+    state: State<'_, AppState>,
+    profile_id: Option<String>,
+) -> Result<ProfileSummary, String> {
+    command_result(async {
+        let catalog = thunderstore::catalog(&state.client, &state.catalog_path(), false).await?;
+        let package_ref = latest_vietnamese_translation(&catalog)?;
+        let store = state.store();
+        let mut metadata = if let Some(profile_id) = profile_id {
+            let metadata = store.load_metadata(&profile_id)?;
+            if metadata.kind != "personal" {
+                anyhow::bail!("The Vietnamese translation can only be added to a personal profile");
+            }
+            metadata
+        } else {
+            let name = store.suggested_personal_name("Default");
+            store.create_personal(&name)?
+        };
+        upsert_extra_package(&mut metadata, package_ref)?;
         store.write_metadata(&metadata)?;
         sync_metadata(&state, &store, &metadata).await?;
-        Ok(())
+        summary_for(&store, &metadata.id)
     })
     .await
 }
@@ -232,10 +292,13 @@ async fn set_package_enabled(
     profile_id: String,
     coordinate: String,
     enabled: bool,
-) -> Result<(), String> {
+) -> Result<ProfileDetails, String> {
     command_result(async {
         let store = state.store();
         let mut metadata = store.load_metadata(&profile_id)?;
+        if metadata.kind != "personal" {
+            anyhow::bail!("Managed server profiles can only be changed from the Servers page");
+        }
         let package = metadata
             .requested_packages
             .iter_mut()
@@ -246,8 +309,7 @@ async fn set_package_enabled(
         }
         package.enabled = enabled;
         store.write_metadata(&metadata)?;
-        sync_metadata(&state, &store, &metadata).await?;
-        Ok(())
+        store.details(&profile_id)
     })
     .await
 }
@@ -257,10 +319,13 @@ async fn remove_package(
     state: State<'_, AppState>,
     profile_id: String,
     coordinate: String,
-) -> Result<(), String> {
+) -> Result<ProfileDetails, String> {
     command_result(async {
         let store = state.store();
         let mut metadata = store.load_metadata(&profile_id)?;
+        if metadata.kind != "personal" {
+            anyhow::bail!("Managed server profiles can only be changed from the Servers page");
+        }
         let package = metadata
             .requested_packages
             .iter()
@@ -273,8 +338,7 @@ async fn remove_package(
             .requested_packages
             .retain(|package| package.coordinate != coordinate);
         store.write_metadata(&metadata)?;
-        sync_metadata(&state, &store, &metadata).await?;
-        Ok(())
+        store.details(&profile_id)
     })
     .await
 }
@@ -286,6 +350,43 @@ async fn reset_profile(state: State<'_, AppState>, profile_id: String) -> Result
         let metadata = store.load_metadata(&profile_id)?;
         store.remove_installation(&profile_id)?;
         sync_metadata(&state, &store, &metadata).await?;
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn launch_profile(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    profile_id: String,
+) -> Result<(), String> {
+    command_result(async {
+        let settings = state.settings();
+        let adapter = ValheimAdapter;
+        let executable = settings
+            .game_path
+            .as_deref()
+            .map(PathBuf::from)
+            .filter(|path| adapter.validate_executable(path))
+            .or_else(|| adapter.detect_executable())
+            .context("Valheim was not detected. Choose its executable in Settings")?;
+        let store = state.store();
+        let metadata = store.load_metadata(&profile_id)?;
+        if metadata.kind != "personal" {
+            anyhow::bail!("Use the Servers page to launch a managed server profile");
+        }
+        if store.details(&profile_id)?.sync_state != "ready" {
+            sync_metadata(&state, &store, &metadata).await?;
+        }
+        let current = store.profile_dir(&profile_id)?.join("current");
+        launch::launch_valheim(&executable, &current, None, &settings.launch_arguments)?;
+        state.log("info", &format!("Launched personal profile {profile_id}"));
+        if settings.minimize_on_launch {
+            let _ = app
+                .get_webview_window("main")
+                .map(|window| window.minimize());
+        }
         Ok(())
     })
     .await
@@ -364,8 +465,7 @@ async fn launch_server(
         launch::launch_valheim(
             &executable,
             &current,
-            &server_address,
-            &server_password,
+            Some((&server_address, &server_password)),
             &settings.launch_arguments,
         )?;
         state.log("info", &format!("Launched Valheim for server {server_id}"));
@@ -375,6 +475,57 @@ async fn launch_server(
                 .map(|window| window.minimize());
         }
         Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn inspect_profile_import(
+    state: State<'_, AppState>,
+    path: String,
+) -> Result<ProfileImportPreview, String> {
+    command_result(async {
+        let (_, preview) = prepare_profile_import(&state, PathBuf::from(path)).await?;
+        Ok(preview)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn import_profile(
+    state: State<'_, AppState>,
+    path: String,
+    name: String,
+) -> Result<ProfileSummary, String> {
+    command_result(async {
+        let (imported, preview) = prepare_profile_import(&state, PathBuf::from(path)).await?;
+        if let Some(error) = preview.blocking_error {
+            anyhow::bail!(error);
+        }
+        let store = state.store();
+        let metadata = store.create_personal_with_packages(&name, imported.packages)?;
+        summary_for(&store, &metadata.id)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn export_profile(
+    state: State<'_, AppState>,
+    profile_id: String,
+    path: String,
+) -> Result<String, String> {
+    command_result(async {
+        let metadata = state.store().load_metadata(&profile_id)?;
+        if metadata.kind != "personal" {
+            anyhow::bail!("Managed server profiles cannot be exported");
+        }
+        let output = profile_transfer::export_profile(
+            &PathBuf::from(path),
+            &metadata.name,
+            &metadata.requested_packages,
+        )?;
+        Ok(output.to_string_lossy().into_owned())
     })
     .await
 }
@@ -528,7 +679,7 @@ async fn install_unsigned_windows_update(state: &AppState) -> Result<()> {
         .error_for_status()?
         .bytes()
         .await?;
-    let mut archive = zip::ZipArchive::new(Cursor::new(archive_bytes))?;
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(archive_bytes))?;
     let entry_index = (0..archive.len())
         .find(|index| {
             archive
@@ -609,6 +760,44 @@ fn coordinate_identity(coordinate: &str) -> Option<String> {
     ))
 }
 
+fn upsert_extra_package(metadata: &mut ProfileMetadata, package_ref: String) -> Result<()> {
+    let identity = coordinate_identity(&package_ref).context("Package coordinate is invalid")?;
+    metadata
+        .requested_packages
+        .retain(|item| coordinate_identity(&item.coordinate).as_deref() != Some(identity.as_str()));
+    metadata.requested_packages.push(RequestedPackage {
+        coordinate: package_ref,
+        origin: "extra".into(),
+        enabled: true,
+    });
+    Ok(())
+}
+
+fn latest_vietnamese_translation(catalog: &[thunderstore::ThunderstorePackage]) -> Result<String> {
+    let package = catalog
+        .iter()
+        .find(|package| {
+            package
+                .owner
+                .eq_ignore_ascii_case(VIETNAMESE_TRANSLATION_NAMESPACE)
+                && package
+                    .name
+                    .eq_ignore_ascii_case(VIETNAMESE_TRANSLATION_PACKAGE)
+        })
+        .context("The Valheim Vietnamese translation is unavailable on Thunderstore")?;
+    if package.is_deprecated {
+        anyhow::bail!("The Valheim Vietnamese translation is currently deprecated");
+    }
+    let version = package
+        .versions
+        .first()
+        .context("The Valheim Vietnamese translation has no installable version")?;
+    Ok(format!(
+        "{}-{}-{}",
+        package.owner, package.name, version.version_number
+    ))
+}
+
 async fn fetch_credentials(
     client: &reqwest::Client,
     base_url: &str,
@@ -631,15 +820,58 @@ async fn fetch_credentials(
     }
 }
 
-fn to_summary(metadata: ProfileMetadata) -> ProfileSummary {
-    ProfileSummary {
-        id: metadata.id,
-        name: metadata.name,
-        kind: metadata.kind,
-        server_id: metadata.server_id,
-        package_count: 0,
-        updated_at: None,
+fn summary_for(store: &ProfileStore, profile_id: &str) -> Result<ProfileSummary> {
+    store
+        .list()
+        .into_iter()
+        .find(|profile| profile.id == profile_id)
+        .context("Profile summary was not found")
+}
+
+async fn prepare_profile_import(
+    state: &AppState,
+    path: PathBuf,
+) -> Result<(profile_transfer::ImportedProfile, ProfileImportPreview)> {
+    let imported = profile_transfer::read_profile(&path)?;
+    let catalog = thunderstore::catalog(&state.client, &state.catalog_path(), false).await?;
+    let mut mods = Vec::with_capacity(imported.packages.len());
+    for requested in &imported.packages {
+        let (namespace, name, version) = thunderstore::split_coordinate(&requested.coordinate)?;
+        let package = catalog.iter().find(|package| {
+            package.owner.eq_ignore_ascii_case(namespace) && package.name.eq_ignore_ascii_case(name)
+        });
+        let available = package.is_some_and(|package| {
+            package
+                .versions
+                .iter()
+                .any(|candidate| candidate.version_number == version)
+        });
+        mods.push(ProfileImportMod {
+            coordinate: requested.coordinate.clone(),
+            enabled: requested.enabled,
+            available,
+            deprecated: package.is_some_and(|package| package.is_deprecated),
+        });
     }
+    let blocking_error = if let Some(identity) = &imported.conflicting_identity {
+        Some(format!(
+            "The imported profile requests conflicting versions of {identity}"
+        ))
+    } else if mods.iter().any(|package| !package.available) {
+        Some("One or more imported mod versions are unavailable on Thunderstore".into())
+    } else {
+        profiles::validate_requests(&catalog, &imported.packages)
+            .err()
+            .map(|error| format!("The imported mod set cannot be resolved: {error:#}"))
+    };
+    let store = state.store();
+    let preview = ProfileImportPreview {
+        profile_name: imported.name.clone(),
+        suggested_name: store.suggested_personal_name(&imported.name),
+        mods,
+        blocking_error,
+    };
+    Ok((imported, preview))
 }
 
 async fn command_result<T>(
@@ -677,15 +909,22 @@ pub fn run() {
             server_connection,
             save_settings,
             create_profile,
+            rename_profile,
             delete_profile,
             profile_details,
             set_package_enabled,
             remove_package,
             reset_profile,
             search_mods,
-            install_mod,
+            add_profile_mod,
+            sync_profile,
+            install_vietnamese_translation,
             repair_profile,
+            launch_profile,
             launch_server,
+            inspect_profile_import,
+            import_profile,
+            export_profile,
             open_profile_folder,
             clear_cache,
             open_logs_folder,
@@ -700,6 +939,38 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::thunderstore::{ThunderstorePackage, ThunderstoreVersion};
+
+    fn translation_package(version: &str) -> ThunderstorePackage {
+        ThunderstorePackage {
+            name: VIETNAMESE_TRANSLATION_PACKAGE.into(),
+            full_name: format!(
+                "{VIETNAMESE_TRANSLATION_NAMESPACE}-{VIETNAMESE_TRANSLATION_PACKAGE}"
+            ),
+            owner: VIETNAMESE_TRANSLATION_NAMESPACE.into(),
+            package_url: String::new(),
+            date_updated: String::new(),
+            uuid4: String::new(),
+            rating_score: 0,
+            is_pinned: false,
+            is_deprecated: false,
+            has_nsfw_content: false,
+            categories: vec![],
+            versions: vec![ThunderstoreVersion {
+                name: VIETNAMESE_TRANSLATION_PACKAGE.into(),
+                full_name: format!(
+                    "{VIETNAMESE_TRANSLATION_NAMESPACE}-{VIETNAMESE_TRANSLATION_PACKAGE}-{version}"
+                ),
+                description: String::new(),
+                icon: String::new(),
+                version_number: version.into(),
+                dependencies: vec![],
+                download_url: String::new(),
+                downloads: 0,
+                date_created: String::new(),
+            }],
+        }
+    }
 
     #[test]
     fn optional_mod_identity_survives_version_updates() {
@@ -714,5 +985,40 @@ mod tests {
         assert!(version_tuple("0.10.0").unwrap() > version_tuple("0.9.9").unwrap());
         assert!(version_tuple("1.0.0").unwrap() > version_tuple("0.99.99").unwrap());
         assert!(version_tuple("1.0").is_err());
+    }
+
+    #[test]
+    fn adding_a_new_mod_version_replaces_the_previous_request() {
+        let mut metadata = ProfileMetadata {
+            schema_version: 1,
+            id: "personal-test".into(),
+            name: "Test".into(),
+            kind: "personal".into(),
+            server_id: None,
+            requested_packages: vec![RequestedPackage {
+                coordinate: "Author-Cool-Mod-1.0.0".into(),
+                origin: "extra".into(),
+                enabled: false,
+            }],
+        };
+
+        upsert_extra_package(&mut metadata, "Author-Cool-Mod-2.0.0".into()).unwrap();
+
+        assert_eq!(metadata.requested_packages.len(), 1);
+        assert_eq!(
+            metadata.requested_packages[0].coordinate,
+            "Author-Cool-Mod-2.0.0"
+        );
+        assert!(metadata.requested_packages[0].enabled);
+    }
+
+    #[test]
+    fn selects_the_latest_vietnamese_translation_coordinate() {
+        let package = translation_package("1.0.2");
+
+        assert_eq!(
+            latest_vietnamese_translation(&[package]).unwrap(),
+            "Vietnamgang-ValheimVietnamesePack-1.0.2"
+        );
     }
 }

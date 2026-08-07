@@ -1,5 +1,5 @@
 import { invoke as nativeInvoke } from '@tauri-apps/api/core';
-import type { BootstrapData, CatalogPackage, LauncherConnection, ProfileDetails } from './types';
+import type { BootstrapData, CatalogPackage, LauncherConnection, ProfileDetails, ProfileImportPreview, ProfileSummary } from './types';
 
 const previewMod = {
   provider: 'thunderstore' as const,
@@ -27,7 +27,10 @@ const previewData: BootstrapData = {
     description: 'Community survival server with a carefully selected mod pack.', status: 'online',
     requiredMods: [previewMod], optionalMods: [{ ...previewMod, namespace: 'Azumatt', packageName: 'AzuCraftyBoxes', displayName: 'AzuCraftyBoxes', versionNumber: '1.8.0', requirement: 'optional' }], selectedOptionalPackages: [],
   }],
-  profiles: [{ id: 'server-1', name: 'Xóm Nghiện Valheim', kind: 'server', serverId: '1', packageCount: 6, updatedAt: new Date().toISOString() }],
+  profiles: [
+    { id: 'server-1', name: 'Xóm Nghiện Valheim', kind: 'server', serverId: '1', directModCount: 6, dependencyCount: 2, syncState: 'ready', updatedAt: new Date().toISOString() },
+    { id: 'personal-preview', name: 'Solo Adventure', kind: 'personal', serverId: null, directModCount: 1, dependencyCount: 0, syncState: 'pending', updatedAt: new Date().toISOString() },
+  ],
 };
 
 const previewCatalog: CatalogPackage[] = [{
@@ -49,10 +52,21 @@ export async function invoke<T>(command: string, args?: Record<string, unknown>)
     return undefined as T;
   }
   if (command === 'search_mods') return previewCatalog as T;
-  if (command === 'profile_details') return {
-    metadata: { id: 'server-1', name: 'Xóm Nghiện Valheim', kind: 'server', serverId: '1', requestedPackages: [{ coordinate: previewMod.namespace + '-' + previewMod.packageName + '-' + previewMod.versionNumber, origin: 'required', enabled: true }] },
-    lock: null,
+  if (command === 'profile_details' || command === 'add_profile_mod' || command === 'set_package_enabled' || command === 'remove_package' || command === 'sync_profile') return {
+    metadata: { id: 'personal-preview', name: 'Solo Adventure', kind: 'personal', serverId: null, requestedPackages: [{ coordinate: 'Azumatt-AzuCraftyBoxes-1.8.0', origin: 'extra', enabled: true }] },
+    lock: { generatedAt: new Date().toISOString(), requestedPackages: [], packages: {} },
+    directModCount: 1,
+    dependencyCount: 0,
+    syncState: 'pending',
   } as ProfileDetails as T;
+  if (command === 'create_profile' || command === 'rename_profile' || command === 'import_profile' || command === 'install_vietnamese_translation') return {
+    id: 'personal-preview', name: String(args?.name || 'Solo Adventure'), kind: 'personal', serverId: null,
+    directModCount: 0, dependencyCount: 0, syncState: 'notInstalled', updatedAt: null,
+  } as ProfileSummary as T;
+  if (command === 'inspect_profile_import') return {
+    profileName: 'Friends', suggestedName: 'Friends', blockingError: null,
+    mods: [{ coordinate: 'Azumatt-AzuCraftyBoxes-1.8.0', enabled: true, available: true, deprecated: false }],
+  } as ProfileImportPreview as T;
   if (command === 'available_update') return null as T;
   return undefined as T;
 }

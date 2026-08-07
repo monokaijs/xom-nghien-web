@@ -108,7 +108,9 @@ pub struct ProfileSummary {
     pub name: String,
     pub kind: String,
     pub server_id: Option<String>,
-    pub package_count: usize,
+    pub direct_mod_count: usize,
+    pub dependency_count: usize,
+    pub sync_state: String,
     pub updated_at: Option<String>,
 }
 
@@ -185,6 +187,27 @@ fn default_runtime_version() -> String {
 pub struct ProfileDetails {
     pub metadata: ProfileMetadata,
     pub lock: Option<ProfileLock>,
+    pub direct_mod_count: usize,
+    pub dependency_count: usize,
+    pub sync_state: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileImportMod {
+    pub coordinate: String,
+    pub enabled: bool,
+    pub available: bool,
+    pub deprecated: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileImportPreview {
+    pub profile_name: String,
+    pub suggested_name: String,
+    pub mods: Vec<ProfileImportMod>,
+    pub blocking_error: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

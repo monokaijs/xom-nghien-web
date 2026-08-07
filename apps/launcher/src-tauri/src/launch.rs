@@ -7,8 +7,7 @@ use std::{
 pub fn launch_valheim(
     executable: &Path,
     profile_current: &Path,
-    server_address: &str,
-    server_password: &str,
+    server_connection: Option<(&str, &str)>,
     extra_arguments: &str,
 ) -> Result<()> {
     if !executable.is_file() {
@@ -17,12 +16,7 @@ pub fn launch_valheim(
             executable.display()
         );
     }
-    let args = game_arguments(
-        profile_current,
-        server_address,
-        server_password,
-        extra_arguments,
-    )?;
+    let args = game_arguments(profile_current, server_connection, extra_arguments)?;
     #[cfg(target_os = "windows")]
     {
         Command::new(executable)
@@ -60,24 +54,24 @@ pub fn launch_valheim(
 
 fn game_arguments(
     profile_current: &Path,
-    server_address: &str,
-    server_password: &str,
+    server_connection: Option<(&str, &str)>,
     extra_arguments: &str,
 ) -> Result<Vec<String>> {
-    if server_address.trim().is_empty() {
-        anyhow::bail!("Server address is empty");
-    }
-    if server_password.is_empty() {
-        anyhow::bail!("Server password is empty");
-    }
-
     let mut args = doorstop_arguments(profile_current);
-    args.extend([
-        "+connect".into(),
-        server_address.into(),
-        "+password".into(),
-        server_password.into(),
-    ]);
+    if let Some((server_address, server_password)) = server_connection {
+        if server_address.trim().is_empty() {
+            anyhow::bail!("Server address is empty");
+        }
+        if server_password.is_empty() {
+            anyhow::bail!("Server password is empty");
+        }
+        args.extend([
+            "+connect".into(),
+            server_address.into(),
+            "+password".into(),
+            server_password.into(),
+        ]);
+    }
     args.extend(
         shell_words::split(extra_arguments)
             .context("Additional launch arguments contain invalid quoting")?,
@@ -142,8 +136,7 @@ mod tests {
 
         let args = game_arguments(
             temp.path(),
-            "cs2.xomnghien.com:2456",
-            "server-secret",
+            Some(("cs2.xomnghien.com:2456", "server-secret")),
             "-console",
         )
         .unwrap();
@@ -155,6 +148,16 @@ mod tests {
                 "+password",
                 "server-secret"
             ]));
+        assert_eq!(args.last().map(String::as_str), Some("-console"));
+    }
+
+    #[test]
+    fn personal_profile_arguments_do_not_connect_to_a_server() {
+        let temp = tempfile::tempdir().unwrap();
+        let args = game_arguments(temp.path(), None, "-console").unwrap();
+
+        assert!(!args.iter().any(|argument| argument == "+connect"));
+        assert!(!args.iter().any(|argument| argument == "+password"));
         assert_eq!(args.last().map(String::as_str), Some("-console"));
     }
 }

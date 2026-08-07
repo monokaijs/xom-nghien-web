@@ -1,5 +1,6 @@
 export type Locale = 'en' | 'vi';
-export type Page = 'servers' | 'profiles' | 'browse' | 'downloads' | 'settings';
+export type Page = 'servers' | 'profiles' | 'settings';
+export type ProfileSyncState = 'notInstalled' | 'pending' | 'ready';
 
 export interface LauncherPackageRef {
   provider: 'thunderstore';
@@ -41,7 +42,9 @@ export interface ProfileSummary {
   name: string;
   kind: 'server' | 'personal';
   serverId: string | null;
-  packageCount: number;
+  directModCount: number;
+  dependencyCount: number;
+  syncState: ProfileSyncState;
   updatedAt: string | null;
 }
 
@@ -61,8 +64,20 @@ export interface ProfileDetails {
   };
   lock: {
     generatedAt: string;
-    packages: Record<string, { coordinate: string; origins: string[] }>;
+    requestedPackages: RequestedPackage[];
+    packages: Record<string, {
+      coordinate: string;
+      namespace: string;
+      name: string;
+      version: string;
+      dependencies: string[];
+      origins: string[];
+      enabled: boolean;
+    }>;
   } | null;
+  directModCount: number;
+  dependencyCount: number;
+  syncState: ProfileSyncState;
 }
 
 export interface CatalogPackage {
@@ -74,6 +89,20 @@ export interface CatalogPackage {
   versionNumber: string;
   downloadCount: number;
   isDeprecated: boolean;
+}
+
+export interface ProfileImportMod {
+  coordinate: string;
+  enabled: boolean;
+  available: boolean;
+  deprecated: boolean;
+}
+
+export interface ProfileImportPreview {
+  profileName: string;
+  suggestedName: string;
+  mods: ProfileImportMod[];
+  blockingError: string | null;
 }
 
 export interface LauncherSettings {

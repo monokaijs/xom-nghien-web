@@ -24,6 +24,14 @@ The ZIP and its SHA-256 checksum are written to `apps/launcher/artifacts/`. The 
 
 The default website API is `https://xomnghien.com`; it can be changed in Settings. Profiles and package archives live in the operating system's application-data and cache folders. Vanilla Valheim files are not modified.
 
+## Personal profiles
+
+The launcher keeps Xóm Nghiện server profiles managed by their server manifests and lists user-created setups separately under **My Profiles**. Personal profile mod changes are staged locally, then applied together with **Sync now** or **Sync & Play**. Launching a personal profile starts modded Valheim without adding server connection arguments.
+
+The Servers home screen also offers one-click installation of the latest `Vietnamgang-ValheimVietnamesePack` into a selected personal profile. When no profile is selected, the launcher creates and synchronizes a new `Default` profile first.
+
+Personal profiles can be shared as r2modman-compatible `.r2z` files or imported from `.r2z` and `.r2x` files. Sharing includes exact Thunderstore mod versions and enabled states only. Configuration files, binaries, and other archive contents are deliberately ignored during import and are never included in exports.
+
 ## Unsigned beta installation
 
 - Windows: choose **More info → Run anyway** if SmartScreen appears.

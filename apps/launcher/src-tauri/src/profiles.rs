@@ -12,7 +12,7 @@ use futures_util::{stream, StreamExt};
 use reqwest::Client;
 use sha2::{Digest, Sha256};
 use std::{
-    collections::HashMap,
+    collections::{BTreeSet, HashMap, HashSet},
     fs,
     io::Write,
     path::{Path, PathBuf},
@@ -55,23 +55,27 @@ impl ProfileStore {
             };
             let lock =
                 read_json::<ProfileLock>(&profile_path.join("current/profile.lock.json")).ok();
-            profiles.push(ProfileSummary {
-                id: metadata.id,
-                name: metadata.name,
-                kind: metadata.kind,
-                server_id: metadata.server_id,
-                package_count: lock.as_ref().map_or(0, |item| item.packages.len()),
-                updated_at: lock.map(|item| item.generated_at),
-            });
+            profiles.push(profile_summary(metadata, lock));
         }
         profiles.sort_by(|a, b| a.kind.cmp(&b.kind).then_with(|| a.name.cmp(&b.name)));
         profiles
     }
 
     pub fn create_personal(&self, name: &str) -> Result<ProfileMetadata> {
+        self.create_personal_with_packages(name, Vec::new())
+    }
+
+    pub fn create_personal_with_packages(
+        &self,
+        name: &str,
+        requested_packages: Vec<RequestedPackage>,
+    ) -> Result<ProfileMetadata> {
         let trimmed = name.trim();
         if trimmed.is_empty() || trimmed.chars().count() > 80 {
             anyhow::bail!("Profile name must contain 1 to 80 characters");
+        }
+        if self.personal_name_exists(trimmed, None) {
+            anyhow::bail!("A personal profile named {trimmed} already exists");
         }
         let metadata = ProfileMetadata {
             schema_version: 1,
@@ -79,10 +83,49 @@ impl ProfileStore {
             name: trimmed.into(),
             kind: "personal".into(),
             server_id: None,
-            requested_packages: Vec::new(),
+            requested_packages,
         };
         self.write_metadata(&metadata)?;
         Ok(metadata)
+    }
+
+    pub fn rename_personal(&self, id: &str, name: &str) -> Result<ProfileMetadata> {
+        let trimmed = name.trim();
+        if trimmed.is_empty() || trimmed.chars().count() > 80 {
+            anyhow::bail!("Profile name must contain 1 to 80 characters");
+        }
+        let mut metadata = self.load_metadata(id)?;
+        if metadata.kind != "personal" {
+            anyhow::bail!("Managed server profiles cannot be renamed");
+        }
+        if self.personal_name_exists(trimmed, Some(id)) {
+            anyhow::bail!("A personal profile named {trimmed} already exists");
+        }
+        metadata.name = trimmed.into();
+        self.write_metadata(&metadata)?;
+        Ok(metadata)
+    }
+
+    pub fn suggested_personal_name(&self, name: &str) -> String {
+        let base = name.trim();
+        let base = if base.is_empty() {
+            "Imported profile"
+        } else {
+            base
+        };
+        if !self.personal_name_exists(base, None) && base.chars().count() <= 80 {
+            return base.into();
+        }
+        for suffix in 2..10_000 {
+            let ending = format!(" ({suffix})");
+            let allowed = 80_usize.saturating_sub(ending.chars().count());
+            let prefix: String = base.chars().take(allowed).collect();
+            let candidate = format!("{}{}", prefix.trim_end(), ending);
+            if !self.personal_name_exists(&candidate, None) {
+                return candidate;
+            }
+        }
+        "Imported profile".into()
     }
 
     pub fn ensure_server(&self, server_id: &str, name: &str) -> Result<ProfileMetadata> {
@@ -141,7 +184,29 @@ impl ProfileStore {
     pub fn details(&self, id: &str) -> Result<ProfileDetails> {
         let metadata = self.load_metadata(id)?;
         let lock = read_json(&self.profile_dir(id)?.join("current/profile.lock.json")).ok();
-        Ok(ProfileDetails { metadata, lock })
+        let summary = profile_summary(metadata.clone(), lock.clone());
+        Ok(ProfileDetails {
+            metadata,
+            lock,
+            direct_mod_count: summary.direct_mod_count,
+            dependency_count: summary.dependency_count,
+            sync_state: summary.sync_state,
+        })
+    }
+
+    fn personal_name_exists(&self, name: &str, except_id: Option<&str>) -> bool {
+        let Ok(entries) = fs::read_dir(&self.root) else {
+            return false;
+        };
+        entries.flatten().any(|entry| {
+            let Ok(metadata) = read_json::<ProfileMetadata>(&entry.path().join("profile.json"))
+            else {
+                return false;
+            };
+            metadata.kind == "personal"
+                && except_id != Some(metadata.id.as_str())
+                && metadata.name.eq_ignore_ascii_case(name)
+        })
     }
 
     pub fn remove_installation(&self, id: &str) -> Result<()> {
@@ -266,6 +331,79 @@ impl ProfileStore {
         fs::create_dir_all(&self.cache)?;
         Ok(())
     }
+}
+
+pub fn validate_requests(
+    catalog: &[ThunderstorePackage],
+    requested: &[RequestedPackage],
+) -> Result<()> {
+    resolve_with_runtime(catalog, requested).map(|_| ())
+}
+
+fn profile_summary(metadata: ProfileMetadata, lock: Option<ProfileLock>) -> ProfileSummary {
+    let direct_mod_count = metadata
+        .requested_packages
+        .iter()
+        .filter(|package| package.origin != "runtime")
+        .count();
+    let direct_identities: HashSet<_> = metadata
+        .requested_packages
+        .iter()
+        .filter(|package| package.enabled && package.origin != "runtime")
+        .filter_map(|package| package_identity(&package.coordinate))
+        .collect();
+    let dependency_count = lock.as_ref().map_or(0, |item| {
+        item.packages
+            .keys()
+            .filter(|identity| {
+                identity.as_str() != LOADER_IDENTITY && !direct_identities.contains(*identity)
+            })
+            .count()
+    });
+    let sync_state = match &lock {
+        None => "notInstalled",
+        Some(item)
+            if normalized_requests(&metadata.requested_packages)
+                != normalized_requests(&item.requested_packages) =>
+        {
+            "pending"
+        }
+        Some(_) => "ready",
+    }
+    .into();
+    ProfileSummary {
+        id: metadata.id,
+        name: metadata.name,
+        kind: metadata.kind,
+        server_id: metadata.server_id,
+        direct_mod_count,
+        dependency_count,
+        sync_state,
+        updated_at: lock.map(|item| item.generated_at),
+    }
+}
+
+fn normalized_requests(packages: &[RequestedPackage]) -> BTreeSet<(String, String, bool)> {
+    packages
+        .iter()
+        .filter(|package| package.origin != "runtime")
+        .map(|package| {
+            (
+                package.coordinate.to_ascii_lowercase(),
+                package.origin.to_ascii_lowercase(),
+                package.enabled,
+            )
+        })
+        .collect()
+}
+
+fn package_identity(coordinate: &str) -> Option<String> {
+    let (namespace, name, _) = crate::thunderstore::split_coordinate(coordinate).ok()?;
+    Some(format!(
+        "{}-{}",
+        namespace.to_ascii_lowercase(),
+        name.to_ascii_lowercase()
+    ))
 }
 
 fn resolve_with_runtime(
@@ -534,6 +672,60 @@ mod tests {
                 date_created: String::new(),
             }],
         }
+    }
+
+    fn store(temp: &tempfile::TempDir) -> ProfileStore {
+        ProfileStore::new(temp.path().join("profiles"), temp.path().join("cache"))
+    }
+
+    #[test]
+    fn personal_profile_names_are_case_insensitively_unique() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = store(&temp);
+        store.create_personal("Solo World").unwrap();
+
+        assert!(store.create_personal(" solo world ").is_err());
+    }
+
+    #[test]
+    fn managed_server_profiles_cannot_be_renamed() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = store(&temp);
+        let profile = store.ensure_server("42", "Community").unwrap();
+
+        assert!(store.rename_personal(&profile.id, "Personal").is_err());
+    }
+
+    #[test]
+    fn summary_reports_pending_when_requested_mods_change() {
+        let metadata = ProfileMetadata {
+            schema_version: 1,
+            id: "personal-test".into(),
+            name: "Test".into(),
+            kind: "personal".into(),
+            server_id: None,
+            requested_packages: vec![RequestedPackage {
+                coordinate: "Author-Mod-2.0.0".into(),
+                origin: "extra".into(),
+                enabled: true,
+            }],
+        };
+        let lock = ProfileLock {
+            schema_version: 1,
+            profile_version: 1,
+            game: "valheim".into(),
+            game_version: "steam-current".into(),
+            runtime_version: "5.4.2333".into(),
+            generated_at: "2026-01-01T00:00:00Z".into(),
+            requested_packages: vec![RequestedPackage {
+                coordinate: "Author-Mod-1.0.0".into(),
+                origin: "extra".into(),
+                enabled: true,
+            }],
+            packages: Default::default(),
+        };
+
+        assert_eq!(profile_summary(metadata, Some(lock)).sync_state, "pending");
     }
 
     #[test]

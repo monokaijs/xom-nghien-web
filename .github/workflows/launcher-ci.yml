@@ -4,14 +4,12 @@ on:
   pull_request:
     paths:
       - "apps/launcher/**"
-      - "packages/valheim-launcher-bridge/**"
       - "pnpm-lock.yaml"
       - ".github/workflows/launcher-*.yml"
   push:
     branches: [main]
     paths:
       - "apps/launcher/**"
-      - "packages/valheim-launcher-bridge/**"
       - "pnpm-lock.yaml"
       - ".github/workflows/launcher-*.yml"
 
@@ -34,13 +32,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 7.0.x
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @xom/launcher typecheck
       - run: pnpm --filter @xom/launcher test
-      - run: dotnet test packages/valheim-launcher-bridge/tests/XomNghien.ValheimBridge.Tests.csproj -c Release
       - run: cargo fmt --manifest-path apps/launcher/src-tauri/Cargo.toml -- --check
       - run: cargo clippy --manifest-path apps/launcher/src-tauri/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path apps/launcher/src-tauri/Cargo.toml

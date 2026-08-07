@@ -23,14 +23,6 @@ use zip::ZipArchive;
 
 pub const LOADER_PACKAGE: &str = "denikson-BepInExPack_Valheim-5.4.2333";
 const LOADER_IDENTITY: &str = "denikson-bepinexpack_valheim";
-const BRIDGE_DLL: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../../packages/valheim-launcher-bridge/bin/Release/netstandard2.0/XomNghien.ValheimBridge.dll"
-));
-const BRIDGE_JSON_DLL: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../../packages/valheim-launcher-bridge/bin/Release/netstandard2.0/Newtonsoft.Json.dll"
-));
 
 pub struct ProfileStore {
     root: PathBuf,
@@ -40,6 +32,18 @@ pub struct ProfileStore {
 impl ProfileStore {
     pub fn new(root: PathBuf, cache: PathBuf) -> Self {
         Self { root, cache }
+    }
+
+    pub fn remove_legacy_launcher_bridge(&self) -> Result<()> {
+        let Ok(profiles) = fs::read_dir(&self.root) else {
+            return Ok(());
+        };
+        for profile in profiles.flatten().filter(|entry| entry.path().is_dir()) {
+            for installation in ["current", "backup", "staging"] {
+                remove_legacy_bridge_from_install(&profile.path().join(installation))?;
+            }
+        }
+        Ok(())
     }
 
     pub fn list(&self) -> Vec<ProfileSummary> {
@@ -259,10 +263,6 @@ impl ProfileStore {
                 .context("Downloaded package disappeared")?;
             package.files = extract_package(archive, &staging, &package.coordinate, &mut owners)?;
         }
-        let plugins = staging.join("BepInEx/plugins/XomNghienLauncher");
-        fs::create_dir_all(&plugins)?;
-        fs::write(plugins.join("XomNghien.ValheimBridge.dll"), BRIDGE_DLL)?;
-        fs::write(plugins.join("Newtonsoft.Json.dll"), BRIDGE_JSON_DLL)?;
         preserve_mutable_config(&current, &staging)?;
         disable_bepinex_console(&staging)?;
 
@@ -333,6 +333,24 @@ impl ProfileStore {
         fs::create_dir_all(&self.cache)?;
         Ok(())
     }
+}
+
+fn remove_legacy_bridge_from_install(installation: &Path) -> Result<()> {
+    let plugin_directory = installation.join("BepInEx/plugins/XomNghienLauncher");
+    for name in ["XomNghien.ValheimBridge.dll", "Newtonsoft.Json.dll"] {
+        let path = plugin_directory.join(name);
+        if path.is_file() {
+            fs::remove_file(path)?;
+        }
+    }
+    if plugin_directory.is_dir() && fs::read_dir(&plugin_directory)?.next().is_none() {
+        fs::remove_dir(plugin_directory)?;
+    }
+    let context = installation.join("BepInEx/config/xom-launcher-connection.json");
+    if context.is_file() {
+        fs::remove_file(context)?;
+    }
+    Ok(())
 }
 
 pub fn validate_requests(
@@ -718,6 +736,44 @@ mod tests {
 
     fn store(temp: &tempfile::TempDir) -> ProfileStore {
         ProfileStore::new(temp.path().join("profiles"), temp.path().join("cache"))
+    }
+
+    #[test]
+    fn removes_legacy_bridge_files_without_touching_other_plugins() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = store(&temp);
+        let current_plugins = temp
+            .path()
+            .join("profiles/server-10/current/BepInEx/plugins/XomNghienLauncher");
+        let backup_plugins = temp
+            .path()
+            .join("profiles/server-10/backup/BepInEx/plugins/XomNghienLauncher");
+        let stale_context = temp
+            .path()
+            .join("profiles/server-10/current/BepInEx/config/xom-launcher-connection.json");
+        fs::create_dir_all(&current_plugins).unwrap();
+        fs::create_dir_all(&backup_plugins).unwrap();
+        fs::create_dir_all(stale_context.parent().unwrap()).unwrap();
+        fs::write(
+            current_plugins.join("XomNghien.ValheimBridge.dll"),
+            b"bridge",
+        )
+        .unwrap();
+        fs::write(current_plugins.join("Newtonsoft.Json.dll"), b"json").unwrap();
+        fs::write(
+            backup_plugins.join("XomNghien.ValheimBridge.dll"),
+            b"bridge",
+        )
+        .unwrap();
+        fs::write(backup_plugins.join("keep.txt"), b"keep").unwrap();
+        fs::write(&stale_context, b"{}").unwrap();
+
+        store.remove_legacy_launcher_bridge().unwrap();
+
+        assert!(!current_plugins.exists());
+        assert!(!backup_plugins.join("XomNghien.ValheimBridge.dll").exists());
+        assert!(backup_plugins.join("keep.txt").is_file());
+        assert!(!stale_context.exists());
     }
 
     #[test]

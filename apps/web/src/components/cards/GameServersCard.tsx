@@ -205,6 +205,7 @@ function ConnectDialog({ server, onClose }: { server: ServerStatus; onClose: () 
   const headingId = useId();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const hasDirect = Boolean(server.connectionLink);
+  const canConnect = server.game === 'valheim' || hasDirect;
   const hasGuidance = Boolean(server.connectionGuide);
   const mods = server.mods || [];
   const hasMods = mods.length > 0;
@@ -270,12 +271,11 @@ function ConnectDialog({ server, onClose }: { server: ServerStatus; onClose: () 
           >
             Đóng
           </button>
-          {hasDirect && (
+          {canConnect && (
             <button
               type="button"
               onClick={() => {
-                if (!server.connectionLink) return;
-                openConnectionLink(server.connectionLink, server.game);
+                openConnectionLink(server.connectionLink, server.game, server.id);
               }}
               disabled={server.metadata.status === 'offline'}
               className="rounded-xl bg-accent-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-primary/80 flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"

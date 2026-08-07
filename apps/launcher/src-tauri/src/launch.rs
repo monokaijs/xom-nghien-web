@@ -68,7 +68,7 @@ fn game_arguments(
         args.extend([
             "+connect".into(),
             server_address.into(),
-            "+password".into(),
+            "-password".into(),
             server_password.into(),
         ]);
     }
@@ -145,7 +145,7 @@ mod tests {
             == [
                 "+connect",
                 "cs2.xomnghien.com:2456",
-                "+password",
+                "-password",
                 "server-secret"
             ]));
         assert_eq!(args.last().map(String::as_str), Some("-console"));
@@ -157,7 +157,7 @@ mod tests {
         let args = game_arguments(temp.path(), None, "-console").unwrap();
 
         assert!(!args.iter().any(|argument| argument == "+connect"));
-        assert!(!args.iter().any(|argument| argument == "+password"));
+        assert!(!args.iter().any(|argument| argument == "-password"));
         assert_eq!(args.last().map(String::as_str), Some("-console"));
     }
 }

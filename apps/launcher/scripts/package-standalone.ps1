@@ -5,7 +5,6 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $launcherRoot = Split-Path -Parent $PSScriptRoot
-$repoRoot = Resolve-Path (Join-Path $launcherRoot '..\..')
 $packageJson = Get-Content (Join-Path $launcherRoot 'package.json') -Raw | ConvertFrom-Json
 $version = $packageJson.version
 $targetOutput = Join-Path $launcherRoot 'src-tauri\target\release'
@@ -17,9 +16,6 @@ $archive = Join-Path $artifactsRoot "$packageName.zip"
 Push-Location $launcherRoot
 try {
   if (-not $SkipBuild) {
-    & dotnet build (Join-Path $repoRoot 'packages\valheim-launcher-bridge\XomNghien.ValheimBridge.csproj') -c Release
-    if ($LASTEXITCODE -ne 0) { throw 'Bridge build failed.' }
-
     & pnpm exec tauri build --no-bundle --config src-tauri/tauri.local.conf.json
     if ($LASTEXITCODE -ne 0) { throw 'Standalone launcher build failed.' }
   }
@@ -54,7 +50,7 @@ try {
   @"
 Xom Nghien Launcher v$version (Windows x64 portable)
 
-Run "Xom Nghien Launcher.exe" directly. The in-game bridge is embedded in the executable.
+Run "Xom Nghien Launcher.exe" directly. It registers the xomnghien:// URL scheme when opened.
 Windows 10/11 and Microsoft Edge WebView2 are required.
 Launcher profiles and downloaded mods are stored in your normal Windows app-data folders.
 "@ | Set-Content -LiteralPath (Join-Path $stage 'README.txt') -Encoding UTF8

@@ -166,11 +166,7 @@ jobs:
       - name: Add macOS universal targets
         if: runner.os == 'macOS'
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 7.0.x
       - run: pnpm install --frozen-lockfile
-      - run: dotnet build packages/valheim-launcher-bridge/XomNghien.ValheimBridge.csproj -c Release
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

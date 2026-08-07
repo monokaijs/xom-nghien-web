@@ -1,5 +1,4 @@
 mod api;
-mod handoff;
 mod launch;
 mod models;
 mod profile_transfer;
@@ -109,6 +108,12 @@ async fn bootstrap(state: State<'_, AppState>) -> Result<BootstrapData, String> 
             .filter(|path| adapter.validate_executable(path))
             .or_else(|| adapter.detect_executable());
         let store = state.store();
+        if let Err(error) = store.remove_legacy_launcher_bridge() {
+            state.log(
+                "warn",
+                &format!("Could not remove legacy launcher bridge files: {error:#}"),
+            );
+        }
         let mut servers = api::servers(&state.client, &settings.api_base_url)
             .await
             .unwrap_or_default();
@@ -570,24 +575,11 @@ async fn launch_server(
         let credentials =
             fetch_credentials(&state.client, &settings.api_base_url, &server.id).await?;
         let current = store.profile_dir(&metadata.id)?.join("current");
-        let bridge = current.join(
-            "BepInEx/plugins/XomNghienLauncher/XomNghien.ValheimBridge.dll",
-        );
-        let bridge_json = current.join(
-            "BepInEx/plugins/XomNghienLauncher/Newtonsoft.Json.dll",
-        );
-        if !bridge.is_file() || !bridge_json.is_file() {
-            anyhow::bail!(
-                "Automatic server connection is unavailable because the launcher bridge is incomplete. Rebuild or reinstall the launcher"
-            );
-        }
         let server_address = format!("{}:{}", credentials.host, credentials.port);
-        let server_password = credentials.password.clone();
-        handoff::start(&current, credentials).await?;
         launch::launch_valheim(
             &executable,
             &current,
-            Some((&server_address, &server_password)),
+            Some((&server_address, &credentials.password)),
             &settings.launch_arguments,
         )?;
         state.log("info", &format!("Launched Valheim for server {server_id}"));
@@ -1181,7 +1173,20 @@ async fn command_result<T>(
 }
 
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }));
+    }
+
+    builder
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(
@@ -1191,7 +1196,12 @@ pub fn run() {
         )
         .setup(|app| {
             #[cfg(target_os = "windows")]
-            remove_previous_launcher_backup();
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                remove_previous_launcher_backup();
+                // The portable build has no installer to register its URL scheme.
+                app.deep_link().register_all()?;
+            }
 
             let data_dir = app.path().app_data_dir()?;
             let cache_dir = app.path().app_cache_dir()?;

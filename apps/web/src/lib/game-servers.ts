@@ -113,29 +113,37 @@ function isValidHost(value: string) {
     && !value.includes(':');
 }
 
-export function openConnectionLink(connectionLink: string, game: string) {
-  const link = connectionLink.trim();
+export function openConnectionLink(connectionLink: string | null, game: string, serverId?: string) {
+  const launchUrl = getGameServerLaunchUrl(connectionLink, game, serverId);
+  if (launchUrl) window.location.href = launchUrl;
+}
+
+export function getGameServerLaunchUrl(connectionLink: string | null, game: string, serverId?: string) {
+  const link = connectionLink?.trim() || '';
+
+  if (game === 'valheim') {
+    return serverId && /^[1-9]\d*$/.test(serverId)
+      ? `xomnghien://servers/${serverId}`
+      : null;
+  }
+
+  if (!link) return null;
 
   if (game === 'cs2') {
     const cs2LaunchUrl = getCs2LaunchUrl(link);
-    if (cs2LaunchUrl) {
-      // CS2 reliably accepts +connect through its app-specific launch command.
-      // steam://connect can open Steam without passing the address to CS2.
-      window.location.href = cs2LaunchUrl;
-      return;
-    }
+    // CS2 reliably accepts +connect through its app-specific launch command.
+    // steam://connect can open Steam without passing the address to CS2.
+    if (cs2LaunchUrl) return cs2LaunchUrl;
   }
 
-  if ((game === 'palworld' || game === 'valheim') && /^[^\s/:]+:\d+$/.test(link)) {
-    window.location.href = `steam://connect/${link}`;
-    return;
+  if (game === 'palworld' && /^[^\s/:]+:\d+$/.test(link)) {
+    return `steam://connect/${link}`;
   }
 
   const protocol = link.match(/^([a-z][a-z0-9+.-]*:)/i)?.[1].toLowerCase();
   if (protocol && !BLOCKED_PROTOCOLS.has(protocol)) {
-    window.location.href = link;
-    return;
+    return link;
   }
 
-  window.location.href = link.startsWith('/') ? link : `https://${link}`;
+  return link.startsWith('/') ? link : `https://${link}`;
 }

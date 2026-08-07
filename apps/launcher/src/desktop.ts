@@ -1,5 +1,21 @@
 import { invoke as nativeInvoke } from '@tauri-apps/api/core';
+import { parseServerDeepLink } from './deep-link';
 import type { BootstrapData, CatalogPackage, LauncherConnection, ModUpdateInfo, ProfileDetails, ProfileImportPreview, ProfileSummary, ProfileUpdateCheck } from './types';
+
+export async function listenForServerDeepLinks(onServer: (serverId: string) => void) {
+  if (!('__TAURI_INTERNALS__' in window)) return () => {};
+
+  const { getCurrent, onOpenUrl } = await import('@tauri-apps/plugin-deep-link');
+  const handleUrls = (urls: string[]) => {
+    for (const value of urls) {
+      const serverId = parseServerDeepLink(value);
+      if (serverId) onServer(serverId);
+    }
+  };
+  const unlisten = await onOpenUrl(handleUrls);
+  handleUrls(await getCurrent() || []);
+  return unlisten;
+}
 
 const previewMod = {
   provider: 'thunderstore' as const,

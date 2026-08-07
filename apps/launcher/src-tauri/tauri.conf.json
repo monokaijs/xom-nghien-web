@@ -26,6 +26,13 @@
       "csp": "default-src 'self'; img-src 'self' asset: https://shared.fastly.steamstatic.com https://gcdn.thunderstore.io https://*.thunderstore.io data:; connect-src ipc: http://ipc.localhost https://xomnghien.com https://thunderstore.io https://*.thunderstore.io; style-src 'self' 'unsafe-inline'"
     }
   },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["xomnghien"]
+      }
+    }
+  },
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": false,

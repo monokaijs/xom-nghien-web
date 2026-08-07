@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseGameServerInput } from './game-servers';
+import { getGameServerLaunchUrl, parseGameServerInput } from './game-servers';
 
 const valheim = {
   game: 'valheim',
@@ -32,5 +32,24 @@ describe('parseGameServerInput launcher connection', () => {
       connectionPort: null,
       joinPassword: null,
     });
+  });
+});
+
+describe('getGameServerLaunchUrl', () => {
+  it('opens Valheim servers through the Xom Nghien launcher using only the server ID', () => {
+    expect(getGameServerLaunchUrl('valheim.example.com:2456', 'valheim', '10'))
+      .toBe('xomnghien://servers/10');
+    expect(getGameServerLaunchUrl(null, 'valheim', '10'))
+      .toBe('xomnghien://servers/10');
+  });
+
+  it('rejects malformed Valheim server IDs', () => {
+    expect(getGameServerLaunchUrl('valheim.example.com:2456', 'valheim', '../10')).toBeNull();
+    expect(getGameServerLaunchUrl('valheim.example.com:2456', 'valheim')).toBeNull();
+  });
+
+  it('keeps direct Steam links for Palworld connections', () => {
+    expect(getGameServerLaunchUrl('palworld.example.com:8211', 'palworld'))
+      .toBe('steam://connect/palworld.example.com:8211');
   });
 });

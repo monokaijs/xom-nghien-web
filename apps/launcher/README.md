@@ -4,11 +4,10 @@ Tauri 2 launcher for Steam Valheim on Windows 10/11 x64 and macOS 12+. Apple Sil
 
 ## Development
 
-Requirements: Node 22.13+, pnpm 11, stable Rust, .NET 7, and the platform prerequisites from the Tauri 2 documentation.
+Requirements: Node 22.13+, pnpm 11, stable Rust, and the platform prerequisites from the Tauri 2 documentation.
 
 ```sh
 pnpm install
-dotnet build packages/valheim-launcher-bridge/XomNghien.ValheimBridge.csproj -c Release
 pnpm --filter @xom/launcher tauri dev
 ```
 
@@ -20,9 +19,11 @@ Build a portable Windows x64 launcher that can be extracted and run without an i
 pnpm --filter @xom/launcher standalone:build
 ```
 
-The ZIP and its SHA-256 checksum are written to `apps/launcher/artifacts/`. The in-game bridge and its runtime dependency are embedded in the launcher, so the portable package needs only the executable. Windows 10/11 includes the WebView2 runtime on normal installations; systems without it must install the Microsoft Edge WebView2 Runtime.
+The ZIP and its SHA-256 checksum are written to `apps/launcher/artifacts/`. The portable package needs only the executable and registers the `xomnghien://` URL scheme when opened. Windows 10/11 includes the WebView2 runtime on normal installations; systems without it must install the Microsoft Edge WebView2 Runtime.
 
 The default website API is `https://xomnghien.com`; it can be changed in Settings. Profiles and package archives live in the operating system's application-data and cache folders. Vanilla Valheim files are not modified.
+
+Website links use `xomnghien://servers/<id>` to open a managed server profile. The launcher synchronizes that profile and starts Valheim with its native connection and password arguments; no in-game launcher plugin is installed.
 
 ## Personal profiles
 

@@ -7,7 +7,7 @@ import {
   IconTrophy, IconUser, IconWorld, IconX,
 } from '@tabler/icons-react';
 import { translator } from './i18n';
-import { invoke } from './desktop';
+import { invoke, listenForServerDeepLinks } from './desktop';
 import { coordinateIdentity, personalProfiles, requestIsSynced } from './profile-ui';
 import type {
   BootstrapData, CatalogPackage, LauncherConnection, LauncherPackageRef, LauncherServer,
@@ -27,6 +27,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [task, setTask] = useState<TaskState>(null);
+  const [linkedServerId, setLinkedServerId] = useState<string | null>(null);
   const [optional, setOptional] = useState<Record<string, string[]>>({});
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.localStorage.getItem('xom-launcher-sidebar-collapsed') === 'true');
   const locale = data?.settings.language || 'vi';
@@ -45,6 +46,21 @@ export default function App() {
   };
 
   useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    let disposed = false;
+    let unlisten = () => {};
+    listenForServerDeepLinks((serverId) => {
+      setPage('servers');
+      setLinkedServerId(serverId);
+    }).then((stop) => {
+      if (disposed) stop();
+      else unlisten = stop;
+    }).catch((reason) => setError(String(reason)));
+    return () => {
+      disposed = true;
+      unlisten();
+    };
+  }, []);
   useEffect(() => { window.localStorage.setItem('xom-launcher-sidebar-collapsed', String(sidebarCollapsed)); }, [sidebarCollapsed]);
   useEffect(() => {
     if (!data) return;
@@ -76,6 +92,21 @@ export default function App() {
       setBusy(null);
     }
   };
+
+  useEffect(() => {
+    if (!data || data.firstRun || !linkedServerId || busy !== null) return;
+    const server = data.servers.find((candidate) => candidate.id === linkedServerId);
+    setLinkedServerId(null);
+    if (!server) {
+      setError(t('noServersDescription'));
+      return;
+    }
+    const selectedOptionalPackages = optional[server.id] ?? server.selectedOptionalPackages;
+    void runTask(t('syncing'), `server:${server.id}`, () => invoke('launch_server', {
+      serverId: server.id,
+      optionalPackages: selectedOptionalPackages,
+    }));
+  }, [data, linkedServerId, busy]);
 
   if (!data) return <main className="splash"><div className="brand-mark">XN</div><p>{error || t('loadingLauncher')}</p></main>;
 
@@ -291,6 +322,7 @@ function ProfilesPage({ profiles, selectedProfile, setSelectedProfile, busy, run
     if (!profileId) { setDetails(null); return; }
     try { setDetails(await invoke<ProfileDetails>('profile_details', { profileId })); } catch { setDetails(null); }
   };
+
   const storeUpdateCheck = (check: ProfileUpdateCheck) => {
     setUpdates(Object.fromEntries(check.updates.map((update) => [coordinateIdentity(update.coordinate), update])));
     setUpdatesCheckedAt(check.checkedAt);

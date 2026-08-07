@@ -250,10 +250,3 @@ pub struct BootstrapData {
     pub profiles: Vec<ProfileSummary>,
     pub app_version: String,
 }
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct HandoffContext {
-    pub port: u16,
-    pub nonce: String,
-    pub expires_at: String,
-}

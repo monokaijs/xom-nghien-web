@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { open, save as saveDialog } from '@tauri-apps/plugin-dialog';
 import {
   IconAdjustments, IconAlertTriangle, IconChevronDown, IconChevronLeft, IconChevronRight, IconCopy, IconDeviceGamepad2,
-  IconBrandDiscord, IconCheck, IconDots, IconDownload, IconExternalLink, IconFolder, IconLanguage, IconPackage, IconPlayerPlay,
+  IconBrandDiscord, IconCheck, IconDeviceFloppy, IconDots, IconDownload, IconExternalLink, IconFileSettings, IconFolder, IconLanguage, IconPackage, IconPlayerPlay,
   IconPlus, IconRefresh, IconSearch, IconServer, IconSettings, IconTrash, IconUpload,
   IconTrophy, IconUser, IconWorld, IconX,
 } from '@tabler/icons-react';
@@ -11,7 +11,7 @@ import { invoke, listenForServerDeepLinks } from './desktop';
 import { coordinateIdentity, personalProfiles, requestIsSynced } from './profile-ui';
 import type {
   BootstrapData, CatalogPackage, LauncherConnection, LauncherPackageRef, LauncherServer,
-  LauncherSettings, ModUpdateInfo, Page, ProfileDetails, ProfileImportPreview, ProfileSummary,
+  LauncherSettings, ModConfigDocument, ModConfigFile, ModUpdateInfo, Page, ProfileDetails, ProfileImportPreview, ProfileSummary,
   ProfileUpdateCheck, RequestedPackage,
 } from './types';
 
@@ -137,7 +137,7 @@ export default function App() {
       <header className="page-header"><div><span className="eyebrow">VALHEIM</span><h1>{nav.find(([id]) => id === page)?.[1]}</h1></div>{page !== 'profiles' && <button className="icon-button" onClick={() => void refresh()} title={t('refresh')}><IconRefresh size={19} /></button>}</header>
       {error && <div className="alert" role="alert">{error}<button onClick={() => setError(null)} aria-label={t('close')}>×</button></div>}
       {!data.detectedGamePath && page !== 'settings' && <div className="notice">{t('gameMissing')}</div>}
-      {page === 'servers' && <ServersPage servers={data.servers} profiles={personalProfiles(data.profiles)} optional={optional} setOptional={setOptional} busy={busy} runTask={runTask} onTranslationInstalled={async (profileId) => { await refresh(); setSelectedProfile(profileId); setPage('profiles'); }} t={t} />}
+      {page === 'servers' && <ServersPage servers={data.servers} profiles={personalProfiles(data.profiles)} serverProfiles={data.profiles.filter((profile) => profile.kind === 'server')} optional={optional} setOptional={setOptional} busy={busy} runTask={runTask} onProfilesChanged={refresh} onTranslationInstalled={async (profileId) => { await refresh(); setSelectedProfile(profileId); setPage('profiles'); }} t={t} />}
       {page === 'profiles' && <ProfilesPage profiles={personalProfiles(data.profiles)} selectedProfile={selectedProfile} setSelectedProfile={setSelectedProfile} busy={busy} runTask={runTask} refresh={refresh} t={t} />}
       {page === 'settings' && <SettingsPage settings={data.settings} detectedPath={data.detectedGamePath} onSaved={refresh} runTask={runTask} t={t} />}
     </main>
@@ -171,21 +171,32 @@ function FirstRunLanguageDialog({ initialLanguage, busy, onComplete }: {
   </Modal>;
 }
 
-function ServersPage({ servers, profiles, optional, setOptional, busy, runTask, onTranslationInstalled, t }: {
+function ServersPage({ servers, profiles, serverProfiles, optional, setOptional, busy, runTask, onProfilesChanged, onTranslationInstalled, t }: {
   servers: LauncherServer[];
   profiles: ProfileSummary[];
+  serverProfiles: ProfileSummary[];
   optional: Record<string, string[]>;
   setOptional: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
   busy: string | null;
   runTask: TaskRunner;
+  onProfilesChanged: () => Promise<void>;
   onTranslationInstalled: (profileId: string) => Promise<void>;
   t: ReturnType<typeof translator>;
 }) {
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [connections, setConnections] = useState<Record<string, ConnectionState>>({});
   const [copied, setCopied] = useState(false);
+  const [configTarget, setConfigTarget] = useState<{ profileId: string; coordinate: string; name: string } | null>(null);
   const selected = servers.find((server) => server.id === selectedServerId) || null;
   const selectedConnection = selected ? connections[selected.id] : undefined;
+  const selectedProfile = selected ? serverProfiles.find((profile) => profile.serverId === selected.id) : undefined;
+
+  const runServer = async (launch: boolean) => {
+    if (!selected) return;
+    const command = launch ? 'launch_server' : 'sync_server_profile';
+    const outcome = await runTask(launch ? t('syncAndPlay') : t('syncNow'), `${command}:${selected.id}`, () => invoke(command, { serverId: selected.id, optionalPackages: optional[selected.id] || [] }));
+    if (outcome.ok) await onProfilesChanged();
+  };
 
   useEffect(() => {
     if (!selectedServerId || connections[selectedServerId]) return;
@@ -218,14 +229,14 @@ function ServersPage({ servers, profiles, optional, setOptional, busy, runTask, 
     {selected && <Modal onClose={() => setSelectedServerId(null)} label={selected.name} wide>
       <div className="server-detail">
         <section className="server-detail-main"><StatusPill status={selected.status} label={t(selected.status)} /><h2>{selected.name}</h2><p>{selected.description || t('serverDescriptionFallback')}</p>
-          <ModGroup title={t('required')} mods={selected.requiredMods} />
+          <ModGroup title={t('required')} mods={selected.requiredMods} onConfigure={(mod) => setConfigTarget({ profileId: `server-${selected.id}`, coordinate: packageKey(mod), name: mod.displayName })} configureLabel={t('editConfig')} />
           {selected.optionalMods.length > 0 && <div className="mod-group"><h3>{t('optional')}</h3>{selected.optionalMods.map((mod) => {
             const key = packageKey(mod); const enabled = optional[selected.id] || [];
-            return <label className="mod-row selectable" key={key}><input type="checkbox" checked={enabled.includes(key)} onChange={() => setOptional((all) => ({ ...all, [selected.id]: enabled.includes(key) ? enabled.filter((item) => item !== key) : [...enabled, key] }))} /><ModIdentity mod={mod} /></label>;
+            return <div className="mod-row server-mod-row" key={key}><label className="selectable"><input type="checkbox" checked={enabled.includes(key)} onChange={() => setOptional((all) => ({ ...all, [selected.id]: enabled.includes(key) ? enabled.filter((item) => item !== key) : [...enabled, key] }))} /><ModIdentity mod={mod} /></label><button className="config-button" disabled={!enabled.includes(key)} onClick={() => setConfigTarget({ profileId: `server-${selected.id}`, coordinate: key, name: mod.displayName })} title={t('editConfig')}><IconFileSettings size={16} /></button></div>;
           })}</div>}
         </section>
-        <aside className="server-connect"><div className="connect-icon"><IconPlayerPlay size={24} fill="currentColor" /></div><span className="eyebrow">{t('automaticConnect')}</span><h3>{t('readyToPlay')}</h3><p>{t('connectDescription')}</p>
-          <button className="primary wide-button" disabled={busy !== null} onClick={() => void runTask(t('syncing'), `server:${selected.id}`, () => invoke('launch_server', { serverId: selected.id, optionalPackages: optional[selected.id] || [] }))}><IconPlayerPlay size={19} fill="currentColor" />{t('syncAndPlay')}</button>
+        <aside className="server-connect"><div className="server-profile-panel"><span className="eyebrow">{t('serverProfile')}</span><div><strong>{t('managedServerProfile')}</strong><span className={`sync-badge ${selectedProfile?.syncState || 'notInstalled'}`}>{syncLabel(selectedProfile?.syncState || 'notInstalled', t)}</span></div><p>{t('serverProfileDescription')}</p><div className="server-profile-actions"><button disabled={busy !== null} onClick={() => void runServer(false)}><IconRefresh size={16} />{t('syncNow')}</button><button onClick={() => void invoke('open_profile_folder', { profileId: `server-${selected.id}` })}><IconFolder size={16} />{t('openFolder')}</button></div></div><div className="connect-icon"><IconPlayerPlay size={24} fill="currentColor" /></div><span className="eyebrow">{t('automaticConnect')}</span><h3>{t('readyToPlay')}</h3><p>{t('connectDescription')}</p>
+          <button className="primary wide-button" disabled={busy !== null} onClick={() => void runServer(true)}><IconPlayerPlay size={19} fill="currentColor" />{t('syncAndPlay')}</button>
           <div className="manual-connect"><h4>{t('manualConnect')}</h4><div className="connection-address"><div><span>{t('serverAddress')}</span><strong>{selected.host}:{selected.port}</strong></div><button onClick={() => { void navigator.clipboard.writeText(`${selected.host}:${selected.port}`); setCopied(true); }}><IconCopy size={17} /></button></div>
             <div className="connection-password"><div><span>{t('password')}</span><strong>{selectedConnection?.status === 'ready' ? selectedConnection.data.password : selectedConnection?.status === 'error' ? t('passwordUnavailable') : t('loading')}</strong></div>{selectedConnection?.status === 'ready' && <button onClick={() => { void navigator.clipboard.writeText(selectedConnection.data.password); setCopied(true); }}><IconCopy size={17} /></button>}</div>
             {copied && <small className="copy-feedback">{t('copied')}</small>}
@@ -233,6 +244,7 @@ function ServersPage({ servers, profiles, optional, setOptional, busy, runTask, 
         </aside>
       </div>
     </Modal>}
+    {configTarget && <ConfigEditor target={configTarget} busy={busy} runTask={runTask} onClose={() => setConfigTarget(null)} t={t} />}
   </>;
 }
 
@@ -315,6 +327,7 @@ function ProfilesPage({ profiles, selectedProfile, setSelectedProfile, busy, run
   const [renameName, setRenameName] = useState('');
   const [modal, setModal] = useState<'create' | 'rename' | 'delete' | null>(null);
   const [importing, setImporting] = useState<{ path: string; preview: ProfileImportPreview; name: string } | null>(null);
+  const [configTarget, setConfigTarget] = useState<{ profileId: string; coordinate: string; name: string } | null>(null);
   const selectedSummary = profiles.find((profile) => profile.id === selectedProfile) || null;
   const availableUpdateCount = Object.values(updates).filter((update) => update.updateAvailable).length;
 
@@ -415,7 +428,7 @@ function ProfilesPage({ profiles, selectedProfile, setSelectedProfile, busy, run
         </div></details></div></div>
         <div className="profile-tabs"><button className={tab === 'installed' ? 'active' : ''} onClick={() => setTab('installed')}>{t('installed')}<span>{details.directModCount}</span></button><button className={tab === 'discover' ? 'active' : ''} onClick={() => setTab('discover')}>{t('discoverMods')}</button></div>
         {tab === 'installed' && <div className="mod-update-toolbar"><label className="auto-update-control"><span><strong>{t('autoUpdateMods')}</strong><small>{t('autoUpdateModsDescription')}</small></span><span className="switch"><input type="checkbox" checked={details.metadata.autoUpdate} disabled={busy !== null} onChange={(event) => void mutate(t('savingAutoUpdate'), `auto-update:${selectedProfile}`, () => invoke('set_profile_auto_update', { profileId: selectedProfile, enabled: event.target.checked }))} /><span /></span></label><div><span className="update-check-time">{checkingUpdates ? t('checking') : updatesCheckedAt ? `${t('checked')} ${formatDate(updatesCheckedAt, localeOf(t))}` : t('notChecked')}</span><button disabled={busy !== null || checkingUpdates} onClick={() => void checkAllUpdates()}><IconRefresh size={16} />{t('checkAll')}</button>{availableUpdateCount > 0 && <button className="primary" disabled={busy !== null} onClick={() => void applyUpdates()}><IconDownload size={16} />{t('updateAll')} ({availableUpdateCount})</button>}</div></div>}
-        {tab === 'installed' ? <InstalledMods details={details} busy={busy} updates={updates} onCheckUpdate={(mod) => void checkOneUpdate(mod)} onUpdate={(mod) => void applyUpdates(mod)} onToggle={(mod, enabled) => void mutate(`${enabled ? t('enabling') : t('disabling')} ${mod.coordinate}`, `toggle:${mod.coordinate}`, () => invoke('set_package_enabled', { profileId: selectedProfile, coordinate: mod.coordinate, enabled }))} onRemove={(mod) => void mutate(`${t('removing')} ${mod.coordinate}`, `remove:${mod.coordinate}`, () => invoke('remove_package', { profileId: selectedProfile, coordinate: mod.coordinate }))} t={t} /> : <DiscoverMods query={query} setQuery={setQuery} results={results} searching={searching} details={details} busy={busy} onAdd={(mod) => void mutate(`${t('adding')} ${mod.name}`, `add:${mod.fullName}`, () => invoke('add_profile_mod', { profileId: selectedProfile, packageRef: `${mod.namespace}-${mod.name}-${mod.versionNumber}` }))} t={t} />}
+        {tab === 'installed' ? <InstalledMods details={details} busy={busy} updates={updates} onCheckUpdate={(mod) => void checkOneUpdate(mod)} onUpdate={(mod) => void applyUpdates(mod)} onConfigure={(mod) => setConfigTarget({ profileId: selectedProfile, coordinate: mod.coordinate, name: coordinateDisplayName(mod.coordinate) })} onToggle={(mod, enabled) => void mutate(`${enabled ? t('enabling') : t('disabling')} ${mod.coordinate}`, `toggle:${mod.coordinate}`, () => invoke('set_package_enabled', { profileId: selectedProfile, coordinate: mod.coordinate, enabled }))} onRemove={(mod) => void mutate(`${t('removing')} ${mod.coordinate}`, `remove:${mod.coordinate}`, () => invoke('remove_package', { profileId: selectedProfile, coordinate: mod.coordinate }))} t={t} /> : <DiscoverMods query={query} setQuery={setQuery} results={results} searching={searching} details={details} busy={busy} onAdd={(mod) => void mutate(`${t('adding')} ${mod.name}`, `add:${mod.fullName}`, () => invoke('add_profile_mod', { profileId: selectedProfile, packageRef: `${mod.namespace}-${mod.name}-${mod.versionNumber}` }))} t={t} />}
         </div>
         {details.syncState !== 'ready' && <div className="pending-bar"><div><strong>{details.syncState === 'notInstalled' ? t('profileNotInstalled') : t('changesPending')}</strong><span>{details.syncState === 'notInstalled' ? t('profileNotInstalledDescription') : t('changesPendingDescription')}</span></div><div><button disabled={busy !== null} onClick={() => void sync(false)}><IconRefresh size={17} />{t('syncNow')}</button><button className="primary" disabled={busy !== null} onClick={() => void sync(true)}><IconPlayerPlay size={17} fill="currentColor" />{t('syncAndPlay')}</button></div></div>}
       </>}</section>
@@ -425,10 +438,11 @@ function ProfilesPage({ profiles, selectedProfile, setSelectedProfile, busy, run
     {modal === 'rename' && <Modal label={t('renameProfile')} onClose={() => setModal(null)}><form className="dialog-form" onSubmit={async (event) => { event.preventDefault(); const renamed = await runTask(t('renamingProfile'), 'rename', () => invoke('rename_profile', { profileId: selectedProfile, name: renameName.trim() })); if (renamed.ok) { await refresh(); await loadDetails(selectedProfile); setModal(null); } }}><h2>{t('renameProfile')}</h2><label>{t('profileName')}<input autoFocus value={renameName} onChange={(event) => setRenameName(event.target.value)} maxLength={80} /></label><div className="dialog-actions"><button type="button" onClick={() => setModal(null)}>{t('cancel')}</button><button className="primary" disabled={!renameName.trim() || busy !== null}>{t('save')}</button></div></form></Modal>}
     {modal === 'delete' && selectedSummary && <Modal label={t('deleteProfile')} onClose={() => setModal(null)}><div className="dialog-form danger-dialog"><IconAlertTriangle size={34} /><h2>{t('deleteProfile')}</h2><p>{t('deleteProfileDescription')} <strong>{selectedSummary.name}</strong>.</p><div className="dialog-actions"><button onClick={() => setModal(null)}>{t('cancel')}</button><button className="danger-button" disabled={busy !== null} onClick={async () => { const result = await runTask(t('deletingProfile'), 'delete', () => invoke('delete_profile', { profileId: selectedProfile })); if (result.ok) { setModal(null); setSelectedProfile(''); await refresh(); } }}>{t('delete')}</button></div></div></Modal>}
     {importing && <Modal label={t('importProfile')} onClose={() => setImporting(null)}><div className="dialog-form import-dialog"><h2>{t('importProfile')}</h2><p>{t('importPrivacyNotice')}</p><label>{t('profileName')}<input value={importing.name} onChange={(event) => setImporting({ ...importing, name: event.target.value })} maxLength={80} /></label><div className="import-summary"><span>{importing.preview.mods.length} {t('mods')}</span><span>{importing.preview.mods.filter((mod) => mod.enabled).length} {t('enabled')}</span><span>{importing.preview.mods.filter((mod) => mod.deprecated).length} {t('deprecated')}</span></div><div className="import-mods">{importing.preview.mods.map((mod) => <div key={mod.coordinate} className={!mod.available ? 'unavailable' : ''}><span>{mod.coordinate}</span><small>{!mod.available ? t('unavailable') : mod.enabled ? t('enabled') : t('disabled')}</small></div>)}</div>{importing.preview.blockingError && <div className="inline-error">{importing.preview.blockingError}</div>}<div className="dialog-actions"><button onClick={() => setImporting(null)}>{t('cancel')}</button><button className="primary" disabled={!importing.name.trim() || Boolean(importing.preview.blockingError) || busy !== null} onClick={async () => { const created = await runTask(t('importingProfile'), 'import', () => invoke<ProfileSummary>('import_profile', { path: importing.path, name: importing.name.trim() })); if (created.ok) { setImporting(null); await refresh(); setSelectedProfile(created.value.id); } }}>{t('import')}</button></div></div></Modal>}
+    {configTarget && <ConfigEditor target={configTarget} busy={busy} runTask={runTask} onClose={() => setConfigTarget(null)} t={t} />}
   </div>;
 }
 
-function InstalledMods({ details, busy, updates, onCheckUpdate, onUpdate, onToggle, onRemove, t }: { details: ProfileDetails; busy: string | null; updates: Record<string, ModUpdateInfo>; onCheckUpdate: (mod: RequestedPackage) => void; onUpdate: (mod: RequestedPackage) => void; onToggle: (mod: RequestedPackage, enabled: boolean) => void; onRemove: (mod: RequestedPackage) => void; t: ReturnType<typeof translator> }) {
+function InstalledMods({ details, busy, updates, onCheckUpdate, onUpdate, onConfigure, onToggle, onRemove, t }: { details: ProfileDetails; busy: string | null; updates: Record<string, ModUpdateInfo>; onCheckUpdate: (mod: RequestedPackage) => void; onUpdate: (mod: RequestedPackage) => void; onConfigure: (mod: RequestedPackage) => void; onToggle: (mod: RequestedPackage, enabled: boolean) => void; onRemove: (mod: RequestedPackage) => void; t: ReturnType<typeof translator> }) {
   const direct = details.metadata.requestedPackages.filter((mod) => mod.origin !== 'runtime');
   const directIdentities = new Set(direct.map((mod) => coordinateIdentity(mod.coordinate)));
   const dependencies = Object.entries(details.lock?.packages || {}).filter(([identity]) => identity !== 'denikson-bepinexpack_valheim' && !directIdentities.has(identity));
@@ -436,8 +450,68 @@ function InstalledMods({ details, busy, updates, onCheckUpdate, onUpdate, onTogg
   return <div className="installed-mods"><div className="installed-list">{direct.map((mod) => {
     const synced = requestIsSynced(mod, details.lock?.requestedPackages || []);
     const update = updates[coordinateIdentity(mod.coordinate)];
-    return <div className="installed-row" key={mod.coordinate}><div className="mod-placeholder">M</div><div className="installed-identity"><strong>{coordinateDisplayName(mod.coordinate)}</strong><span>{mod.coordinate} · <b>{mod.origin}</b>{!synced && <em>{t('pending')}</em>}{update?.updateAvailable && <em className="update-available">{t('updateAvailable')} {update.latestVersion}</em>}</span></div><div className="installed-actions">{update?.updateAvailable ? <button className="row-update" disabled={busy !== null} onClick={() => onUpdate(mod)} title={`${t('update')} ${update.latestVersion}`}><IconDownload size={16} /><span>{t('update')}</span></button> : <button className="row-update-check" disabled={busy !== null} onClick={() => onCheckUpdate(mod)} title={t('checkForModUpdate')}><IconRefresh size={16} /></button>}<label className="switch" title={mod.enabled ? t('enabled') : t('disabled')}><input type="checkbox" checked={mod.enabled} disabled={busy !== null} onChange={(event) => onToggle(mod, event.target.checked)} /><span /></label><button className="row-trash" disabled={busy !== null} onClick={() => onRemove(mod)} title={t('remove')}><IconTrash size={17} /></button></div></div>;
+    return <div className="installed-row" key={mod.coordinate}><div className="mod-placeholder">M</div><div className="installed-identity"><strong>{coordinateDisplayName(mod.coordinate)}</strong><span>{mod.coordinate} · <b>{mod.origin}</b>{!synced && <em>{t('pending')}</em>}{update?.updateAvailable && <em className="update-available">{t('updateAvailable')} {update.latestVersion}</em>}</span></div><div className="installed-actions"><button className="row-config" disabled={busy !== null || !mod.enabled || !synced} onClick={() => onConfigure(mod)} title={t('editConfig')}><IconFileSettings size={16} /></button>{update?.updateAvailable ? <button className="row-update" disabled={busy !== null} onClick={() => onUpdate(mod)} title={`${t('update')} ${update.latestVersion}`}><IconDownload size={16} /><span>{t('update')}</span></button> : <button className="row-update-check" disabled={busy !== null} onClick={() => onCheckUpdate(mod)} title={t('checkForModUpdate')}><IconRefresh size={16} /></button>}<label className="switch" title={mod.enabled ? t('enabled') : t('disabled')}><input type="checkbox" checked={mod.enabled} disabled={busy !== null} onChange={(event) => onToggle(mod, event.target.checked)} /><span /></label><button className="row-trash" disabled={busy !== null} onClick={() => onRemove(mod)} title={t('remove')}><IconTrash size={17} /></button></div></div>;
   })}</div>{dependencies.length > 0 && <details className="dependency-list"><summary><IconChevronDown size={16} />{dependencies.length} {t('dependencies')}</summary>{dependencies.map(([identity, mod]) => <div key={identity}><span>{mod.namespace}-{mod.name}</span><small>{mod.version}</small></div>)}</details>}</div>;
+}
+
+function ConfigEditor({ target, busy, runTask, onClose, t }: {
+  target: { profileId: string; coordinate: string; name: string };
+  busy: string | null;
+  runTask: TaskRunner;
+  onClose: () => void;
+  t: ReturnType<typeof translator>;
+}) {
+  const [files, setFiles] = useState<ModConfigFile[] | null>(null);
+  const [document, setDocument] = useState<ModConfigDocument | null>(null);
+  const [savedContents, setSavedContents] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const loadFile = async (path: string) => {
+    setError(null);
+    try {
+      const next = await invoke<ModConfigDocument>('read_mod_config', { profileId: target.profileId, coordinate: target.coordinate, path });
+      setDocument(next);
+      setSavedContents(next.contents);
+    } catch (reason) {
+      setError(String(reason));
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    setFiles(null);
+    setDocument(null);
+    setError(null);
+    void invoke<ModConfigFile[]>('list_mod_configs', { profileId: target.profileId, coordinate: target.coordinate })
+      .then((next) => {
+        if (!active) return;
+        setFiles(next);
+        if (next[0]) void loadFile(next[0].path);
+      })
+      .catch((reason) => { if (active) { setFiles([]); setError(String(reason)); } });
+    return () => { active = false; };
+  }, [target.profileId, target.coordinate]);
+
+  const dirty = Boolean(document && document.contents !== savedContents);
+  const close = () => {
+    if (!dirty || window.confirm(t('discardConfigChanges'))) onClose();
+  };
+  const save = async () => {
+    if (!document) return;
+    const result = await runTask(t('savingConfig'), `config:${target.profileId}:${document.path}`, () => invoke('save_mod_config', { profileId: target.profileId, coordinate: target.coordinate, path: document.path, contents: document.contents }));
+    if (result.ok) setSavedContents(document.contents);
+  };
+
+  return <Modal label={`${t('editConfig')}: ${target.name}`} onClose={close} wide>
+    <div className="config-editor">
+      <header><div><span className="eyebrow">{t('modConfiguration')}</span><h2>{target.name}</h2><p>{t('configDescription')}</p></div></header>
+      {error && <div className="inline-error">{error}</div>}
+      {files === null ? <div className="config-loading">{t('loading')}</div> : files.length === 0 ? <div className="config-empty"><IconFileSettings size={32} /><strong>{t('noConfigFiles')}</strong><p>{t('noConfigFilesDescription')}</p><button onClick={() => void invoke('open_profile_folder', { profileId: target.profileId })}><IconFolder size={16} />{t('openFolder')}</button></div> : <div className="config-layout">
+        <aside>{files.map((file) => <button key={file.path} className={document?.path === file.path ? 'active' : ''} onClick={() => { if (!dirty || window.confirm(t('discardConfigChanges'))) void loadFile(file.path); }}><IconFileSettings size={16} /><span><strong>{file.name}</strong><small>{file.path}</small></span></button>)}</aside>
+        <section>{document ? <><div className="config-file-header"><span>{document.path}</span><small>{formatBytes(document.contents.length)}</small></div><textarea spellCheck={false} value={document.contents} onChange={(event) => setDocument({ ...document, contents: event.target.value })} /><footer><span>{dirty ? t('unsavedChanges') : t('allChangesSaved')}</span><button className="primary" disabled={!dirty || busy !== null} onClick={() => void save()}><IconDeviceFloppy size={17} />{t('saveConfig')}</button></footer></> : <div className="config-loading">{t('loading')}</div>}</section>
+      </div>}
+    </div>
+  </Modal>;
 }
 
 function DiscoverMods({ query, setQuery, results, searching, details, busy, onAdd, t }: { query: string; setQuery: (query: string) => void; results: CatalogPackage[]; searching: boolean; details: ProfileDetails; busy: string | null; onAdd: (mod: CatalogPackage) => void; t: ReturnType<typeof translator> }) {
@@ -468,11 +542,12 @@ function Modal({ children, onClose, label, wide = false, dismissible = true }: {
 
 function Empty({ title, description, action, compact = false }: { title: string; description: string; action?: React.ReactNode; compact?: boolean }) { return <div className={`empty ${compact ? 'compact' : ''}`}><IconDeviceGamepad2 size={compact ? 32 : 44} /><strong>{title}</strong><p>{description}</p>{action}</div>; }
 function StatusPill({ status, label }: { status: LauncherServer['status']; label: string }) { return <span className={`status-pill ${status}`}><span className="status-dot" />{label}</span>; }
-function ModGroup({ title, mods }: { title: string; mods: LauncherPackageRef[] }) { if (!mods.length) return null; return <div className="mod-group"><h3>{title}</h3>{mods.map((mod) => <div className="mod-row" key={packageKey(mod)}><ModIdentity mod={mod} /></div>)}</div>; }
+function ModGroup({ title, mods, onConfigure, configureLabel }: { title: string; mods: LauncherPackageRef[]; onConfigure?: (mod: LauncherPackageRef) => void; configureLabel?: string }) { if (!mods.length) return null; return <div className="mod-group"><h3>{title}</h3>{mods.map((mod) => <div className="mod-row server-mod-row" key={packageKey(mod)}><ModIdentity mod={mod} />{onConfigure && <button className="config-button" onClick={() => onConfigure(mod)} title={configureLabel}><IconFileSettings size={16} /></button>}</div>)}</div>; }
 function ModIdentity({ mod }: { mod: Pick<LauncherPackageRef, 'displayName' | 'namespace' | 'versionNumber' | 'iconUrl'> }) { return <div className="mod-identity">{mod.iconUrl ? <img src={mod.iconUrl} alt="" /> : <div className="mod-placeholder">M</div>}<div><strong>{mod.displayName}</strong><span>{mod.namespace} · {mod.versionNumber}</span></div></div>; }
 function packageKey(mod: LauncherPackageRef) { return `${mod.namespace}-${mod.packageName}-${mod.versionNumber}`; }
 function coordinateDisplayName(coordinate: string) { const withoutVersion = coordinate.replace(/-\d+\.\d+\.\d+$/, ''); return withoutVersion.includes('-') ? withoutVersion.slice(withoutVersion.indexOf('-') + 1) : withoutVersion; }
 function syncLabel(state: ProfileSummary['syncState'], t: ReturnType<typeof translator>) { return state === 'ready' ? t('ready') : state === 'pending' ? t('changesPending') : t('notInstalled'); }
 function safeFileName(name: string) { return name.replace(/[\\/:*?"<>|]/g, '-').trim() || 'profile'; }
+function formatBytes(bytes: number) { return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`; }
 function localeOf(t: ReturnType<typeof translator>) { return t('localeCode'); }
 function formatDate(value: string, locale: string) { try { return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); } catch { return value; } }

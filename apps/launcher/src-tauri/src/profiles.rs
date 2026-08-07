@@ -15,7 +15,7 @@ use std::{
     collections::{BTreeSet, HashMap, HashSet},
     fs,
     io::Write,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 use uuid::Uuid;
 use walkdir::WalkDir;
@@ -200,6 +200,115 @@ impl ProfileStore {
         })
     }
 
+    pub fn mod_config_files(&self, id: &str, coordinate: &str) -> Result<Vec<(String, u64)>> {
+        let details = self.details(id)?;
+        let lock = details
+            .lock
+            .context("Synchronize this profile before editing mod configs")?;
+        let identity = package_identity(coordinate).context("Invalid package coordinate")?;
+        let package = lock
+            .packages
+            .get(&identity)
+            .context("Package is not installed in this profile")?;
+        let config_root = self.profile_dir(id)?.join("current/BepInEx/config");
+        if !config_root.is_dir() {
+            return Ok(Vec::new());
+        }
+
+        let (_, package_name, _) = crate::thunderstore::split_coordinate(coordinate)?;
+        let package_tokens = config_match_tokens(package_name);
+        let owned: HashSet<String> = package
+            .files
+            .iter()
+            .filter_map(|file| file.strip_prefix("BepInEx/config/"))
+            .map(normalize_relative_config_path)
+            .collect();
+        let plugin_tokens: HashSet<String> = package
+            .files
+            .iter()
+            .filter(|file| file.to_ascii_lowercase().ends_with(".dll"))
+            .filter_map(|file| Path::new(file).file_stem()?.to_str())
+            .flat_map(config_match_tokens)
+            .collect();
+
+        let mut matches = Vec::new();
+        for entry in WalkDir::new(&config_root)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_type().is_file())
+        {
+            let relative = entry.path().strip_prefix(&config_root)?;
+            if !is_editable_config(relative) {
+                continue;
+            }
+            let relative_string = normalize_relative_config_path(&relative.to_string_lossy());
+            let candidate_tokens = config_match_tokens(&relative_string);
+            let associated = owned.contains(&relative_string)
+                || candidate_tokens.iter().any(|token| {
+                    token.len() >= 4
+                        && (package_tokens.contains(token) || plugin_tokens.contains(token))
+                });
+            if associated {
+                matches.push((relative_string, entry.metadata()?.len()));
+            }
+        }
+        matches.sort_by(|a, b| a.0.cmp(&b.0));
+        Ok(matches)
+    }
+
+    pub fn read_mod_config(&self, id: &str, coordinate: &str, path: &str) -> Result<String> {
+        self.ensure_mod_config_access(id, coordinate, path)?;
+        let config_root = self.profile_dir(id)?.join("current/BepInEx/config");
+        let target = safe_config_path(&config_root, path)?;
+        let metadata = fs::metadata(&target).context("Config file was not found")?;
+        if metadata.len() > 1024 * 1024 {
+            anyhow::bail!("Config files larger than 1 MB cannot be edited in the launcher");
+        }
+        fs::read_to_string(target).context("Config file is not valid UTF-8")
+    }
+
+    pub fn write_mod_config(
+        &self,
+        id: &str,
+        coordinate: &str,
+        path: &str,
+        contents: &str,
+    ) -> Result<()> {
+        if contents.len() > 1024 * 1024 {
+            anyhow::bail!("Config files larger than 1 MB cannot be saved in the launcher");
+        }
+        self.ensure_mod_config_access(id, coordinate, path)?;
+        let config_root = self.profile_dir(id)?.join("current/BepInEx/config");
+        let target = safe_config_path(&config_root, path)?;
+        let temporary = target.with_extension("xom-launcher-save");
+        let backup = target.with_extension("xom-launcher-backup");
+        fs::write(&temporary, contents)?;
+        if backup.exists() {
+            fs::remove_file(&backup)?;
+        }
+        fs::rename(&target, &backup)?;
+        if let Err(error) = fs::rename(&temporary, &target) {
+            let _ = fs::rename(&backup, &target);
+            let _ = fs::remove_file(&temporary);
+            return Err(error.into());
+        }
+        let _ = fs::remove_file(backup);
+        Ok(())
+    }
+
+    fn ensure_mod_config_access(&self, id: &str, coordinate: &str, path: &str) -> Result<()> {
+        let normalized = normalize_relative_config_path(path);
+        let allowed = self
+            .mod_config_files(id, coordinate)?
+            .into_iter()
+            .any(|(candidate, _)| candidate == normalized);
+        if !allowed {
+            anyhow::bail!("Config file is not associated with this installed mod");
+        }
+        Ok(())
+    }
+
     fn personal_name_exists(&self, name: &str, except_id: Option<&str>) -> bool {
         let Ok(entries) = fs::read_dir(&self.root) else {
             return false;
@@ -333,6 +442,55 @@ impl ProfileStore {
         fs::create_dir_all(&self.cache)?;
         Ok(())
     }
+}
+
+fn normalize_relative_config_path(path: &str) -> String {
+    path.replace('\\', "/")
+}
+
+fn config_match_tokens(value: &str) -> HashSet<String> {
+    value
+        .split(|character: char| !character.is_ascii_alphanumeric())
+        .map(str::to_ascii_lowercase)
+        .filter(|token| {
+            token.len() >= 4
+                && !matches!(
+                    token.as_str(),
+                    "config" | "plugin" | "plugins" | "bepinex" | "valheim"
+                )
+        })
+        .collect()
+}
+
+fn is_editable_config(path: &Path) -> bool {
+    matches!(
+        path.extension()
+            .and_then(|extension| extension.to_str())
+            .map(str::to_ascii_lowercase)
+            .as_deref(),
+        Some("cfg" | "ini" | "json" | "toml" | "txt" | "yaml" | "yml")
+    )
+}
+
+fn safe_config_path(root: &Path, relative: &str) -> Result<PathBuf> {
+    let relative_path = Path::new(relative);
+    if relative_path.is_absolute()
+        || relative_path
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+        || !is_editable_config(relative_path)
+    {
+        anyhow::bail!("Invalid config path");
+    }
+    let canonical_root = root
+        .canonicalize()
+        .context("Profile config directory was not found")?;
+    let target = root.join(relative_path);
+    let canonical_target = target.canonicalize().context("Config file was not found")?;
+    if !canonical_target.starts_with(&canonical_root) || !canonical_target.is_file() {
+        anyhow::bail!("Invalid config path");
+    }
+    Ok(canonical_target)
 }
 
 fn remove_legacy_bridge_from_install(installation: &Path) -> Result<()> {
@@ -792,6 +950,86 @@ mod tests {
         let profile = store.ensure_server("42", "Community").unwrap();
 
         assert!(store.rename_personal(&profile.id, "Personal").is_err());
+    }
+
+    #[test]
+    fn edits_only_configs_associated_with_the_selected_mod() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = store(&temp);
+        let metadata = store
+            .create_personal_with_packages(
+                "Config test",
+                vec![RequestedPackage {
+                    coordinate: "Author-CoolMod-1.0.0".into(),
+                    origin: "extra".into(),
+                    enabled: true,
+                }],
+            )
+            .unwrap();
+        let current = store.profile_dir(&metadata.id).unwrap().join("current");
+        let config = current.join("BepInEx/config/com.author.coolmod.cfg");
+        fs::create_dir_all(config.parent().unwrap()).unwrap();
+        fs::write(&config, "Enabled = true\n").unwrap();
+        fs::write(
+            config.parent().unwrap().join("unrelated.cfg"),
+            "Value = 1\n",
+        )
+        .unwrap();
+
+        let mut packages = std::collections::BTreeMap::new();
+        packages.insert(
+            "author-coolmod".into(),
+            LockedPackage {
+                coordinate: "Author-CoolMod-1.0.0".into(),
+                namespace: "Author".into(),
+                name: "CoolMod".into(),
+                version: "1.0.0".into(),
+                download_url: String::new(),
+                dependencies: Vec::new(),
+                origins: vec!["extra".into()],
+                enabled: true,
+                files: vec!["BepInEx/plugins/CoolMod.dll".into()],
+            },
+        );
+        write_json(
+            &current.join("profile.lock.json"),
+            &ProfileLock {
+                schema_version: 1,
+                profile_version: 1,
+                game: "valheim".into(),
+                game_version: "steam-current".into(),
+                runtime_version: "5.4.2333".into(),
+                generated_at: "2026-01-01T00:00:00Z".into(),
+                requested_packages: metadata.requested_packages.clone(),
+                packages,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            store
+                .mod_config_files(&metadata.id, "Author-CoolMod-1.0.0")
+                .unwrap()
+                .into_iter()
+                .map(|(path, _)| path)
+                .collect::<Vec<_>>(),
+            vec!["com.author.coolmod.cfg"]
+        );
+        store
+            .write_mod_config(
+                &metadata.id,
+                "Author-CoolMod-1.0.0",
+                "com.author.coolmod.cfg",
+                "Enabled = false\n",
+            )
+            .unwrap();
+        assert_eq!(fs::read_to_string(config).unwrap(), "Enabled = false\n");
+        assert!(store
+            .read_mod_config(&metadata.id, "Author-CoolMod-1.0.0", "../settings.json")
+            .is_err());
+        assert!(store
+            .read_mod_config(&metadata.id, "Author-CoolMod-1.0.0", "unrelated.cfg")
+            .is_err());
     }
 
     #[test]

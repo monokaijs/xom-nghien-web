@@ -81,6 +81,17 @@ export interface ProfileDetails {
   syncState: ProfileSyncState;
 }
 
+export interface ModConfigFile {
+  path: string;
+  name: string;
+  size: number;
+}
+
+export interface ModConfigDocument {
+  path: string;
+  contents: string;
+}
+
 export interface ModUpdateInfo {
   coordinate: string;
   namespace: string;

@@ -190,6 +190,21 @@ pub struct ProfileDetails {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ModConfigFile {
+    pub path: String,
+    pub name: String,
+    pub size: u64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModConfigDocument {
+    pub path: String,
+    pub contents: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ModUpdateInfo {
     pub coordinate: String,
     pub namespace: String,

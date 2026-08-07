@@ -10,9 +10,9 @@ mod thunderstore;
 
 use crate::{
     models::{
-        BootstrapData, CatalogPackage, ConnectResponse, ModUpdateInfo, ProfileDetails,
-        ProfileImportMod, ProfileImportPreview, ProfileMetadata, ProfileSummary,
-        ProfileUpdateCheck, RequestedPackage, Settings,
+        BootstrapData, CatalogPackage, ConnectResponse, ModConfigDocument, ModConfigFile,
+        ModUpdateInfo, ProfileDetails, ProfileImportMod, ProfileImportPreview, ProfileMetadata,
+        ProfileSummary, ProfileUpdateCheck, RequestedPackage, Settings,
     },
     profiles::ProfileStore,
     steam::{GameAdapter, ValheimAdapter},
@@ -312,6 +312,63 @@ async fn profile_details(
 }
 
 #[tauri::command]
+async fn list_mod_configs(
+    state: State<'_, AppState>,
+    profile_id: String,
+    coordinate: String,
+) -> Result<Vec<ModConfigFile>, String> {
+    command_result(async {
+        Ok(state
+            .store()
+            .mod_config_files(&profile_id, &coordinate)?
+            .into_iter()
+            .map(|(path, size)| ModConfigFile {
+                name: PathBuf::from(&path)
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or(&path)
+                    .to_owned(),
+                path,
+                size,
+            })
+            .collect())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn read_mod_config(
+    state: State<'_, AppState>,
+    profile_id: String,
+    coordinate: String,
+    path: String,
+) -> Result<ModConfigDocument, String> {
+    command_result(async {
+        let contents = state
+            .store()
+            .read_mod_config(&profile_id, &coordinate, &path)?;
+        Ok(ModConfigDocument { path, contents })
+    })
+    .await
+}
+
+#[tauri::command]
+async fn save_mod_config(
+    state: State<'_, AppState>,
+    profile_id: String,
+    coordinate: String,
+    path: String,
+    contents: String,
+) -> Result<(), String> {
+    command_result(async {
+        state
+            .store()
+            .write_mod_config(&profile_id, &coordinate, &path, &contents)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn set_profile_auto_update(
     state: State<'_, AppState>,
     profile_id: String,
@@ -546,29 +603,7 @@ async fn launch_server(
             .find(|server| server.id == server_id)
             .context("Server no longer exists")?;
         let store = state.store();
-        let mut metadata = store.ensure_server(&server.id, &server.name)?;
-        let selected_optional_identities: HashSet<_> = optional_packages
-            .iter()
-            .filter_map(|coordinate| coordinate_identity(coordinate))
-            .collect();
-        // Managed server profiles mirror the latest manifest. Replacing the
-        // request set removes obsolete versions and mods no longer whitelisted.
-        metadata.requested_packages.clear();
-        metadata
-            .requested_packages
-            .extend(server.required_mods.iter().map(|package| RequestedPackage {
-                coordinate: package.coordinate(),
-                origin: "required".into(),
-                enabled: true,
-            }));
-        for package in &server.optional_mods {
-            let coordinate = package.coordinate();
-            metadata.requested_packages.push(RequestedPackage {
-                enabled: selected_optional_identities.contains(&package.identity()),
-                coordinate,
-                origin: "optional".into(),
-            });
-        }
+        let metadata = server_profile_metadata(&store, &server, &optional_packages)?;
         store.write_metadata(&metadata)?;
         sync_metadata(&state, &store, &metadata).await?;
 
@@ -591,6 +626,58 @@ async fn launch_server(
         Ok(())
     })
     .await
+}
+
+#[tauri::command]
+async fn sync_server_profile(
+    state: State<'_, AppState>,
+    server_id: String,
+    optional_packages: Vec<String>,
+) -> Result<ProfileDetails, String> {
+    command_result(async {
+        let settings = state.settings();
+        let servers = api::servers(&state.client, &settings.api_base_url).await?;
+        let server = servers
+            .into_iter()
+            .find(|server| server.id == server_id)
+            .context("Server no longer exists")?;
+        let store = state.store();
+        let metadata = server_profile_metadata(&store, &server, &optional_packages)?;
+        store.write_metadata(&metadata)?;
+        sync_metadata(&state, &store, &metadata).await?;
+        store.details(&metadata.id)
+    })
+    .await
+}
+
+fn server_profile_metadata(
+    store: &ProfileStore,
+    server: &crate::models::LauncherServer,
+    optional_packages: &[String],
+) -> Result<ProfileMetadata> {
+    let mut metadata = store.ensure_server(&server.id, &server.name)?;
+    let selected_optional_identities: HashSet<_> = optional_packages
+        .iter()
+        .filter_map(|coordinate| coordinate_identity(coordinate))
+        .collect();
+    // Server profiles always mirror the current whitelist, while their config
+    // directory remains local and is preserved by ProfileStore::sync.
+    metadata.requested_packages.clear();
+    metadata
+        .requested_packages
+        .extend(server.required_mods.iter().map(|package| RequestedPackage {
+            coordinate: package.coordinate(),
+            origin: "required".into(),
+            enabled: true,
+        }));
+    metadata
+        .requested_packages
+        .extend(server.optional_mods.iter().map(|package| RequestedPackage {
+            enabled: selected_optional_identities.contains(&package.identity()),
+            coordinate: package.coordinate(),
+            origin: "optional".into(),
+        }));
+    Ok(metadata)
 }
 
 #[tauri::command]
@@ -1228,6 +1315,9 @@ pub fn run() {
             rename_profile,
             delete_profile,
             profile_details,
+            list_mod_configs,
+            read_mod_config,
+            save_mod_config,
             set_profile_auto_update,
             check_profile_mod_updates,
             check_mod_update,
@@ -1243,6 +1333,7 @@ pub fn run() {
             repair_profile,
             launch_profile,
             launch_server,
+            sync_server_profile,
             inspect_profile_import,
             import_profile,
             export_profile,

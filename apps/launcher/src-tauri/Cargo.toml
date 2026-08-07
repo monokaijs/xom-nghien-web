@@ -1,6 +1,6 @@
 [package]
 name = "xom-nghien-launcher"
-version = "0.2.3"
+version = "0.3.0"
 description = "Xom Nghien game launcher"
 authors = ["Xom Nghien"]
 edition = "2021"

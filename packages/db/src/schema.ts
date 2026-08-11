@@ -179,6 +179,8 @@ export const servers = mysqlTable('servers', {
   description: text('description'),
   metadataUrl: varchar('metadata_url', { length: 2048 }),
   sortOrder: int('sort_order').notNull().default(0),
+  rconHost: varchar('rcon_host', { length: 255 }),
+  rconPort: int('rcon_port', { unsigned: true }),
   rcon_password: varchar('rcon_password', { length: 255 }),
   created_at: timestamp('created_at').defaultNow().notNull(),
   updated_at: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),

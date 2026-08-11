@@ -1,15 +1,16 @@
 "use client";
 
 import React, { FormEvent, useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
   IconBook,
   IconDeviceFloppy,
-  IconEdit,
   IconExternalLink,
   IconGripVertical,
   IconLink,
   IconPlus,
   IconServer,
+  IconSettings,
   IconTrash,
   IconX,
 } from '@tabler/icons-react';
@@ -30,6 +31,7 @@ interface ManagedServer {
   connectionGuide: string | null;
   description: string | null;
   metadataUrl: string | null;
+  rconConfigured: boolean;
   mods: ServerMod[];
 }
 
@@ -125,24 +127,6 @@ export default function GameServersPage() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const edit = (server: ManagedServer) => {
-    setEditingId(server.id);
-    setForm({
-      game: server.game,
-      gameName: server.gameName || server.name || getGame(server.game)?.name || '',
-      connectionLink: server.connectionLink || '',
-      connectionHost: server.connectionHost || '',
-      connectionPort: server.connectionPort?.toString() || '2456',
-      joinPassword: server.joinPassword || '',
-      connectionGuide: server.connectionGuide || '',
-      description: server.description || '',
-      metadataUrl: server.metadataUrl || '',
-      mods: server.mods || [],
-    });
-    setFormError(null);
-    setDialogOpen(true);
   };
 
   const remove = async (server: ManagedServer) => {
@@ -307,9 +291,14 @@ export default function GameServersPage() {
                         <span>{server.mods.filter((mod) => mod.requirement === 'optional').length} optional</span>
                       </p>
                     )}
+                    {server.game === 'cs2' && (
+                      <p className={`mt-2 text-xs ${server.rconConfigured ? 'text-emerald-300/70' : 'text-amber-200/60'}`}>
+                        RCON {server.rconConfigured ? 'ready' : 'not configured'}
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-1 self-start">
-                    <button onClick={() => edit(server)} className="p-2 rounded-lg bg-white/10 text-white/70 hover:text-white" title="Edit"><IconEdit size={16} /></button>
+                    <Link href={`/admin/game-servers/${server.id}`} className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-xs font-medium text-white/70 hover:bg-white/15 hover:text-white" title="Manage server"><IconSettings size={16} /> Manage</Link>
                     <button onClick={() => remove(server)} className="p-2 rounded-lg bg-red-500/15 text-red-300 hover:bg-red-500/25" title="Remove"><IconTrash size={16} /></button>
                   </div>
                 </article>

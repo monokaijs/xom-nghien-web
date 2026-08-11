@@ -15,6 +15,7 @@ function toResponse(server: typeof servers.$inferSelect, mods: ServerMod[]) {
     connectionPort,
     joinPassword,
     connectionGuide: server.connectionGuide || null,
+    rconConfigured: Boolean(server.rconHost && server.rconPort && rcon_password),
     mods,
   };
 }

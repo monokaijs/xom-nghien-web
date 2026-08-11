@@ -5,6 +5,7 @@ import {servers as gameServers, userInfo} from '@xom/db';
 import {desc, sql} from '@xom/db';
 import {getServersWithStatus} from '@/lib/utils/servers';
 import Image from 'next/image';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -145,16 +146,16 @@ export default async function AdminDashboardPage() {
               <div className="text-white/40 text-center py-8">Chưa có server</div>
             ) : (
               serversWithStatus.map((server) => (
-                <div key={server.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                <Link href={`/admin/game-servers/${server.id}`} key={server.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl transition-colors hover:bg-white/10">
                   <div className="flex items-center gap-3">
                     <div
                       className="w-2 h-2 rounded-full bg-accent-primary"></div>
-                  <span className="font-medium">{server.name}</span>
-                </div>
-                <span className="text-sm text-white/50">
-                  {server.connectionLink || (server.connectionGuide ? 'Hướng dẫn kết nối' : 'Chưa cấu hình')}
-                </span>
-                </div>
+                    <span className="font-medium">{server.name}</span>
+                  </div>
+                  <span className="text-sm text-white/50">
+                    {server.connectionLink || (server.connectionGuide ? 'Hướng dẫn kết nối' : 'Chưa cấu hình')}
+                  </span>
+                </Link>
               ))
             )}
           </div>

@@ -232,12 +232,6 @@ export default function GameServersPage() {
               return (
                 <article
                   key={server.id}
-                  draggable={!reordering}
-                  onDragStart={(event) => {
-                    setDraggingId(server.id);
-                    event.dataTransfer.effectAllowed = 'move';
-                    event.dataTransfer.setData('text/plain', String(server.id));
-                  }}
                   onDragOver={(event) => {
                     if (draggingId === null || draggingId === server.id) return;
                     event.preventDefault();
@@ -249,28 +243,43 @@ export default function GameServersPage() {
                     const sourceId = Number(event.dataTransfer.getData('text/plain')) || draggingId;
                     if (sourceId !== null) void reorderServers(sourceId, server.id);
                   }}
-                  onDragEnd={() => {
-                    setDraggingId(null);
-                    setDragOverId(null);
-                  }}
                   className={`flex gap-3 rounded-2xl border p-4 transition-all ${
                     draggingId === server.id
                       ? 'border-accent-primary/40 bg-accent-primary/10 opacity-60'
                       : dragOverId === server.id
                         ? 'border-accent-primary bg-white/10'
                         : 'border-white/5 bg-white/5'
-                  } ${reordering ? 'cursor-wait' : 'cursor-grab active:cursor-grabbing'}`}
+                  } ${reordering ? 'cursor-wait' : ''}`}
                 >
-                  <div className="flex shrink-0 items-center text-white/25" title="Drag to reorder">
+                  <button
+                    type="button"
+                    draggable={!reordering}
+                    onDragStart={(event) => {
+                      setDraggingId(server.id);
+                      event.dataTransfer.effectAllowed = 'move';
+                      event.dataTransfer.setData('text/plain', String(server.id));
+                    }}
+                    onDragEnd={() => {
+                      setDraggingId(null);
+                      setDragOverId(null);
+                    }}
+                    className="flex shrink-0 cursor-grab items-center self-stretch text-white/25 hover:text-white/55 active:cursor-grabbing"
+                    title="Drag to reorder"
+                    aria-label={`Reorder ${server.name}`}
+                  >
                     <IconGripVertical size={20} />
-                  </div>
+                  </button>
                   {game?.image ? (
                     <img src={game.image} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
                   ) : (
                     <div className="w-14 h-14 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0"><IconServer /></div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <h4 className="font-medium">{server.name || game?.name}</h4>
+                    <h4 className="font-medium">
+                      <Link href={`/admin/game-servers/${server.id}`} className="hover:text-accent-primary">
+                        {server.name || game?.name}
+                      </Link>
+                    </h4>
                     <p className="text-xs text-white/35 truncate mt-0.5">{game?.name || server.game}</p>
                     <p className="text-sm text-white/50 truncate mt-2 flex items-center gap-1.5">
                       <IconLink size={14} />

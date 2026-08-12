@@ -12,10 +12,11 @@ import type {
 
 const FALLBACK_AVATAR = 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg';
 
-const METRICS: LeaderboardType[] = ['kills', 'headshots', 'damage', 'kda'];
+const METRICS: LeaderboardType[] = ['rating', 'kills', 'headshots', 'damage', 'kda'];
 
 function getMetricLabel(type: LeaderboardType) {
   switch (type) {
+    case 'rating': return 'XN Rating';
     case 'kills': return 'Sát Thủ';
     case 'headshots': return 'Bắn Đầu';
     case 'damage': return 'Sát Thương';
@@ -25,6 +26,7 @@ function getMetricLabel(type: LeaderboardType) {
 
 function getMetricIcon(type: LeaderboardType) {
   switch (type) {
+    case 'rating': return <IconTrophy size={20} aria-hidden="true" />;
     case 'kills': return <IconTrophy size={20} aria-hidden="true" />;
     case 'headshots': return <IconTarget size={20} aria-hidden="true" />;
     case 'damage': return <IconFlame size={20} aria-hidden="true" />;
@@ -36,6 +38,7 @@ function getRawPlayers(data: LeaderboardResponse | null, type: LeaderboardType):
   if (!data) return [];
 
   switch (type) {
+    case 'rating': return data.topRating || [];
     case 'kills': return data.topKillers || [];
     case 'headshots': return data.topHeadshot || [];
     case 'damage': return data.topDamage || [];
@@ -44,7 +47,9 @@ function getRawPlayers(data: LeaderboardResponse | null, type: LeaderboardType):
 }
 
 function toPlayers(data: LeaderboardResponse | null, type: LeaderboardType): LeaderboardPlayer[] {
-  const valueField: keyof LeaderboardPlayerRaw = type === 'kills'
+  const valueField: keyof LeaderboardPlayerRaw = type === 'rating'
+    ? 'rating'
+    : type === 'kills'
     ? 'total_kills'
     : type === 'headshots'
       ? 'total_headshots'
@@ -65,6 +70,9 @@ function toPlayers(data: LeaderboardResponse | null, type: LeaderboardType): Lea
     assists: Number(player.total_assists) || 0,
     headshotPercentage: player.headshot_percentage === undefined ? undefined : Number(player.headshot_percentage) || 0,
     kdaRatio: player.kda_ratio === undefined ? undefined : Number(player.kda_ratio) || 0,
+    matchesPlayed: Number(player.matches_played) || 0,
+    wins: Number(player.wins) || 0,
+    losses: Number(player.losses) || 0,
   }));
 }
 
@@ -76,6 +84,7 @@ function formatValue(value: number, type: LeaderboardType) {
 
 function valueUnit(type: LeaderboardType) {
   switch (type) {
+    case 'rating': return 'XN';
     case 'damage': return 'DMG';
     case 'headshots': return 'HS';
     case 'kda': return 'KDA';
@@ -141,7 +150,9 @@ function PlayerList({ players, type, loading }: { players: LeaderboardPlayer[]; 
             <span className="min-w-0 flex-1">
               <span className="block truncate font-medium">{player.name}</span>
               <span className="block text-sm text-white/50">
-                {type === 'headshots' && player.headshotPercentage !== undefined
+                {type === 'rating'
+                  ? `${player.wins} thắng · ${player.losses} thua · ${player.matchesPlayed} trận`
+                  : type === 'headshots' && player.headshotPercentage !== undefined
                   ? `${player.headshotPercentage.toFixed(1)}% chính xác`
                   : type === 'kda'
                     ? `${player.kills}K / ${player.deaths}D / ${player.assists}A`
@@ -257,16 +268,16 @@ export default function Cs2LeaderboardPage() {
       ) : (
         <>
           {error && <p className="text-sm text-amber-300" role="status">Dữ liệu tự động làm mới chưa thành công.</p>}
-          <div className="grid grid-cols-2 gap-6 max-lg:grid-cols-1">
+          <div className={`grid gap-6 max-lg:grid-cols-1 ${activeType === 'rating' ? 'grid-cols-1' : 'grid-cols-2'}`}>
             <section className="rounded-[30px] bg-gradient-to-br from-[#2b161b] to-[#1a0f12] p-6 max-sm:p-4" aria-labelledby="all-time-heading">
               <h2 id="all-time-heading" className="mb-4 text-xl font-bold">Mọi Thời Đại</h2>
               <PlayerList players={allTimePlayers} type={activeType} loading={loading} />
             </section>
 
-            <section className="rounded-[30px] bg-gradient-to-br from-[#2b161b] to-[#1a0f12] p-6 max-sm:p-4" aria-labelledby="weekly-heading">
+            {activeType !== 'rating' && <section className="rounded-[30px] bg-gradient-to-br from-[#2b161b] to-[#1a0f12] p-6 max-sm:p-4" aria-labelledby="weekly-heading">
               <h2 id="weekly-heading" className="mb-4 text-xl font-bold">Tuần Này</h2>
               <PlayerList players={weeklyPlayers} type={activeType} loading={loading} />
-            </section>
+            </section>}
           </div>
         </>
       )}

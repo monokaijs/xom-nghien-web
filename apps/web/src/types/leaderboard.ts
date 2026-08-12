@@ -1,4 +1,4 @@
-export type LeaderboardType = 'kills' | 'headshots' | 'damage' | 'kda';
+export type LeaderboardType = 'rating' | 'kills' | 'headshots' | 'damage' | 'kda';
 
 export interface LeaderboardPlayerRaw {
   steamid64: string;
@@ -11,6 +11,9 @@ export interface LeaderboardPlayerRaw {
   matches_played: string;
   headshot_percentage?: string;
   kda_ratio?: string;
+  rating?: string;
+  wins?: string;
+  losses?: string;
   avatar?: string;
 }
 
@@ -27,9 +30,13 @@ export interface LeaderboardPlayer {
   assists?: number;
   headshotPercentage?: number;
   kdaRatio?: number;
+  matchesPlayed?: number;
+  wins?: number;
+  losses?: number;
 }
 
 export interface LeaderboardResponse {
+  topRating: LeaderboardPlayerRaw[];
   topKillers: LeaderboardPlayerRaw[];
   topDamage: LeaderboardPlayerRaw[];
   topHeadshot: LeaderboardPlayerRaw[];

@@ -8,9 +8,10 @@
     "pnpm": ">=11.0.9"
   },
   "scripts": {
-    "dev": "turbo run dev --filter=!@xom/discord-bot --filter=!@xom/server-heartbeats",
+    "dev": "turbo run dev --filter=!@xom/discord-bot --filter=!@xom/server-heartbeats --filter=!@xom/demo-parser",
     "dev:bot": "pnpm --filter @xom/discord-bot dev",
     "dev:heartbeats": "pnpm --filter @xom/server-heartbeats dev",
+    "dev:parser": "pnpm --filter @xom/demo-parser dev",
     "dev:services": "docker compose -f compose.dev.yml up -d",
     "dev:services:down": "docker compose -f compose.dev.yml down",
     "build": "turbo run build",

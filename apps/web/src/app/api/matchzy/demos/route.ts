@@ -143,6 +143,12 @@ export async function POST(request: Request) {
           file_size: fileSize,
           sha256,
           uploaded_at: new Date(),
+          parse_status: 'queued',
+          parser_version: null,
+          parse_attempts: 0,
+          parse_started_at: null,
+          parsed_at: null,
+          parse_error: null,
         },
       });
     } catch (error) {
@@ -158,7 +164,7 @@ export async function POST(request: Request) {
       }
     }
 
-    return Response.json({ matchId, mapNumber, fileName, fileSize }, { status: 201 });
+    return Response.json({ matchId, mapNumber, fileName, fileSize, parseStatus: 'queued' }, { status: 201 });
   } catch (error) {
     await rm(temporaryPath, { force: true });
     if (error instanceof DemoTooLargeError) {

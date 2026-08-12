@@ -1,0 +1,23 @@
+services:
+  demo-parser:
+    image: ghcr.io/monokaijs/xom-nghien-web-demo-parser:latest
+    restart: unless-stopped
+    networks:
+      - shared-network
+    env_file:
+      - ./env/mysql.env
+      - ./env/matchzy.env
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DEMO_PARSER_PORT: 3300
+    volumes:
+      - matchzy_demos:/app/storage/match-demos
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3300/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5

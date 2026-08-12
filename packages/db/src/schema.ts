@@ -79,9 +79,85 @@ export const matchzyDemos = mysqlTable('matchzy_demos', {
   file_size: int('file_size', { unsigned: true }).notNull(),
   sha256: varchar('sha256', { length: 64 }).notNull(),
   uploaded_at: timestamp('uploaded_at').defaultNow().notNull(),
+  parse_status: varchar('parse_status', { length: 16 }).notNull().default('queued'),
+  parser_version: varchar('parser_version', { length: 64 }),
+  parse_attempts: int('parse_attempts', { unsigned: true }).notNull().default(0),
+  parse_started_at: datetime('parse_started_at', { mode: 'date', fsp: 3 }),
+  parsed_at: datetime('parsed_at', { mode: 'date', fsp: 3 }),
+  parse_error: text('parse_error'),
 }, (table) => ({
   uniqueMatchMap: unique('uq_matchzy_demos_match_map').on(table.matchid, table.mapnumber),
   idxMatch: index('idx_matchzy_demos_match').on(table.matchid),
+  idxParseQueue: index('idx_matchzy_demos_parse_queue').on(table.parse_status, table.uploaded_at),
+}));
+
+export const matchDemoRounds = mysqlTable('match_demo_rounds', {
+  demoId: int('demo_id').notNull().references(() => matchzyDemos.id, { onDelete: 'cascade' }),
+  roundNumber: int('round_number').notNull(),
+  startTick: int('start_tick'),
+  endTick: int('end_tick'),
+  winnerSide: varchar('winner_side', { length: 8 }),
+  winnerTeam: varchar('winner_team', { length: 255 }),
+  endReason: varchar('end_reason', { length: 64 }),
+  team1Score: int('team1_score').notNull().default(0),
+  team2Score: int('team2_score').notNull().default(0),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.demoId, table.roundNumber] }),
+}));
+
+export const matchDemoEvents = mysqlTable('match_demo_events', {
+  id: bigint('id', { mode: 'number', unsigned: true }).primaryKey().autoincrement(),
+  demoId: int('demo_id').notNull().references(() => matchzyDemos.id, { onDelete: 'cascade' }),
+  roundNumber: int('round_number').notNull().default(0),
+  tick: int('tick').notNull().default(0),
+  eventType: varchar('event_type', { length: 40 }).notNull(),
+  actorSteamid64: varchar('actor_steamid64', { length: 64 }),
+  targetSteamid64: varchar('target_steamid64', { length: 64 }),
+  weapon: varchar('weapon', { length: 64 }),
+  value: int('value'),
+  payload: text('payload'),
+}, (table) => ({
+  idxTimeline: index('idx_match_demo_events_timeline').on(table.demoId, table.roundNumber, table.tick),
+  idxType: index('idx_match_demo_events_type').on(table.demoId, table.eventType),
+}));
+
+export const xnRatings = mysqlTable('xn_ratings', {
+  steamid64: varchar('steamid64', { length: 64 }).primaryKey(),
+  rating: int('rating').notNull().default(1000),
+  matchesPlayed: int('matches_played', { unsigned: true }).notNull().default(0),
+  wins: int('wins', { unsigned: true }).notNull().default(0),
+  losses: int('losses', { unsigned: true }).notNull().default(0),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  idxRank: index('idx_xn_ratings_rank').on(table.rating, table.matchesPlayed),
+}));
+
+export const xnMatchRatings = mysqlTable('xn_match_ratings', {
+  matchid: int('matchid').primaryKey(),
+  status: varchar('status', { length: 16 }).notNull(),
+  reason: varchar('reason', { length: 255 }),
+  ratedAt: datetime('rated_at', { mode: 'date', fsp: 3 }),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  idxStatus: index('idx_xn_match_ratings_status').on(table.status, table.updatedAt),
+}));
+
+export const xnRatingLedger = mysqlTable('xn_rating_ledger', {
+  id: bigint('id', { mode: 'number', unsigned: true }).primaryKey().autoincrement(),
+  matchid: int('matchid').notNull(),
+  steamid64: varchar('steamid64', { length: 64 }).notNull(),
+  team: varchar('team', { length: 255 }).notNull(),
+  ratingBefore: int('rating_before').notNull(),
+  ratingDelta: int('rating_delta').notNull(),
+  ratingAfter: int('rating_after').notNull(),
+  expectedScore: float('expected_score').notNull(),
+  resultScore: float('result_score').notNull(),
+  opponentTeamRating: int('opponent_team_rating').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  uniqueMatchPlayer: unique('uq_xn_rating_match_player').on(table.matchid, table.steamid64),
+  idxPlayerHistory: index('idx_xn_rating_player_history').on(table.steamid64, table.matchid),
+  idxMatch: index('idx_xn_rating_match').on(table.matchid),
 }));
 
 export const userInfo = mysqlTable('user_info', {
@@ -261,6 +337,10 @@ export type MatchzyStatsMatch = typeof matchzyStatsMatches.$inferSelect;
 export type MatchzyStatsMap = typeof matchzyStatsMaps.$inferSelect;
 export type MatchzyStatsPlayer = typeof matchzyStatsPlayers.$inferSelect;
 export type MatchzyDemo = typeof matchzyDemos.$inferSelect;
+export type MatchDemoRound = typeof matchDemoRounds.$inferSelect;
+export type MatchDemoEvent = typeof matchDemoEvents.$inferSelect;
+export type XnRating = typeof xnRatings.$inferSelect;
+export type XnRatingLedgerEntry = typeof xnRatingLedger.$inferSelect;
 export type UserInfo = typeof userInfo.$inferSelect;
 export type NewUserInfo = typeof userInfo.$inferInsert;
 export type UserPoints = typeof userPoints.$inferSelect;

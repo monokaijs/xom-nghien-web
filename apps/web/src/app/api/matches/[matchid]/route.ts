@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@xom/db';
-import { matchzyDemos, matchzyStatsMatches, matchzyStatsMaps, matchzyStatsPlayers } from '@xom/db';
+import { matchzyDemos, matchzyStatsMatches, matchzyStatsMaps, matchzyStatsPlayers, xnRatingLedger, xnRatings } from '@xom/db';
 import { sql } from '@xom/db';
 
 export async function GET(
@@ -42,15 +42,21 @@ export async function GET(
     const playersQuery = sql`
       SELECT 
         p.*,
-        m.mapname
+        m.mapname,
+        xr.rating AS xn_rating,
+        xl.rating_delta,
+        xl.rating_after
       FROM ${matchzyStatsPlayers} p
       JOIN ${matchzyStatsMaps} m ON p.matchid = m.matchid AND p.mapnumber = m.mapnumber
+      LEFT JOIN ${xnRatings} xr ON xr.steamid64 = p.steamid64
+      LEFT JOIN ${xnRatingLedger} xl ON xl.matchid = p.matchid AND xl.steamid64 = p.steamid64
       WHERE p.matchid = ${matchId}
       ORDER BY p.mapnumber, p.kills DESC
     `;
 
     const demosQuery = sql`
-      SELECT matchid, mapnumber, file_name, file_size, sha256, uploaded_at
+      SELECT id, matchid, mapnumber, file_name, file_size, sha256, uploaded_at,
+             parse_status, parser_version, parsed_at, parse_error
       FROM ${matchzyDemos}
       WHERE matchid = ${matchId}
       ORDER BY mapnumber ASC

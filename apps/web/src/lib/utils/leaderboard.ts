@@ -1,5 +1,5 @@
 import { db } from '@xom/db';
-import { matchzyStatsPlayers, matchzyStatsMaps } from '@xom/db';
+import { matchzyStatsPlayers, matchzyStatsMaps, userInfo, xnRatings } from '@xom/db';
 import { sql } from '@xom/db';
 import { fetchAndCacheMultipleUsers } from '@/lib/steam-api';
 
@@ -87,11 +87,31 @@ export async function getLeaderboard(timeframe: 'all' | 'weekly' = 'all') {
       LIMIT 10
     `;
 
-    const [topKillers, topDamage, topHeadshot, topKDA] = await Promise.all([
+    const topRatingQuery = sql`
+      SELECT
+        r.steamid64,
+        COALESCE(u.name, '') as name,
+        r.rating,
+        r.matches_played,
+        r.wins,
+        r.losses,
+        0 as total_kills,
+        0 as total_deaths,
+        0 as total_damage,
+        0 as total_headshots,
+        u.avatarfull as avatar
+      FROM ${xnRatings} r
+      LEFT JOIN ${userInfo} u ON u.steamid64 = r.steamid64
+      ORDER BY r.rating DESC, r.matches_played DESC
+      LIMIT 25
+    `;
+
+    const [topKillers, topDamage, topHeadshot, topKDA, topRating] = await Promise.all([
       db.execute(topKillersQuery),
       db.execute(topDamageQuery),
       db.execute(topHeadshotQuery),
       db.execute(topKDAQuery),
+      db.execute(topRatingQuery),
     ]);
 
     const allSteamIds = new Set<string>();
@@ -99,6 +119,7 @@ export async function getLeaderboard(timeframe: 'all' | 'weekly' = 'all') {
     (topDamage[0] as unknown as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
     (topHeadshot[0] as unknown as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
     (topKDA[0] as unknown as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
+    (topRating[0] as unknown as any[]).forEach((player: any) => allSteamIds.add(player.steamid64));
 
     const steamUserData = await fetchAndCacheMultipleUsers(Array.from(allSteamIds));
 
@@ -107,12 +128,14 @@ export async function getLeaderboard(timeframe: 'all' | 'weekly' = 'all') {
         const steamData = steamUserData.get(player.steamid64);
         return {
           ...player,
-          avatar: steamData?.avatarfull || steamData?.avatarmedium || steamData?.avatar,
+          name: player.name || steamData?.personaname || 'Người chơi ẩn danh',
+          avatar: steamData?.avatarfull || steamData?.avatarmedium || steamData?.avatar || player.avatar,
         };
       });
     };
 
     return {
+      topRating: enrichPlayers(topRating[0] as unknown as any[]),
       topKillers: enrichPlayers(topKillers[0] as unknown as any[]),
       topDamage: enrichPlayers(topDamage[0] as unknown as any[]),
       topHeadshot: enrichPlayers(topHeadshot[0] as unknown as any[]),
@@ -121,6 +144,7 @@ export async function getLeaderboard(timeframe: 'all' | 'weekly' = 'all') {
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
     return {
+      topRating: [],
       topKillers: [],
       topDamage: [],
       topHeadshot: [],

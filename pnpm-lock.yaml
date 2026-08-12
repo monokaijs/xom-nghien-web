@@ -15,6 +15,40 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  apps/demo-parser:
+    dependencies:
+      '@laihoe/demoparser2':
+        specifier: 0.42.0
+        version: 0.42.0
+      '@xom/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      drizzle-orm:
+        specifier: ^0.44.7
+        version: 0.44.7(mysql2@3.22.3(@types/node@22.19.18))
+      mysql2:
+        specifier: ^3.15.3
+        version: 3.22.3(@types/node@22.19.18)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.18.0
+        version: 22.19.18
+      '@xom/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      esbuild:
+        specifier: ^0.25.12
+        version: 0.25.12
+      tsx:
+        specifier: ^4.20.6
+        version: 4.23.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@22.19.18)(vite@8.1.5(@types/node@22.19.18)(esbuild@0.25.12)(jiti@2.7.0)(tsx@4.23.1))
+
   apps/discord-bot:
     dependencies:
       '@xom/db':
@@ -1091,6 +1125,74 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
+
+  '@laihoe/demoparser2-android-arm-eabi@0.42.0':
+    resolution: {integrity: sha512-FMNCMu7vtCPEqE9/yMOlZLKd5DEvnK9O6zPK8m2R0Vxma4sVeNMNqaox99Z9uAEuDh9HUTSNxhu2b8d4U0cAfQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm]
+    os: [android]
+
+  '@laihoe/demoparser2-android-arm64@0.42.0':
+    resolution: {integrity: sha512-zaHWPD581v46lTWUHcl379yjHW/x+1GFf/iU7OlWUWUkoblQlsFRE+WC9qYtrNrz8vO9HD+YNkNxGFAnhzmXmQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [android]
+
+  '@laihoe/demoparser2-darwin-arm64@0.42.0':
+    resolution: {integrity: sha512-vZGlPcnYVb75LsitDSBdNkp+g1gZxyHAQxhdowRR452BGQITwEMrRaGP9efo7oId78nX9KjfSy6kjaCiU070PQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@laihoe/demoparser2-linux-arm-gnueabihf@0.42.0':
+    resolution: {integrity: sha512-Md9rioYT6Hb7Jr2Ob+0VZGFs5w9kD3iRd9Lh0lYvBdIGwG94KwNkmINQI79FtCf5WC0kAiQsXIRakiZM49Fh4Q==}
+    engines: {node: '>= 10'}
+    cpu: [arm]
+    os: [linux]
+
+  '@laihoe/demoparser2-linux-arm64-gnu@0.42.0':
+    resolution: {integrity: sha512-Ng3TfUXqhjBufjU+8CaVoc2MxthaABS3gkZPfbZVb/UBdA74HguVuzmeioNYDa4mJkN3oau4FcXxoxQd9jkD9A==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@laihoe/demoparser2-linux-arm64-musl@0.42.0':
+    resolution: {integrity: sha512-mV1HWvUw7H/9NCS6AfgNEzAxKunyDsxG2e+CtBo57ArzIYvpKWVO8nMtf9UH1XTciHHelpji9VqWwusP3ZbfPg==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@laihoe/demoparser2-linux-x64-gnu@0.42.0':
+    resolution: {integrity: sha512-mhU7QEZuwXKEYH5Kx0O2R3zd2zWT5XdTzBLpfUwo7bDPhZVgP3n4p7GU6IAf2ckN+zmX4tn8N93fyPTi0hiTSw==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@laihoe/demoparser2-linux-x64-musl@0.42.0':
+    resolution: {integrity: sha512-8MSt652uyVFoXvEZbXRY1Nesc9IDol6o8rO5unEX7X7mPTRyFkj2lu+XnPOY8r0KvY8a/jkvwuqmHtNH3ojQQA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@laihoe/demoparser2-win32-arm64-msvc@0.42.0':
+    resolution: {integrity: sha512-q4o/Z5XKhURus4AZ8L9EHTaV9JfXICeUnGdCuXrhXkqLrYCOroxy6zxL3r4QD9p55XwWVY59Kh6tICj7PdfJDQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@laihoe/demoparser2-win32-x64-msvc@0.42.0':
+    resolution: {integrity: sha512-6qLCtvtrB/rRoqWm9aFFT77B87LPkDoMQXmkch/2QTJreYaszi0sULiQNMNStQWhnJhs2CuBWkaoleUO+3It5A==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@laihoe/demoparser2@0.42.0':
+    resolution: {integrity: sha512-W1O/7RxKIum/HdUqXnpW/33tfiuVC4qVMQwJjMOklAr9AsxGkf5Tn7MzT3hOQ8QsTCB6M6bBYxxRMnodbeF4lw==}
+    engines: {node: '>= 10'}
 
   '@msgpack/msgpack@2.8.0':
     resolution: {integrity: sha512-h9u4u/jiIRKbq25PM+zymTyW6bhTzELvOoUd+AvYriWOAKpLGnIamaET3pnHYoI5iYphAHBI4ayx0MehR+VVPQ==}
@@ -3516,6 +3618,49 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@laihoe/demoparser2-android-arm-eabi@0.42.0':
+    optional: true
+
+  '@laihoe/demoparser2-android-arm64@0.42.0':
+    optional: true
+
+  '@laihoe/demoparser2-darwin-arm64@0.42.0':
+    optional: true
+
+  '@laihoe/demoparser2-linux-arm-gnueabihf@0.42.0':
+    optional: true
+
+  '@laihoe/demoparser2-linux-arm64-gnu@0.42.0':
+    optional: true
+
+  '@laihoe/demoparser2-linux-arm64-musl@0.42.0':
+    optional: true
+
+  '@laihoe/demoparser2-linux-x64-gnu@0.42.0':
+    optional: true
+
+  '@laihoe/demoparser2-linux-x64-musl@0.42.0':
+    optional: true
+
+  '@laihoe/demoparser2-win32-arm64-msvc@0.42.0':
+    optional: true
+
+  '@laihoe/demoparser2-win32-x64-msvc@0.42.0':
+    optional: true
+
+  '@laihoe/demoparser2@0.42.0':
+    optionalDependencies:
+      '@laihoe/demoparser2-android-arm-eabi': 0.42.0
+      '@laihoe/demoparser2-android-arm64': 0.42.0
+      '@laihoe/demoparser2-darwin-arm64': 0.42.0
+      '@laihoe/demoparser2-linux-arm-gnueabihf': 0.42.0
+      '@laihoe/demoparser2-linux-arm64-gnu': 0.42.0
+      '@laihoe/demoparser2-linux-arm64-musl': 0.42.0
+      '@laihoe/demoparser2-linux-x64-gnu': 0.42.0
+      '@laihoe/demoparser2-linux-x64-musl': 0.42.0
+      '@laihoe/demoparser2-win32-arm64-msvc': 0.42.0
+      '@laihoe/demoparser2-win32-x64-msvc': 0.42.0
 
   '@msgpack/msgpack@2.8.0': {}
 

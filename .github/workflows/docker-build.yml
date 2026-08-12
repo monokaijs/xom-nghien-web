@@ -63,6 +63,18 @@ jobs:
           cache-from: type=gha,scope=server-heartbeats
           cache-to: type=gha,mode=max,scope=server-heartbeats
 
+      - name: Build and push demo parser
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.demo-parser
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}-demo-parser:latest
+            ghcr.io/${{ github.repository }}-demo-parser:main-${{ github.sha }}
+          cache-from: type=gha,scope=demo-parser
+          cache-to: type=gha,mode=max,scope=demo-parser
+
       - name: Build and push inventory
         uses: docker/build-push-action@v5
         with:
@@ -91,6 +103,7 @@ jobs:
       DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
       GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       MATCHZY_UPLOAD_TOKEN: ${{ secrets.MATCHZY_UPLOAD_TOKEN }}
+      XN_RATED_SERVER_ADDRESSES: ${{ secrets.XN_RATED_SERVER_ADDRESSES }}
 
     steps:
       - name: Checkout
@@ -114,8 +127,8 @@ jobs:
           set -euo pipefail
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "mkdir -p '${DEPLOY_PATH}/env' '${DEPLOY_PATH}/mysql-migrations' && test -s '${DEPLOY_PATH}/env/discord-bot.env'"
-          printf 'MATCHZY_UPLOAD_TOKEN=%s\nMATCH_DEMO_STORAGE_DIR=/app/storage/match-demos\nMATCHZY_DATABASE_PUBLIC_HOST=%s\n' \
-            "${MATCHZY_UPLOAD_TOKEN}" "${DEPLOY_HOST}" \
+          printf 'MATCHZY_UPLOAD_TOKEN=%s\nMATCH_DEMO_STORAGE_DIR=/app/storage/match-demos\nMATCHZY_DATABASE_PUBLIC_HOST=%s\nXN_RATED_SERVER_ADDRESSES=%s\n' \
+            "${MATCHZY_UPLOAD_TOKEN}" "${DEPLOY_HOST}" "${XN_RATED_SERVER_ADDRESSES}" \
             | ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
                 "umask 077; cat > '${DEPLOY_PATH}/env/matchzy.env'"
           scp -i ~/.ssh/deploy_key .github/deploy/compose.matchzy.yml \
@@ -124,6 +137,8 @@ jobs:
             "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/compose.discord-bot.yml"
           scp -i ~/.ssh/deploy_key .github/deploy/compose.server-heartbeats.yml \
             "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/compose.server-heartbeats.yml"
+          scp -i ~/.ssh/deploy_key .github/deploy/compose.demo-parser.yml \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/compose.demo-parser.yml"
           scp -i ~/.ssh/deploy_key .github/deploy/configure-matchzy-nginx.py \
             "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/configure-matchzy-nginx.py"
           scp -i ~/.ssh/deploy_key packages/db/migrations/017_add_matchzy_demos.sql \
@@ -140,15 +155,17 @@ jobs:
             "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/022_add_launcher_connections.sql"
           scp -i ~/.ssh/deploy_key packages/db/migrations/023_add_server_rcon_endpoint.sql \
             "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/023_add_server_rcon_endpoint.sql"
+          scp -i ~/.ssh/deploy_key packages/db/migrations/024_add_match_analysis_and_ratings.sql \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/024_add_match_analysis_and_ratings.sql"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "cd '${DEPLOY_PATH}' && chmod 600 env/matchzy.env && python3 configure-matchzy-nginx.py && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml config >/dev/null && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml up -d mysql && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml exec -T mysql sh -lc 'for i in \$(seq 1 30); do mysqladmin ping -h 127.0.0.1 -u root -p\"\$MYSQL_ROOT_PASSWORD\" --silent && exit 0; sleep 2; done; exit 1' && for migration in 017_add_matchzy_demos.sql 018_add_server_sort_order.sql 019_add_discord_activity.sql 020_add_voice_rooms.sql 021_add_server_mods.sql 022_add_launcher_connections.sql 023_add_server_rcon_endpoint.sql; do docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml exec -T mysql sh -lc 'exec mysql -u\"\$MYSQL_USER\" -p\"\$MYSQL_PASSWORD\" \"\$MYSQL_DATABASE\"' < \"mysql-migrations/\$migration\"; done"
+            "cd '${DEPLOY_PATH}' && chmod 600 env/matchzy.env && python3 configure-matchzy-nginx.py && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml config >/dev/null && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml up -d mysql && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml exec -T mysql sh -lc 'for i in \$(seq 1 30); do mysqladmin ping -h 127.0.0.1 -u root -p\"\$MYSQL_ROOT_PASSWORD\" --silent && exit 0; sleep 2; done; exit 1' && for migration in 017_add_matchzy_demos.sql 018_add_server_sort_order.sql 019_add_discord_activity.sql 020_add_voice_rooms.sql 021_add_server_mods.sql 022_add_launcher_connections.sql 023_add_server_rcon_endpoint.sql 024_add_match_analysis_and_ratings.sql; do docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml exec -T mysql sh -lc 'exec mysql -u\"\$MYSQL_USER\" -p\"\$MYSQL_PASSWORD\" \"\$MYSQL_DATABASE\"' < \"mysql-migrations/\$migration\"; done"
 
       - name: Pull and restart
         run: |
           set -euo pipefail
           printf '%s' "${GHCR_TOKEN}" | ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
-          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml pull web inventory discord-bot server-heartbeats"
-          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml up -d --remove-orphans web inventory discord-bot server-heartbeats nginx"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml pull web inventory discord-bot server-heartbeats demo-parser"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml up -d --remove-orphans web inventory discord-bot server-heartbeats demo-parser nginx"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml rm -sf spawner redis || true"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml exec -T nginx nginx -t && docker compose -f compose.yml -f compose.matchzy.yml restart nginx"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "docker image prune -f"

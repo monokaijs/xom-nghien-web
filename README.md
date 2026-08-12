@@ -31,6 +31,29 @@ server directly.
 The service starts with `pnpm dev:services`. To run it directly instead, keep
 MySQL running and use `pnpm dev:heartbeats`.
 
+## Match demo analysis and XN Rating
+
+Apply `packages/db/migrations/024_add_match_analysis_and_ratings.sql` to an
+existing database, then configure `MATCH_DEMO_STORAGE_DIR` and the comma-separated
+`XN_RATED_SERVER_ADDRESSES` allowlist. Only completed 5v5 matches from those
+servers are eligible for XN Rating.
+
+Run the parser directly beside the web app:
+
+```bash
+pnpm dev:parser
+```
+
+Or run the container profile, which shares uploaded demos with the worker:
+
+```bash
+docker compose -f compose.dev.yml --profile parser up -d --build demo-parser
+```
+
+Uploads are queued automatically. The worker parses rounds and useful game
+events, retries transient failures, and applies each eligible rating change once
+through the immutable rating ledger.
+
 ## Discord activity bot
 
 Create a Discord application, install it in the community guild with the `bot`

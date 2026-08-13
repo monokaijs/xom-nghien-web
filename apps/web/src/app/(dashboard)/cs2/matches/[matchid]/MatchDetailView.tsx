@@ -16,6 +16,7 @@ import {
   IconTrophy,
 } from '@tabler/icons-react';
 import { getMapImage } from '@/lib/utils/mapImage';
+import type { PlayerCombatEvent, PlayerMatchAnalytics } from '@/lib/cs2/playerAnalytics';
 
 export interface MatchDetailData {
   match: {
@@ -55,6 +56,7 @@ export interface MatchDetailData {
     team2_score: number;
   }>;
   events: DemoEvent[];
+  playerAnalytics: Record<string, PlayerMatchAnalytics>;
 }
 
 interface Player {
@@ -388,6 +390,257 @@ function Timeline({ data }: { data: MatchDetailData }) {
   ))}</div>;
 }
 
+interface RosterPlayer {
+  steamid64: string;
+  name: string;
+  team: string;
+  avatar: string | null;
+  kills: number;
+  deaths: number;
+}
+
+const WEAPON_LABELS: Record<string, string> = {
+  ak47: 'AK-47', m4a1: 'M4A4', m4a1_silencer: 'M4A1-S', awp: 'AWP', aug: 'AUG',
+  famas: 'FAMAS', galilar: 'Galil AR', sg556: 'SG 553', scar20: 'SCAR-20', g3sg1: 'G3SG1',
+  usp_silencer: 'USP-S', hkp2000: 'P2000', glock: 'Glock-18', deagle: 'Desert Eagle',
+  elite: 'Dual Berettas', fiveseven: 'Five-SeveN', tec9: 'Tec-9', cz75a: 'CZ75-Auto', revolver: 'R8 Revolver',
+  mac10: 'MAC-10', mp9: 'MP9', mp7: 'MP7', mp5sd: 'MP5-SD', ump45: 'UMP-45', p90: 'P90', bizon: 'PP-Bizon',
+  nova: 'Nova', xm1014: 'XM1014', mag7: 'MAG-7', sawedoff: 'Sawed-Off', m249: 'M249', negev: 'Negev',
+  hegrenade: 'HE Grenade', inferno: 'Molotov', molotov: 'Molotov', knife: 'Knife', taser: 'Zeus x27',
+};
+
+const WEAPON_ICON_ALIASES: Record<string, string> = {
+  mp5sd: 'mp5sd', incendiary: 'incgrenade', inferno: 'molotov', world: 'knife',
+};
+
+function weaponLabel(weapon: string) {
+  return WEAPON_LABELS[weapon] || weapon.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function weaponCategory(weapon: string) {
+  if (['ak47', 'm4a1', 'm4a1_silencer', 'aug', 'famas', 'galilar', 'sg556'].includes(weapon)) return 'RIFLE';
+  if (['awp', 'scar20', 'g3sg1', 'ssg08'].includes(weapon)) return 'SNIPER';
+  if (['mac10', 'mp9', 'mp7', 'mp5sd', 'ump45', 'p90', 'bizon'].includes(weapon)) return 'SMG';
+  if (['nova', 'xm1014', 'mag7', 'sawedoff', 'm249', 'negev'].includes(weapon)) return 'HEAVY';
+  if (['hegrenade', 'inferno', 'molotov', 'incgrenade', 'flashbang', 'smokegrenade'].includes(weapon)) return 'GRENADE';
+  if (weapon.includes('knife')) return 'MELEE';
+  return 'PISTOL';
+}
+
+function WeaponIcon({ weapon, className = 'h-6 w-14' }: { weapon: string; className?: string }) {
+  const icon = WEAPON_ICON_ALIASES[weapon] || weapon;
+  return (
+    <img
+      src={`https://raw.githubusercontent.com/Juknum/counter-strike-icons/main/cs2/panorama/images/icons/equipment/${icon}.svg`}
+      alt={weaponLabel(weapon)}
+      className={`${className} object-contain opacity-80 brightness-0 invert`}
+    />
+  );
+}
+
+function PlayerAvatar({ player, size = 'h-8 w-8' }: { player?: RosterPlayer; size?: string }) {
+  return <img src={player?.avatar || '/favicon.png'} alt="" className={`${size} shrink-0 rounded-lg bg-white/10 object-cover`} />;
+}
+
+function CombatFeed({
+  title,
+  events,
+  selected,
+  roster,
+  deaths = false,
+  multiMap,
+}: {
+  title: string;
+  events: PlayerCombatEvent[];
+  selected: RosterPlayer;
+  roster: Map<string, RosterPlayer>;
+  deaths?: boolean;
+  multiMap: boolean;
+}) {
+  return (
+    <section className="overflow-hidden rounded-[20px] border border-white/[0.07] bg-card-bg">
+      <header className="flex items-center gap-2 border-b border-white/[0.07] bg-bg-panel/45 px-4 py-2.5">
+        <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/65">{title}</span>
+        <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${deaths ? 'bg-rose-400/15 text-rose-300' : 'bg-accent-primary/15 text-accent-primary'}`}>{events.length}</span>
+      </header>
+      <div className="max-h-[325px] overflow-y-auto px-4">
+        {!events.length && <p className="py-10 text-center text-sm text-white/35">Không có dữ liệu</p>}
+        {events.map((event) => {
+          const attacker = deaths ? roster.get(event.actor_steamid64) : selected;
+          const victim = deaths ? selected : roster.get(event.target_steamid64);
+          return (
+            <div key={event.id} className="grid grid-cols-[46px_minmax(0,1fr)_72px_20px_minmax(0,1fr)] items-center gap-2 border-b border-white/[0.055] py-2.5 last:border-0">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">{multiMap ? `M${event.mapnumber + 1} · ` : ''}R{event.round_number}</span>
+              <span className={`flex min-w-0 items-center gap-2 ${deaths ? 'text-sky-300' : 'text-accent-primary'}`}>
+                <PlayerAvatar player={attacker} size="h-6 w-6" />
+                <b className="truncate text-xs">{attacker?.name || 'Unknown'}</b>
+              </span>
+              <WeaponIcon weapon={event.weapon} className="h-5 w-[72px]" />
+              <span className={event.headshot ? 'text-amber-300' : 'text-white/25'}><Cs2HudIcon name="elimination" size={16} /></span>
+              <span className={`flex min-w-0 items-center justify-end gap-2 ${deaths ? 'text-amber-300' : 'text-sky-300'}`}>
+                <b className="truncate text-xs">{victim?.name || 'Unknown'}</b>
+                <PlayerAvatar player={victim} size="h-6 w-6" />
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const HIT_REGIONS = [
+  { key: 'head', label: 'Đầu', aliases: ['head', 'neck'] },
+  { key: 'chest', label: 'Ngực', aliases: ['chest'] },
+  { key: 'stomach', label: 'Bụng', aliases: ['stomach'] },
+  { key: 'arms', label: 'Tay', aliases: ['left_arm', 'right_arm'] },
+  { key: 'legs', label: 'Chân', aliases: ['left_leg', 'right_leg'] },
+  { key: 'other', label: 'Khác', aliases: ['generic'] },
+] as const;
+
+function HitDistribution({ analytics }: { analytics: PlayerMatchAnalytics }) {
+  const regions = HIT_REGIONS.map((definition) => {
+    const source = analytics.hitRegions.filter((region) => definition.aliases.includes(region.region as never));
+    return { ...definition, hits: source.reduce((sum, region) => sum + region.hits, 0), damage: source.reduce((sum, region) => sum + region.damage, 0) };
+  });
+  const totalHits = Math.max(1, analytics.totals.hits);
+  const opacity = (key: string) => 0.12 + (regions.find((region) => region.key === key)?.hits || 0) / totalHits * 0.88;
+
+  return (
+    <section className="overflow-hidden rounded-[20px] border border-white/[0.07] bg-card-bg">
+      <header className="border-b border-white/[0.07] bg-bg-panel/35 px-4 py-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">Phân bố sát thương</p>
+        <p className="mt-1 text-sm font-bold">Tất cả vũ khí</p>
+      </header>
+      <div className="grid grid-cols-3 gap-2 p-3">
+        {[
+          ['Kills', analytics.totals.kills],
+          ['Hits', analytics.totals.hits],
+          ['Damage', analytics.totals.damage.toLocaleString('vi-VN')],
+        ].map(([label, value]) => <div key={label} className="rounded-lg bg-white/[0.035] px-2 py-2 text-center"><b className="block text-base">{value}</b><span className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/35">{label}</span></div>)}
+      </div>
+      <svg viewBox="0 0 180 300" className="mx-auto my-2 h-60 w-40" role="img" aria-label="Phân bố vị trí trúng đạn">
+        <circle cx="90" cy="29" r="20" fill="currentColor" opacity={opacity('head')} />
+        <path d="M71 53 Q90 46 109 53 L122 132 Q90 150 58 132Z" fill="currentColor" opacity={opacity('chest')} />
+        <path d="M60 132 Q90 146 120 132 L115 181 Q90 193 65 181Z" fill="currentColor" opacity={opacity('stomach')} />
+        <path d="M60 59 L42 72 L20 165 Q24 174 34 169 L67 92Z M120 59 L138 72 L160 165 Q156 174 146 169 L113 92Z" fill="currentColor" opacity={opacity('arms')} />
+        <path d="M65 178 L84 184 L79 278 Q71 292 60 282Z M115 178 L96 184 L101 278 Q109 292 120 282Z" fill="currentColor" opacity={opacity('legs')} />
+      </svg>
+      <div className="border-t border-white/[0.07] px-4 pb-3 pt-1">
+        {regions.filter((region) => region.hits).map((region) => (
+          <div key={region.key} className="grid grid-cols-[1fr_48px_60px_48px] items-center border-b border-white/[0.05] py-2 text-xs last:border-0">
+            <span className="flex items-center gap-2 font-semibold"><i className="h-2 w-2 rounded-full bg-accent-primary" style={{ opacity: opacity(region.key) }} />{region.label}</span>
+            <span className="text-right text-white/60">{region.hits}</span>
+            <span className="text-right text-white/60">{region.damage}</span>
+            <b className="text-right">{(region.hits / totalHits * 100).toFixed(1)}%</b>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PlayerAnalysis({ data }: { data: MatchDetailData }) {
+  const roster = useMemo(() => {
+    const result = new Map<string, RosterPlayer>();
+    for (const row of data.players) {
+      const steamid64 = String(row.steamid64);
+      const current = result.get(steamid64);
+      if (current) {
+        current.kills += number(row.kills);
+        current.deaths += number(row.deaths);
+        if (!current.avatar) current.avatar = row.avatarmedium || row.avatar;
+      } else {
+        result.set(steamid64, {
+          steamid64,
+          name: row.name,
+          team: row.team,
+          avatar: row.avatarmedium || row.avatar,
+          kills: number(row.kills),
+          deaths: number(row.deaths),
+        });
+      }
+    }
+    return result;
+  }, [data.players]);
+  const team1 = [...roster.values()].filter((player) => player.team === data.match.team1_name).sort((a, b) => b.kills - a.kills);
+  const team2 = [...roster.values()].filter((player) => player.team === data.match.team2_name).sort((a, b) => b.kills - a.kills);
+  const allPlayers = [...team1, ...team2];
+  const [selectedId, setSelectedId] = useState(allPlayers[0]?.steamid64 || '');
+  const selected = roster.get(selectedId) || allPlayers[0];
+  const emptyAnalytics: PlayerMatchAnalytics = { kills: [], deaths: [], weapons: [], hitRegions: [], totals: { kills: 0, shots: 0, hits: 0, damage: 0 } };
+  const analytics = selected ? data.playerAnalytics[selected.steamid64] || emptyAnalytics : emptyAnalytics;
+
+  if (!selected || !data.events.length) return <EmptyParsedState demos={data.demos} />;
+
+  const picker = (teamName: string, members: RosterPlayer[]) => (
+    <div className="min-w-0 p-4">
+      <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-white/65">{teamName}</h3>
+      <div className="scrollbar-hide flex gap-2 overflow-x-auto">
+        {members.map((player) => {
+          const active = player.steamid64 === selected.steamid64;
+          return (
+            <button key={player.steamid64} type="button" onClick={() => setSelectedId(player.steamid64)} className={`relative flex min-w-[104px] flex-col items-center rounded-xl px-2 py-3 text-center transition-colors ${active ? 'bg-accent-primary/12 text-white ring-1 ring-inset ring-accent-primary/25' : 'hover:bg-white/[0.045] text-white/65'}`}>
+              <PlayerAvatar player={player} size="h-12 w-12" />
+              <b className="mt-2 w-full truncate text-xs">{player.name}</b>
+              <span className="mt-1 text-[10px] text-white/40">{player.kills} / {player.deaths}</span>
+              {active && <i className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-accent-primary" />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      <section className="grid divide-y divide-white/[0.07] overflow-hidden rounded-[20px] border border-white/[0.07] bg-card-bg lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+        {picker(data.match.team1_name || 'Đội A', team1)}
+        {picker(data.match.team2_name || 'Đội B', team2)}
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <CombatFeed title="Kills" events={analytics.kills} selected={selected} roster={roster} multiMap={data.maps.length > 1} />
+        <CombatFeed title="Deaths" events={analytics.deaths} selected={selected} roster={roster} deaths multiMap={data.maps.length > 1} />
+      </div>
+
+      <div className="flex items-center gap-3 border-b border-white/[0.08] pb-3">
+        <h2 className="text-sm font-bold uppercase tracking-[0.18em]">Vũ khí <span className="text-white/30">· {analytics.weapons.length}</span></h2>
+        <span className="ml-auto rounded-lg bg-accent-primary px-3 py-1 text-[10px] font-black uppercase tracking-wider text-bg-primary">General</span>
+      </div>
+
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="overflow-hidden rounded-[20px] border border-white/[0.07] bg-card-bg">
+          <div className="grid grid-cols-[minmax(220px,1fr)_60px_74px_72px_76px] gap-2 border-b border-white/[0.07] bg-bg-panel/35 px-4 py-2.5 text-right text-[9px] font-bold uppercase tracking-[0.18em] text-white/35">
+            <span className="text-left">Vũ khí</span><span>Kills</span><span>Damage</span><span>Head hit</span><span>Avg dist</span>
+          </div>
+          {!analytics.weapons.length && <p className="py-14 text-center text-sm text-white/35">Không có dữ liệu vũ khí</p>}
+          {analytics.weapons.map((weapon) => {
+            const killShare = analytics.totals.kills ? weapon.kills / analytics.totals.kills * 100 : 0;
+            const headHit = weapon.hits ? weapon.headHits / weapon.hits * 100 : 0;
+            return (
+              <div key={weapon.weapon} className="grid grid-cols-[minmax(220px,1fr)_60px_74px_72px_76px] items-center gap-2 border-b border-white/[0.055] px-4 py-3 last:border-0 hover:bg-white/[0.025]">
+                <div className="flex min-w-0 items-center gap-3">
+                  <WeaponIcon weapon={weapon.weapon} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2"><b className="truncate text-xs">{weaponLabel(weapon.weapon)}</b><span className="rounded border border-white/10 px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-white/40">{weaponCategory(weapon.weapon)}</span></div>
+                    <div className="mt-2 flex items-center gap-2"><span className="h-1 flex-1 overflow-hidden rounded-full bg-black/25"><i className="block h-full bg-accent-primary" style={{ width: `${killShare}%` }} /></span><span className="w-9 text-right text-[9px] text-white/35">{killShare.toFixed(1)}%</span></div>
+                  </div>
+                </div>
+                <b className="text-right text-sm">{weapon.kills}</b>
+                <b className="text-right text-sm">{weapon.damage}</b>
+                <b className={`text-right text-sm ${headHit >= 50 ? 'text-amber-300' : ''}`}>{headHit.toFixed(1)}%</b>
+                <b className="text-right text-sm">{weapon.averageKillDistance === null ? '—' : `${weapon.averageKillDistance.toFixed(1)}m`}</b>
+              </div>
+            );
+          })}
+        </section>
+        <HitDistribution analytics={analytics} />
+      </div>
+    </div>
+  );
+}
+
 function Weapons({ data, names }: { data: MatchDetailData; names: Map<string, string> }) {
   const rows = useMemo(() => {
     const totals = new Map<string, { kills: number; players: Set<string> }>();
@@ -504,12 +757,7 @@ export function MatchDetailView({ data }: { data: MatchDetailData }) {
           return <section key={map.mapnumber} className="space-y-4"><div className="flex items-center justify-between"><h2 className="text-xl font-bold">{map.mapname}</h2><span className="rounded-lg bg-white/5 px-3 py-1 text-sm text-white/55">{map.team1_score} – {map.team2_score}</span></div><TeamTable teamName={match.team1_name} score={map.team1_score} players={mapPlayers.filter((player) => player.team === match.team1_name)} rounds={mapRounds} winner={map.team1_score > map.team2_score} demo={demo} matchId={match.matchid} /><RoundStrip data={data} mapnumber={map.mapnumber} /><TeamTable teamName={match.team2_name} score={map.team2_score} players={mapPlayers.filter((player) => player.team === match.team2_name)} rounds={mapRounds} winner={map.team2_score > map.team1_score} demo={demo} matchId={match.matchid} /></section>;
         })}</div>}
         {activeTab === 'timeline' && <Timeline data={data} />}
-        {activeTab === 'players' && <div className="space-y-6">{maps.map((map) => {
-          const mapPlayers = players.filter((player) => player.mapnumber === map.mapnumber);
-          const mapRounds = map.team1_score + map.team2_score;
-          const demo = demos.find((item) => item.mapnumber === map.mapnumber);
-          return <section key={map.mapnumber} className="space-y-3"><h2 className="text-lg font-bold">{map.mapname}</h2><TeamTable teamName={match.team1_name} score={map.team1_score} players={mapPlayers.filter((player) => player.team === match.team1_name)} rounds={mapRounds} winner={map.team1_score > map.team2_score} demo={demo} matchId={match.matchid} /><TeamTable teamName={match.team2_name} score={map.team2_score} players={mapPlayers.filter((player) => player.team === match.team2_name)} rounds={mapRounds} winner={map.team2_score > map.team1_score} demo={demo} matchId={match.matchid} /></section>;
-        })}</div>}
+        {activeTab === 'players' && <PlayerAnalysis data={data} />}
         {activeTab === 'weapons' && <Weapons data={data} names={names} />}
         {activeTab === 'duels' && <Duels data={data} names={names} />}
         {activeTab === 'insights' && <Insights data={data} />}

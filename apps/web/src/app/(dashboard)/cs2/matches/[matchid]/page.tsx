@@ -12,6 +12,7 @@ import {
   xnRatingLedger,
   xnRatings,
 } from '@xom/db';
+import { buildPlayerAnalytics, type RawPlayerAnalysisEvent } from '@/lib/cs2/playerAnalytics';
 import { MatchDetailView, type MatchDetailData } from './MatchDetailView';
 
 export const dynamic = 'force-dynamic';
@@ -58,7 +59,7 @@ async function getMatchData(rawMatchId: string): Promise<MatchDetailData | null>
     `),
     db.execute(sql`
       SELECT d.mapnumber, e.id, e.round_number, e.tick, e.event_type,
-             e.actor_steamid64, e.target_steamid64, e.weapon, e.value
+             e.actor_steamid64, e.target_steamid64, e.weapon, e.value, e.payload
       FROM ${matchDemoEvents} e
       JOIN ${matchzyDemos} d ON d.id = e.demo_id
       WHERE d.matchid = ${matchId} AND d.parse_status = 'complete'
@@ -68,6 +69,8 @@ async function getMatchData(rawMatchId: string): Promise<MatchDetailData | null>
 
   const match = (matchResult[0] as unknown as MatchDetailData['match'][])[0];
   if (!match) return null;
+  const rawEvents = eventsResult[0] as unknown as RawPlayerAnalysisEvent[];
+  const events = rawEvents.map(({ payload: _payload, ...event }) => event);
 
   return {
     match,
@@ -75,7 +78,8 @@ async function getMatchData(rawMatchId: string): Promise<MatchDetailData | null>
     players: playersResult[0] as unknown as MatchDetailData['players'],
     demos: demosResult[0] as unknown as MatchDetailData['demos'],
     rounds: roundsResult[0] as unknown as MatchDetailData['rounds'],
-    events: eventsResult[0] as unknown as MatchDetailData['events'],
+    events,
+    playerAnalytics: buildPlayerAnalytics(rawEvents),
   };
 }
 

@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-import { MAX_DEMO_BYTES, DemoTooLargeError, InvalidDemoError, sanitizeDemoFileName, storeMatchDemo } from '@/lib/matchDemos';
+import { DEMO_SIZE_LIMIT_MESSAGE, MAX_DEMO_BYTES, DemoTooLargeError, InvalidDemoError, sanitizeDemoFileName, storeMatchDemo } from '@/lib/matchDemos';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Demo body is required' }, { status: 400 });
   }
   if (Number.isFinite(contentLength) && contentLength > MAX_DEMO_BYTES) {
-    return Response.json({ error: 'Demo exceeds the 2 GiB upload limit' }, { status: 413 });
+    return Response.json({ error: DEMO_SIZE_LIMIT_MESSAGE }, { status: 413 });
   }
 
   try {

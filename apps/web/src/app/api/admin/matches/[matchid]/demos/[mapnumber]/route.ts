@@ -4,8 +4,12 @@ import { and, db, eq, matchzyDemos, matchzyStatsMaps } from '@xom/db';
 import { requireAdmin } from '@/lib/auth';
 import {
   DemoTooLargeError,
+  DEMO_SIZE_LIMIT_MESSAGE,
+  InvalidDemoChunkError,
   InvalidDemoError,
   MAX_DEMO_BYTES,
+  appendMatchDemoChunk,
+  parseDemoChunkRange,
   resolveDemoStoragePath,
   sanitizeDemoFileName,
   storeMatchDemo,
@@ -35,8 +39,11 @@ export const POST = requireAdmin(async (request: NextRequest, _user, context) =>
   const fileName = sanitizeDemoFileName(decodedFileName);
   if (!fileName || !request.body) return NextResponse.json({ error: 'A valid .dem file is required' }, { status: 400 });
   const contentLength = Number(request.headers.get('content-length') || '0');
-  if (Number.isFinite(contentLength) && contentLength > MAX_DEMO_BYTES) {
-    return NextResponse.json({ error: 'Demo exceeds the 2 GiB upload limit' }, { status: 413 });
+  const uploadId = request.headers.get('x-demo-upload-id');
+  const chunkRange = uploadId ? parseDemoChunkRange(request.headers.get('content-range')) : null;
+  if (uploadId && !chunkRange) return NextResponse.json({ error: 'Invalid demo chunk range' }, { status: 400 });
+  if (!uploadId && Number.isFinite(contentLength) && contentLength > MAX_DEMO_BYTES) {
+    return NextResponse.json({ error: DEMO_SIZE_LIMIT_MESSAGE }, { status: 413 });
   }
 
   const [map, existing] = await Promise.all([
@@ -49,10 +56,27 @@ export const POST = requireAdmin(async (request: NextRequest, _user, context) =>
   if (existing[0]) return NextResponse.json({ error: 'This map already has a demo' }, { status: 409 });
 
   try {
+    if (uploadId && chunkRange) {
+      const result = await appendMatchDemoChunk({
+        body: request.body,
+        uploadId,
+        range: chunkRange,
+        fileName,
+        matchId,
+        mapNumber,
+      });
+      return NextResponse.json(
+        result.complete
+          ? { demo: { fileName, fileSize: result.fileSize } }
+          : { receivedBytes: result.receivedBytes },
+        { status: result.complete ? 201 : 202 },
+      );
+    }
     const stored = await storeMatchDemo({ body: request.body, fileName, matchId, mapNumber });
     return NextResponse.json({ demo: { fileName, fileSize: stored.fileSize } }, { status: 201 });
   } catch (error) {
     if (error instanceof DemoTooLargeError) return NextResponse.json({ error: error.message }, { status: 413 });
+    if (error instanceof InvalidDemoChunkError) return NextResponse.json({ error: error.message }, { status: error.status });
     if (error instanceof InvalidDemoError) return NextResponse.json({ error: error.message }, { status: 400 });
     console.error('Failed to upload admin match demo:', error);
     return NextResponse.json({ error: 'Failed to store demo' }, { status: 500 });

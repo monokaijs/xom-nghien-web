@@ -1,8 +1,10 @@
+import re
 from pathlib import Path
 
 
-directive = """    # MatchZy streams raw CS2 demo files after each map.
-    client_max_body_size 2g;
+directive = """    # MatchZy streams raw CS2 demo files after each map. Admin uploads
+    # are split into 50 MiB requests so they also fit through Cloudflare.
+    client_max_body_size 500m;
     proxy_request_buffering off;"""
 
 for path in sorted(Path("nginx/conf.d").glob("*.conf")):
@@ -12,7 +14,17 @@ for path in sorted(Path("nginx/conf.d").glob("*.conf")):
         continue
     if "# MatchZy streams raw CS2 demo files" not in contents:
         contents = contents.replace(server_name, f"{server_name}\n\n{directive}", 1)
-        path.write_text(contents, encoding="utf-8")
+    else:
+        contents, replacements = re.subn(
+            r"    # MatchZy streams raw CS2 demo files.*?    proxy_request_buffering off;",
+            directive,
+            contents,
+            count=1,
+            flags=re.DOTALL,
+        )
+        if replacements != 1:
+            raise SystemExit("Could not update the MatchZy nginx directives")
+    path.write_text(contents, encoding="utf-8")
     break
 else:
     raise SystemExit("Could not find the xomnghien.com nginx server block")

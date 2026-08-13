@@ -32,6 +32,8 @@ interface ManagedMatch {
 }
 
 const PAGE_SIZE = 25;
+const MAX_DEMO_BYTES = 500 * 1024 * 1024;
+const UPLOAD_CHUNK_BYTES = 50 * 1024 * 1024;
 
 function sizeLabel(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -50,6 +52,7 @@ export default function AdminMatchesPage() {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -76,21 +79,44 @@ export default function AdminMatchesPage() {
     event.target.value = '';
     if (!file) return;
     const key = `${map.matchid}:${map.mapnumber}`;
+    if (file.size === 0) {
+      setError('Demo file is empty');
+      return;
+    }
+    if (file.size > MAX_DEMO_BYTES) {
+      setError('Demo exceeds the 500 MiB upload limit');
+      return;
+    }
     setBusy(key);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/matches/${map.matchid}/demos/${map.mapnumber}`, {
-        method: 'POST',
-        headers: { 'x-demo-file-name': encodeURIComponent(file.name) },
-        body: file,
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to upload demo');
+      const uploadId = crypto.randomUUID();
+      for (let start = 0; start < file.size; start += UPLOAD_CHUNK_BYTES) {
+        const end = Math.min(start + UPLOAD_CHUNK_BYTES, file.size);
+        const response = await fetch(`/api/admin/matches/${map.matchid}/demos/${map.mapnumber}`, {
+          method: 'POST',
+          headers: {
+            'content-range': `bytes ${start}-${end - 1}/${file.size}`,
+            'x-demo-file-name': encodeURIComponent(file.name),
+            'x-demo-upload-id': uploadId,
+          },
+          body: file.slice(start, end),
+        });
+        const contentType = response.headers.get('content-type') || '';
+        const data = contentType.includes('application/json') ? await response.json() : null;
+        if (!response.ok) throw new Error(data?.error || `Upload failed (${response.status})`);
+        setUploadProgress((current) => ({ ...current, [key]: Math.round((end / file.size) * 100) }));
+      }
       await loadMatches();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload demo');
     } finally {
       setBusy(null);
+      setUploadProgress((current) => {
+        const next = { ...current };
+        delete next[key];
+        return next;
+      });
     }
   };
 
@@ -175,7 +201,7 @@ export default function AdminMatchesPage() {
                           <input ref={(node) => { fileInputs.current[key] = node; }} type="file" accept=".dem" className="hidden" onChange={(event) => void upload(map, event)} />
                           <button type="button" disabled={isBusy} onClick={() => fileInputs.current[key]?.click()}
                             className="flex items-center gap-2 rounded-xl bg-accent-primary px-3 py-2 text-sm font-medium hover:bg-accent-primary/80 disabled:opacity-50">
-                            <IconFileUpload size={17} />{isBusy ? 'Uploading...' : 'Upload demo'}
+                            <IconFileUpload size={17} />{isBusy ? `Uploading ${uploadProgress[key] || 0}%` : 'Upload demo'}
                           </button>
                         </>
                       )}

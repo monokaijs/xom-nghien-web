@@ -57,11 +57,14 @@ function first(event: RawEvent, keys: string[]) {
 }
 
 export function roundNumber(event: RawEvent) {
+  const explicitRound = first(event, ['round_number', 'round']);
+  if (explicitRound !== null) return asNumber(explicitRound);
+
   const totalRoundsPlayed = event.total_rounds_played;
   if (totalRoundsPlayed !== null && totalRoundsPlayed !== undefined && totalRoundsPlayed !== '') {
     return asNumber(totalRoundsPlayed) + 1;
   }
-  return asNumber(first(event, ['round_number', 'round']));
+  return 0;
 }
 
 function stringifyPayload(value: unknown) {
@@ -104,12 +107,15 @@ export function parseDemo(filePath: string) {
 
   const starts = new Map<number, number>();
   for (const event of rawByType.get('round_start') || []) {
-    starts.set(roundNumber(event), asNumber(event.tick));
+    const number = roundNumber(event);
+    if (number > 0) starts.set(number, asNumber(event.tick));
   }
 
-  const rounds: ParsedRound[] = (rawByType.get('round_end') || []).map((event, index) => {
-    const number = roundNumber(event) || index + 1;
-    return {
+  const roundsByNumber = new Map<number, ParsedRound>();
+  for (const event of rawByType.get('round_end') || []) {
+    const number = roundNumber(event);
+    if (number <= 0) continue;
+    roundsByNumber.set(number, {
       roundNumber: number,
       startTick: starts.get(number) ?? null,
       endTick: asNumber(event.tick) || null,
@@ -118,8 +124,9 @@ export function parseDemo(filePath: string) {
       endReason: asString(first(event, ['reason', 'round_end_reason'])),
       team1Score: asNumber(first(event, ['team1_score', 't_score'])),
       team2Score: asNumber(first(event, ['team2_score', 'ct_score'])),
-    };
-  });
+    });
+  }
+  const rounds = [...roundsByNumber.values()].sort((a, b) => a.roundNumber - b.roundNumber);
 
   const events: ParsedEvent[] = [];
   for (const [eventType, rawEvents] of rawByType) {

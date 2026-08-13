@@ -56,8 +56,12 @@ function first(event: RawEvent, keys: string[]) {
   return null;
 }
 
-function roundNumber(event: RawEvent) {
-  return asNumber(first(event, ['total_rounds_played', 'round', 'round_number']));
+export function roundNumber(event: RawEvent) {
+  const totalRoundsPlayed = event.total_rounds_played;
+  if (totalRoundsPlayed !== null && totalRoundsPlayed !== undefined && totalRoundsPlayed !== '') {
+    return asNumber(totalRoundsPlayed) + 1;
+  }
+  return asNumber(first(event, ['round_number', 'round']));
 }
 
 function stringifyPayload(value: unknown) {

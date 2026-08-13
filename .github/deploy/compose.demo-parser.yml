@@ -1,6 +1,8 @@
 services:
   demo-parser:
     image: ghcr.io/monokaijs/xom-nghien-web-demo-parser:latest
+    # Demo files are written by the Next.js runtime as UID 1001 with 0750/0640 modes.
+    user: "1001:1001"
     restart: unless-stopped
     networks:
       - shared-network

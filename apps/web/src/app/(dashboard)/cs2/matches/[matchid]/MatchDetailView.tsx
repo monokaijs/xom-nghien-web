@@ -6,14 +6,12 @@ import {
   IconAlertTriangle,
   IconArrowLeft,
   IconBolt,
-  IconBomb,
   IconClock,
   IconDownload,
   IconFlame,
   IconMap,
   IconPlayerPlay,
   IconShieldCheck,
-  IconSkull,
   IconSwords,
   IconTrophy,
 } from '@tabler/icons-react';
@@ -297,16 +295,47 @@ function TeamTable({
   );
 }
 
+const CS2_HUD_ICONS = {
+  elimination: '/cs2-icons/kill.svg',
+  bomb: '/cs2-icons/bomb-exploded.svg',
+  defuse: '/cs2-icons/defuser.svg',
+  time: '/cs2-icons/time-expired.svg',
+} as const;
+
+type Cs2HudIconName = keyof typeof CS2_HUD_ICONS;
+
+function Cs2HudIcon({ name, size = 20 }: { name: Cs2HudIconName; size?: number }) {
+  const maskImage = `url("${CS2_HUD_ICONS[name]}")`;
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block shrink-0 bg-current"
+      style={{
+        width: size,
+        height: size,
+        WebkitMaskImage: maskImage,
+        maskImage,
+        WebkitMaskPosition: 'center',
+        maskPosition: 'center',
+        WebkitMaskRepeat: 'no-repeat',
+        maskRepeat: 'no-repeat',
+        WebkitMaskSize: 'contain',
+        maskSize: 'contain',
+      }}
+    />
+  );
+}
+
 function RoundStrip({ data, mapnumber }: { data: MatchDetailData; mapnumber: number }) {
   const rounds = data.rounds.filter((round) => number(round.mapnumber) === mapnumber);
   if (!rounds.length) return null;
 
-  const outcomeIcon = (reason: string | null) => {
+  const outcomeIcon = (reason: string | null): Cs2HudIconName => {
     const normalized = reason?.toLowerCase() || '';
-    if (normalized.includes('defus')) return IconShieldCheck;
-    if (normalized.includes('bomb') || normalized.includes('target_bombed')) return IconBomb;
-    if (normalized.includes('time') || normalized.includes('saved')) return IconClock;
-    return IconSkull;
+    if (normalized.includes('defus')) return 'defuse';
+    if (normalized.includes('bomb') || normalized.includes('target_bombed')) return 'bomb';
+    if (normalized.includes('time') || normalized.includes('saved')) return 'time';
+    return 'elimination';
   };
 
   return (
@@ -317,7 +346,7 @@ function RoundStrip({ data, mapnumber }: { data: MatchDetailData; mapnumber: num
         <div className="pointer-events-none absolute left-8 right-2 top-1/2 h-px bg-white/15" />
         {rounds.map((round) => {
           const ct = round.winner_side?.toUpperCase() === 'CT';
-          const Icon = outcomeIcon(round.end_reason);
+          const icon = outcomeIcon(round.end_reason);
           const milestone = round.round_number % 5 === 0;
           return (
             <div
@@ -326,7 +355,7 @@ function RoundStrip({ data, mapnumber }: { data: MatchDetailData; mapnumber: num
               className={`relative h-20 w-11 shrink-0 ${milestone ? 'border-r border-white/15' : ''}`}
             >
               <div className={`absolute inset-x-0 flex h-10 items-center justify-center ${ct ? 'bottom-0 bg-sky-400/[0.07] text-sky-300' : 'top-0 bg-amber-300/[0.07] text-amber-300'}`}>
-                <Icon size={19} stroke={2.4} />
+                <Cs2HudIcon name={icon} size={21} />
               </div>
               {milestone && (
                 <span className={`absolute left-1/2 z-10 -translate-x-1/2 rounded bg-card-bg px-1 text-[10px] font-bold ${ct ? 'top-[34px] text-sky-300' : 'bottom-[34px] text-amber-300'}`}>
@@ -349,7 +378,10 @@ function Timeline({ data }: { data: MatchDetailData }) {
       <RoundStrip data={data} mapnumber={map.mapnumber} />
       <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
         {data.events.filter((event) => event.mapnumber === map.mapnumber && ['bomb_planted', 'bomb_defused', 'bomb_exploded'].includes(event.event_type)).map((event) => (
-          <div key={event.id} className="flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-2 text-sm"><IconBomb size={17} className="text-amber-300" /><span>Round {event.round_number}: {event.event_type.replaceAll('_', ' ')}</span></div>
+          <div key={event.id} className="flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-2 text-sm">
+            <span className="text-amber-300"><Cs2HudIcon name={event.event_type === 'bomb_defused' ? 'defuse' : 'bomb'} size={17} /></span>
+            <span>Round {event.round_number}: {event.event_type.replaceAll('_', ' ')}</span>
+          </div>
         ))}
       </div>
     </section>

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { IconDashboard, IconHeadphones, IconSettings, IconUsers, IconServer } from '@tabler/icons-react';
+import { IconDashboard, IconHeadphones, IconSettings, IconUsers, IconServer, IconTrophy } from '@tabler/icons-react';
 
 export default function AdminLayout({
                                       children,
@@ -56,6 +56,11 @@ export default function AdminLayout({
       label: 'Game Servers',
       href: '/admin/game-servers',
       icon: <IconServer size={20}/>,
+    },
+    {
+      label: 'CS2 Matches',
+      href: '/admin/matches',
+      icon: <IconTrophy size={20}/>,
     },
     {
       label: 'Voice Rooms',

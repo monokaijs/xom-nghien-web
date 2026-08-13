@@ -48,8 +48,8 @@ export async function GET(
         xl.rating_after
       FROM ${matchzyStatsPlayers} p
       JOIN ${matchzyStatsMaps} m ON p.matchid = m.matchid AND p.mapnumber = m.mapnumber
-      LEFT JOIN ${xnRatings} xr ON xr.steamid64 = p.steamid64
-      LEFT JOIN ${xnRatingLedger} xl ON xl.matchid = p.matchid AND xl.steamid64 = p.steamid64
+      LEFT JOIN ${xnRatings} xr ON xr.steamid64 = CAST(p.steamid64 AS CHAR)
+      LEFT JOIN ${xnRatingLedger} xl ON xl.matchid = p.matchid AND xl.steamid64 = CAST(p.steamid64 AS CHAR)
       WHERE p.matchid = ${matchId}
       ORDER BY p.mapnumber, p.kills DESC
     `;

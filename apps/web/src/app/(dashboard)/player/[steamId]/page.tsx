@@ -40,7 +40,7 @@ async function getPlayerData(steamId: string): Promise<PlayerData | null> {
         ROUND((SUM(deaths) * 1.0 / NULLIF(COUNT(DISTINCT matchid), 0)), 2) as avg_deaths_per_match,
         ROUND((SUM(damage) * 1.0 / NULLIF(COUNT(DISTINCT matchid), 0)), 2) as avg_damage_per_match
       FROM ${matchzyStatsPlayers}
-      WHERE steamid64 = ${steamId}
+      WHERE CAST(steamid64 AS CHAR) = ${steamId}
       GROUP BY steamid64, name
     `;
 

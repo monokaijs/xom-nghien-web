@@ -42,7 +42,7 @@ export async function GET(
         ROUND((SUM(deaths) * 1.0 / NULLIF(COUNT(DISTINCT matchid), 0)), 2) as avg_deaths_per_match,
         ROUND((SUM(damage) * 1.0 / NULLIF(COUNT(DISTINCT matchid), 0)), 2) as avg_damage_per_match
       FROM ${matchzyStatsPlayers}
-      WHERE steamid64 = ${steamid64}
+      WHERE CAST(steamid64 AS CHAR) = ${steamid64}
       GROUP BY steamid64, name
     `;
 
@@ -86,7 +86,7 @@ export async function GET(
       FROM ${matchzyStatsPlayers} p
       JOIN ${matchzyStatsMatches} m ON p.matchid = m.matchid
       JOIN ${matchzyStatsMaps} mp ON p.matchid = mp.matchid AND p.mapnumber = mp.mapnumber
-      WHERE p.steamid64 = ${steamid64}
+      WHERE CAST(p.steamid64 AS CHAR) = ${steamid64}
       ORDER BY m.start_time DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
@@ -96,7 +96,7 @@ export async function GET(
       FROM ${matchzyStatsPlayers} p
       JOIN ${matchzyStatsMatches} m ON p.matchid = m.matchid
       JOIN ${matchzyStatsMaps} mp ON p.matchid = mp.matchid AND p.mapnumber = mp.mapnumber
-      WHERE p.steamid64 = ${steamid64}
+      WHERE CAST(p.steamid64 AS CHAR) = ${steamid64}
     `;
 
     const [matchHistoryResult, countResult] = await Promise.all([
@@ -131,4 +131,3 @@ export async function GET(
     );
   }
 }
-

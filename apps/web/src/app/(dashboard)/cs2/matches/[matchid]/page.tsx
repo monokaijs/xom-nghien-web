@@ -36,10 +36,10 @@ async function getMatchData(rawMatchId: string): Promise<MatchDetailData | null>
       FROM ${matchzyStatsPlayers} p
       JOIN ${matchzyStatsMaps} m
         ON p.matchid = m.matchid AND p.mapnumber = m.mapnumber
-      LEFT JOIN ${userInfo} u ON u.steamid64 = p.steamid64
-      LEFT JOIN ${xnRatings} xr ON xr.steamid64 = p.steamid64
+      LEFT JOIN ${userInfo} u ON u.steamid64 = CAST(p.steamid64 AS CHAR)
+      LEFT JOIN ${xnRatings} xr ON xr.steamid64 = CAST(p.steamid64 AS CHAR)
       LEFT JOIN ${xnRatingLedger} xl
-        ON xl.matchid = p.matchid AND xl.steamid64 = p.steamid64
+        ON xl.matchid = p.matchid AND xl.steamid64 = CAST(p.steamid64 AS CHAR)
       WHERE p.matchid = ${matchId}
       ORDER BY p.mapnumber ASC, p.damage DESC
     `),

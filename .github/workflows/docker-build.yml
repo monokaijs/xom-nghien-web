@@ -167,5 +167,5 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml pull web inventory discord-bot server-heartbeats demo-parser"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml up -d --remove-orphans web inventory discord-bot server-heartbeats demo-parser nginx"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml rm -sf spawner redis || true"
-          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml exec -T nginx nginx -t && docker compose -f compose.yml -f compose.matchzy.yml restart nginx"
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && docker compose -f compose.yml -f compose.matchzy.yml exec -T nginx nginx -t && docker compose -f compose.yml -f compose.matchzy.yml exec -T nginx nginx -s reload"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "docker image prune -f"

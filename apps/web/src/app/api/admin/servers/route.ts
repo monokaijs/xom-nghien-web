@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { asc, db, desc, eq, serverMods, servers, sql } from '@xom/db';
+import { asc, db, desc, eq, serverManagedConfigs, serverMods, servers, sql } from '@xom/db';
 import { requireAdmin } from '@/lib/auth';
 import { parseGameServerInput } from '@/lib/game-servers';
+import { parseServerManagedConfigs } from '@/lib/server-managed-configs';
 import { getServerModsById } from '@/lib/utils/server-mods';
 import type { ServerMod } from '@/types/server';
 
@@ -26,13 +27,18 @@ function isDuplicateConnection(error: any) {
 
 export const GET = requireAdmin(async () => {
   const rows = await db.select().from(servers).orderBy(asc(servers.sortOrder), desc(servers.created_at));
-  const mods = await getServerModsById(rows.map((server) => server.id));
-  return NextResponse.json({ servers: rows.map((server) => toResponse(server, mods.get(server.id) || [])) });
+  const serverIds = rows.map((server) => server.id);
+  const mods = await getServerModsById(serverIds);
+  return NextResponse.json({
+    servers: rows.map((server) => toResponse(server, mods.get(server.id) || [])),
+  });
 });
 
 export const POST = requireAdmin(async (request: NextRequest) => {
   try {
-    const input = parseGameServerInput(await request.json());
+    const body = await request.json();
+    const input = parseGameServerInput(body);
+    const managedConfigs = parseServerManagedConfigs(body.managedConfigs, input.game);
     const [order] = await db.select({
       value: sql<number>`COALESCE(MAX(${servers.sortOrder}), -1) + 1`,
     }).from(servers);
@@ -56,6 +62,13 @@ export const POST = requireAdmin(async (request: NextRequest) => {
         await transaction.insert(serverMods).values(input.mods.map((mod, sortOrder) => ({
           serverId,
           ...mod,
+          sortOrder,
+        })));
+      }
+      if (managedConfigs.length > 0) {
+        await transaction.insert(serverManagedConfigs).values(managedConfigs.map((config, sortOrder) => ({
+          serverId,
+          ...config,
           sortOrder,
         })));
       }

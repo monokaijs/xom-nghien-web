@@ -44,6 +44,12 @@ export interface ServerMod {
   requirement: ServerModRequirement;
 }
 
+export interface ServerManagedConfig {
+  path: string;
+  contents: string;
+  sha256?: string;
+}
+
 export interface ServerStatus {
   id: string;
   name: string;

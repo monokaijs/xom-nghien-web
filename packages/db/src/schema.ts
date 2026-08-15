@@ -293,6 +293,22 @@ export const serverMods = mysqlTable('server_mods', {
   idxServerRequirement: index('idx_server_mods_requirement').on(table.serverId, table.requirement, table.sortOrder),
 }));
 
+export const serverManagedConfigs = mysqlTable('server_managed_configs', {
+  id: int('id').primaryKey().autoincrement(),
+  serverId: int('server_id')
+    .notNull()
+    .references(() => servers.id, { onDelete: 'cascade' }),
+  path: varchar('path', { length: 512 }).notNull(),
+  contents: text('contents').notNull(),
+  sha256: varchar('sha256', { length: 64 }).notNull(),
+  sortOrder: int('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  uniqueServerPath: unique('uq_server_managed_configs_path').on(table.serverId, table.path),
+  idxServerOrder: index('idx_server_managed_configs_order').on(table.serverId, table.sortOrder),
+}));
+
 export const voiceRooms = mysqlTable('voice_rooms', {
   id: varchar('id', { length: 36 }).primaryKey(),
   name: varchar('name', { length: 80 }).notNull(),
@@ -355,6 +371,8 @@ export type Server = typeof servers.$inferSelect;
 export type NewServer = typeof servers.$inferInsert;
 export type ServerMod = typeof serverMods.$inferSelect;
 export type NewServerMod = typeof serverMods.$inferInsert;
+export type ServerManagedConfig = typeof serverManagedConfigs.$inferSelect;
+export type NewServerManagedConfig = typeof serverManagedConfigs.$inferInsert;
 export type VoiceRoomRecord = typeof voiceRooms.$inferSelect;
 export type NewVoiceRoomRecord = typeof voiceRooms.$inferInsert;
 export type VoiceRoomPresenceRecord = typeof voiceRoomPresence.$inferSelect;

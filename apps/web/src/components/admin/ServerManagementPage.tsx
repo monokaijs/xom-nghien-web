@@ -21,8 +21,9 @@ import {
 } from '@tabler/icons-react';
 import Select from '@/components/ui/Select';
 import ServerModPicker from '@/components/admin/ServerModPicker';
+import ServerManagedConfigEditor from '@/components/admin/ServerManagedConfigEditor';
 import { Games, getGame } from '@/config/games';
-import type { ServerMod } from '@/types/server';
+import type { ServerManagedConfig, ServerMod } from '@/types/server';
 
 interface ManagedServer {
   id: number;
@@ -42,6 +43,7 @@ interface ManagedServer {
   created_at: string;
   updated_at: string;
   mods: ServerMod[];
+  managedConfigs: ServerManagedConfig[];
 }
 
 interface ServerForm {
@@ -55,6 +57,7 @@ interface ServerForm {
   description: string;
   metadataUrl: string;
   mods: ServerMod[];
+  managedConfigs: ServerManagedConfig[];
 }
 
 interface ConsoleEntry {
@@ -79,6 +82,7 @@ function toForm(server: ManagedServer): ServerForm {
     description: server.description || '',
     metadataUrl: server.metadataUrl || '',
     mods: server.mods || [],
+    managedConfigs: server.managedConfigs || [],
   };
 }
 
@@ -208,7 +212,12 @@ export default function ServerManagementPage({ serverId }: { serverId: string })
               <Field label="Game" required>
                 <Select value={form.game} onChange={(event) => {
                   const nextGame = event.target.value;
-                  setForm({ ...form, game: nextGame, mods: nextGame === form.game ? form.mods : [] });
+                  setForm({
+                    ...form,
+                    game: nextGame,
+                    mods: nextGame === form.game ? form.mods : [],
+                    managedConfigs: nextGame === form.game ? form.managedConfigs : [],
+                  });
                 }} options={Games.map((item) => ({ value: item.id, label: item.name }))} size="lg" className="w-full" />
               </Field>
               <Field label="Server name" required>
@@ -249,6 +258,12 @@ export default function ServerManagementPage({ serverId }: { serverId: string })
           </section>
 
           <ServerModPicker game={form.game} mods={form.mods} onChange={(mods) => setForm((current) => current ? { ...current, mods } : current)} />
+
+          <ServerManagedConfigEditor
+            game={form.game}
+            configs={form.managedConfigs}
+            onChange={(managedConfigs) => setForm((current) => current ? { ...current, managedConfigs } : current)}
+          />
 
           <div className="flex flex-col-reverse items-stretch justify-between gap-3 sm:flex-row sm:items-center">
             <button type="button" onClick={removeServer} disabled={deleting || saving} className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-red-300 transition-colors hover:bg-red-500/10 disabled:opacity-40"><IconTrash size={17} /> {deleting ? 'Deleting...' : 'Delete server'}</button>

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, eq, serverMods, servers } from '@xom/db';
+import { db, eq, serverManagedConfigs, serverMods, servers } from '@xom/db';
 import { requireAdmin } from '@/lib/auth';
 import { parseGameServerInput } from '@/lib/game-servers';
+import { parseServerManagedConfigs } from '@/lib/server-managed-configs';
+import { getServerManagedConfigsById } from '@/lib/utils/server-managed-configs';
 import { getServerModsById } from '@/lib/utils/server-mods';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -18,7 +20,10 @@ export const GET = requireAdmin(async (_request: NextRequest, _user, context: Ro
   }
 
   const { address, rcon_password, connectionHost, connectionPort, joinPassword, ...server } = rows[0];
-  const mods = await getServerModsById([server.id]);
+  const [mods, managedConfigs] = await Promise.all([
+    getServerModsById([server.id]),
+    getServerManagedConfigsById([server.id]),
+  ]);
   return NextResponse.json({
     server: {
       ...server,
@@ -30,6 +35,7 @@ export const GET = requireAdmin(async (_request: NextRequest, _user, context: Ro
       connectionGuide: server.connectionGuide || null,
       rconConfigured: Boolean(server.rconHost && server.rconPort && rcon_password),
       mods: mods.get(server.id) || [],
+      managedConfigs: managedConfigs.get(server.id) || [],
     },
   });
 });
@@ -43,7 +49,11 @@ export const PUT = requireAdmin(async (request: NextRequest, _user, context: Rou
   }
 
   try {
-    const input = parseGameServerInput(await request.json());
+    const body = await request.json();
+    const input = parseGameServerInput(body);
+    const managedConfigs = body.managedConfigs === undefined
+      ? null
+      : parseServerManagedConfigs(body.managedConfigs, input.game);
     await db.transaction(async (transaction) => {
       await transaction.update(servers).set({
         name: input.name,
@@ -64,6 +74,17 @@ export const PUT = requireAdmin(async (request: NextRequest, _user, context: Rou
           ...mod,
           sortOrder,
         })));
+      }
+
+      if (managedConfigs !== null) {
+        await transaction.delete(serverManagedConfigs).where(eq(serverManagedConfigs.serverId, serverId));
+        if (managedConfigs.length > 0) {
+          await transaction.insert(serverManagedConfigs).values(managedConfigs.map((config, sortOrder) => ({
+            serverId,
+            ...config,
+            sortOrder,
+          })));
+        }
       }
     });
 

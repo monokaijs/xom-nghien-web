@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { searchThunderstoreMods } from './thunderstore';
+import { resolveThunderstorePackages, searchThunderstoreMods } from './thunderstore';
 
 const pendingPackage = {
   namespace: 'Creaton',
@@ -60,5 +60,26 @@ describe('searchThunderstoreMods', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(searchThunderstoreMods('palworld', 'Creaton-Valheim_Viet_Hoa')).resolves.toEqual([]);
+  });
+
+  it('resolves the exact latest version of an unreviewed package missing from the community catalog', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify([])))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        ...pendingPackage,
+        latest: {
+          ...pendingPackage.latest,
+          dependencies: [],
+          download_url: 'https://gcdn.thunderstore.io/live/repository/packages/Creaton-Valheim_Viet_Hoa-0.2.0.zip',
+        },
+        community_listings: [{ ...pendingPackage.community_listings[0], community: 'resolver-test' }],
+      })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(resolveThunderstorePackages('resolver-test', ['Creaton-Valheim_Viet_Hoa-0.2.0']))
+      .resolves.toEqual([expect.objectContaining({
+        coordinate: 'Creaton-Valheim_Viet_Hoa-0.2.0',
+        versionNumber: '0.2.0',
+      })]);
   });
 });

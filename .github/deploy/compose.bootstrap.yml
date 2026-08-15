@@ -1,5 +1,0 @@
-services:
-  web:
-    environment:
-      XN_BOOTSTRAP_SIGNING_KEY_ID: ${XN_BOOTSTRAP_SIGNING_KEY_ID:?bootstrap signing key ID is required}
-      XN_BOOTSTRAP_SIGNING_PRIVATE_KEY_BASE64: ${XN_BOOTSTRAP_SIGNING_PRIVATE_KEY_BASE64:?bootstrap signing private key is required}

@@ -33,8 +33,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       mods.get(serverId) || [],
       configs.get(serverId) || [],
     );
-    const payload = JSON.parse(Buffer.from(manifest.payload, 'base64').toString('utf8')) as { revision: string };
-    const etag = `"${payload.revision}"`;
+    const etag = `"${manifest.revision}"`;
     if (request.headers.get('if-none-match') === etag) {
       return new NextResponse(null, { status: 304, headers: { ETag: etag, 'Cache-Control': 'private, no-cache' } });
     }

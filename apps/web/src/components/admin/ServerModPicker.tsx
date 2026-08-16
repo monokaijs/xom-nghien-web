@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   IconExternalLink,
+  IconAdjustments,
   IconLoader2,
   IconPackage,
   IconPlus,
@@ -10,7 +11,8 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import { getModCatalog } from '@/config/games';
-import type { ServerMod, ServerModRequirement } from '@/types/server';
+import ServerModConfigDialog from '@/components/admin/ServerModConfigDialog';
+import type { ServerManagedConfig, ServerMod, ServerModRequirement } from '@/types/server';
 
 interface ModSearchResult extends Omit<ServerMod, 'requirement'> {
   downloads: number;
@@ -20,18 +22,21 @@ interface ModSearchResult extends Omit<ServerMod, 'requirement'> {
 interface ServerModPickerProps {
   game: string;
   mods: ServerMod[];
+  configs: ServerManagedConfig[];
   onChange: (mods: ServerMod[]) => void;
+  onConfigsChange: (configs: ServerManagedConfig[]) => void;
 }
 
 const searchInputClass = 'w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-white outline-none transition-colors placeholder:text-white/25 focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/20';
 
-export default function ServerModPicker({ game, mods, onChange }: ServerModPickerProps) {
+export default function ServerModPicker({ game, mods, configs, onChange, onConfigsChange }: ServerModPickerProps) {
   const catalog = getModCatalog(game);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ModSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newRequirement, setNewRequirement] = useState<ServerModRequirement>('required');
+  const [configuringMod, setConfiguringMod] = useState<ServerMod | null>(null);
 
   const selectedKeys = useMemo(
     () => new Set(mods.map(modKey)),
@@ -84,7 +89,10 @@ export default function ServerModPicker({ game, mods, onChange }: ServerModPicke
   };
 
   const remove = (target: ServerMod) => {
+    const ownedConfigs = configs.filter((config) => configOwnerKey(config) === modKey(target));
+    if (ownedConfigs.length > 0 && !window.confirm(`Remove ${target.displayName} and its ${ownedConfigs.length} managed config file${ownedConfigs.length === 1 ? '' : 's'}?`)) return;
     onChange(mods.filter((mod) => modKey(mod) !== modKey(target)));
+    onConfigsChange(configs.filter((config) => configOwnerKey(config) !== modKey(target)));
   };
 
   const setRequirement = (target: ServerMod, requirement: ServerModRequirement) => {
@@ -93,6 +101,7 @@ export default function ServerModPicker({ game, mods, onChange }: ServerModPicke
 
   const required = mods.filter((mod) => mod.requirement === 'required');
   const optional = mods.filter((mod) => mod.requirement === 'optional');
+  const unassignedConfigs = configs.filter((config) => configOwnerKey(config) === null);
 
   return (
     <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 sm:p-5">
@@ -110,6 +119,40 @@ export default function ServerModPicker({ game, mods, onChange }: ServerModPicke
           </div>
         )}
       </div>
+
+      {unassignedConfigs.length > 0 && (
+        <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3">
+          <p className="text-sm font-medium text-amber-100">Assign existing configs to a mod</p>
+          <p className="mt-1 text-xs leading-5 text-amber-100/60">These files predate per-mod management. Choose their owner before saving the server.</p>
+          <div className="mt-3 space-y-2">
+            {unassignedConfigs.map((config) => (
+              <div key={config.path} className="flex flex-col gap-2 rounded-lg bg-black/15 p-2.5 sm:flex-row sm:items-center">
+                <span className="min-w-0 flex-1 truncate font-mono text-xs text-white/65">{config.path}</span>
+                <select
+                  value=""
+                  onChange={(event) => {
+                    const owner = mods.find((mod) => modKey(mod) === event.target.value);
+                    if (!owner) return;
+                    onConfigsChange(configs.map((candidate) => candidate === config ? {
+                      ...candidate,
+                      modProvider: owner.provider,
+                      modNamespace: owner.namespace,
+                      modPackageName: owner.packageName,
+                      sourceVersion: owner.versionNumber,
+                    } : candidate));
+                  }}
+                  className="rounded-lg border border-white/10 bg-bg-sidebar px-2.5 py-2 text-xs text-white/65 outline-none focus:border-accent-primary"
+                  aria-label={`Owning mod for ${config.path}`}
+                >
+                  <option value="">Select owner…</option>
+                  {mods.map((mod) => <option key={modKey(mod)} value={modKey(mod)}>{mod.displayName}</option>)}
+                </select>
+                <button type="button" onClick={() => onConfigsChange(configs.filter((candidate) => candidate !== config))} className="rounded-lg p-2 text-red-300/70 hover:bg-red-500/15 hover:text-red-300" aria-label={`Remove ${config.path}`}><IconTrash size={15} /></button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!catalog ? (
         <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-white/45">
@@ -181,9 +224,25 @@ export default function ServerModPicker({ game, mods, onChange }: ServerModPicke
 
       {mods.length > 0 && (
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          <ConfiguredGroup title="Required to connect" empty="No required mods" mods={required} onRemove={remove} onRequirementChange={setRequirement} />
-          <ConfiguredGroup title="Optional" empty="No optional mods" mods={optional} onRemove={remove} onRequirementChange={setRequirement} />
+          <ConfiguredGroup title="Required to connect" empty="No required mods" mods={required} configs={configs} onConfigure={setConfiguringMod} onRemove={remove} onRequirementChange={setRequirement} />
+          <ConfiguredGroup title="Optional" empty="No optional mods" mods={optional} configs={configs} onConfigure={setConfiguringMod} onRemove={remove} onRequirementChange={setRequirement} />
         </div>
+      )}
+
+      {configuringMod && (
+        <ServerModConfigDialog
+          mod={configuringMod}
+          configs={configs.filter((config) => configOwnerKey(config) === modKey(configuringMod))}
+          onClose={() => setConfiguringMod(null)}
+          onSave={(ownedConfigs) => {
+            const otherConfigs = configs.filter((config) => configOwnerKey(config) !== modKey(configuringMod));
+            const otherPaths = new Set(otherConfigs.map((config) => config.path.trim().toLowerCase()));
+            const duplicate = ownedConfigs.find((config) => otherPaths.has(config.path.trim().toLowerCase()));
+            if (duplicate) return `${duplicate.path} is already managed by another mod.`;
+            onConfigsChange([...otherConfigs, ...ownedConfigs]);
+            return null;
+          }}
+        />
       )}
     </section>
   );
@@ -197,10 +256,12 @@ function RequirementButton({ active, onClick, children }: { active: boolean; onC
   );
 }
 
-function ConfiguredGroup({ title, empty, mods, onRemove, onRequirementChange }: {
+function ConfiguredGroup({ title, empty, mods, configs, onConfigure, onRemove, onRequirementChange }: {
   title: string;
   empty: string;
   mods: ServerMod[];
+  configs: ServerManagedConfig[];
+  onConfigure: (mod: ServerMod) => void;
   onRemove: (mod: ServerMod) => void;
   onRequirementChange: (mod: ServerMod, requirement: ServerModRequirement) => void;
 }) {
@@ -218,6 +279,9 @@ function ConfiguredGroup({ title, empty, mods, onRemove, onRequirementChange }: 
                 <p className="truncate text-sm font-medium">{mod.displayName}</p>
                 <p className="truncate text-[11px] text-white/35">{mod.namespace} · v{mod.versionNumber}</p>
               </div>
+              <button type="button" onClick={() => onConfigure(mod)} className="inline-flex items-center gap-1.5 rounded-lg bg-white/8 px-2.5 py-1.5 text-xs text-white/60 hover:bg-white/15 hover:text-white" aria-label={`Configure ${mod.displayName}`}>
+                <IconAdjustments size={15} /> Config{configCount(configs, mod) > 0 ? ` (${configCount(configs, mod)})` : ''}
+              </button>
               <select
                 value={mod.requirement}
                 onChange={(event) => onRequirementChange(mod, event.target.value as ServerModRequirement)}
@@ -249,6 +313,16 @@ function ModIcon({ mod, small = false }: { mod: Pick<ServerMod, 'iconUrl' | 'dis
 
 function modKey(mod: Pick<ServerMod, 'provider' | 'namespace' | 'packageName'>) {
   return `${mod.provider}:${mod.namespace.toLowerCase()}/${mod.packageName.toLowerCase()}`;
+}
+
+function configOwnerKey(config: Pick<ServerManagedConfig, 'modProvider' | 'modNamespace' | 'modPackageName'>) {
+  if (!config.modProvider || !config.modNamespace || !config.modPackageName) return null;
+  return `${config.modProvider}:${config.modNamespace.toLowerCase()}/${config.modPackageName.toLowerCase()}`;
+}
+
+function configCount(configs: ServerManagedConfig[], mod: ServerMod) {
+  const key = modKey(mod);
+  return configs.filter((config) => configOwnerKey(config) === key).length;
 }
 
 function formatDownloads(value: number) {

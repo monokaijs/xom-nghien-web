@@ -45,9 +45,14 @@ export interface ServerMod {
 }
 
 export interface ServerManagedConfig {
+  modProvider: 'thunderstore' | null;
+  modNamespace: string | null;
+  modPackageName: string | null;
+  sourceVersion: string | null;
   path: string;
   contents: string;
   sha256?: string;
+  target: 'server' | 'client' | 'both';
 }
 
 export interface ServerStatus {

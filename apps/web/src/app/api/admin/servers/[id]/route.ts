@@ -53,7 +53,7 @@ export const PUT = requireAdmin(async (request: NextRequest, _user, context: Rou
     const input = parseGameServerInput(body);
     const managedConfigs = body.managedConfigs === undefined
       ? null
-      : parseServerManagedConfigs(body.managedConfigs, input.game);
+      : parseServerManagedConfigs(body.managedConfigs, input.game, input.mods);
     await db.transaction(async (transaction) => {
       await transaction.update(servers).set({
         name: input.name,

@@ -10,7 +10,16 @@ export async function getServerManagedConfigsById(serverIds: number[]) {
     .where(inArray(serverManagedConfigs.serverId, serverIds))
     .orderBy(asc(serverManagedConfigs.sortOrder), asc(serverManagedConfigs.id));
   for (const row of rows) {
-    result.get(row.serverId)?.push({ path: row.path, contents: row.contents, sha256: row.sha256 });
+    result.get(row.serverId)?.push({
+      modProvider: row.modProvider === 'thunderstore' ? 'thunderstore' : null,
+      modNamespace: row.modNamespace || null,
+      modPackageName: row.modPackageName || null,
+      sourceVersion: row.sourceVersion,
+      path: row.path,
+      contents: row.contents,
+      sha256: row.sha256,
+      target: row.target as ServerManagedConfig['target'],
+    });
   }
   return result;
 }

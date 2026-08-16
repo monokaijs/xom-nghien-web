@@ -17,7 +17,8 @@ describe('buildBootstrapManifest', () => {
     };
 
     const manifest = await buildBootstrapManifest('42', [mod], [{
-      path: 'Author.MainMod.cfg', contents: 'Enabled = true\n',
+      modProvider: 'thunderstore', modNamespace: 'Author', modPackageName: 'MainMod', sourceVersion: '1.0.0',
+      path: 'Author.MainMod.cfg', contents: 'Enabled = true\n', target: 'server',
     }], { generatedAt: new Date('2026-08-16T00:00:00Z') });
 
     expect(manifest.packages.map((item: { coordinate: string }) => item.coordinate)).toEqual([
@@ -25,6 +26,9 @@ describe('buildBootstrapManifest', () => {
       'Library-SharedLib-2.0.0',
     ]);
     expect(Buffer.from(manifest.configs[0].contentBase64, 'base64').toString('utf8')).toBe('Enabled = true\n');
+    expect(manifest).toMatchObject({ schemaVersion: 2, manifestId: '42' });
+    expect(manifest.configs[0].target).toBe('server');
+    expect(manifest.revision).not.toBe(manifest.clientRevision);
   });
 });
 

@@ -298,15 +298,26 @@ export const serverManagedConfigs = mysqlTable('server_managed_configs', {
   serverId: int('server_id')
     .notNull()
     .references(() => servers.id, { onDelete: 'cascade' }),
+  modProvider: varchar('mod_provider', { length: 32 }).notNull().default(''),
+  modNamespace: varchar('mod_namespace', { length: 128 }).notNull().default(''),
+  modPackageName: varchar('mod_package_name', { length: 128 }).notNull().default(''),
+  sourceVersion: varchar('source_version', { length: 64 }),
   path: varchar('path', { length: 512 }).notNull(),
   contents: text('contents').notNull(),
   sha256: varchar('sha256', { length: 64 }).notNull(),
+  target: varchar('target', { length: 16 }).notNull().default('server'),
   sortOrder: int('sort_order').notNull().default(0),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
   uniqueServerPath: unique('uq_server_managed_configs_path').on(table.serverId, table.path),
   idxServerOrder: index('idx_server_managed_configs_order').on(table.serverId, table.sortOrder),
+  idxServerMod: index('idx_server_managed_configs_mod').on(
+    table.serverId,
+    table.modProvider,
+    table.modNamespace,
+    table.modPackageName,
+  ),
 }));
 
 export const voiceRooms = mysqlTable('voice_rooms', {

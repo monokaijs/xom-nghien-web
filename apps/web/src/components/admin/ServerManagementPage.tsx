@@ -21,7 +21,6 @@ import {
 } from '@tabler/icons-react';
 import Select from '@/components/ui/Select';
 import ServerModPicker from '@/components/admin/ServerModPicker';
-import ServerManagedConfigEditor from '@/components/admin/ServerManagedConfigEditor';
 import { Games, getGame } from '@/config/games';
 import type { ServerManagedConfig, ServerMod } from '@/types/server';
 
@@ -257,12 +256,12 @@ export default function ServerManagementPage({ serverId }: { serverId: string })
             </div>
           </section>
 
-          <ServerModPicker game={form.game} mods={form.mods} onChange={(mods) => setForm((current) => current ? { ...current, mods } : current)} />
-
-          <ServerManagedConfigEditor
+          <ServerModPicker
             game={form.game}
+            mods={form.mods}
             configs={form.managedConfigs}
-            onChange={(managedConfigs) => setForm((current) => current ? { ...current, managedConfigs } : current)}
+            onChange={(mods) => setForm((current) => current ? { ...current, mods } : current)}
+            onConfigsChange={(managedConfigs) => setForm((current) => current ? { ...current, managedConfigs } : current)}
           />
 
           <div className="flex flex-col-reverse items-stretch justify-between gap-3 sm:flex-row sm:items-center">

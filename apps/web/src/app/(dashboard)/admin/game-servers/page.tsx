@@ -17,7 +17,7 @@ import {
 import Select from '@/components/ui/Select';
 import ServerModPicker from '@/components/admin/ServerModPicker';
 import { Games, getGame } from '@/config/games';
-import type { ServerMod } from '@/types/server';
+import type { ServerManagedConfig, ServerMod } from '@/types/server';
 
 interface ManagedServer {
   id: number;
@@ -33,6 +33,7 @@ interface ManagedServer {
   metadataUrl: string | null;
   rconConfigured: boolean;
   mods: ServerMod[];
+  managedConfigs: ServerManagedConfig[];
 }
 
 interface ServerForm {
@@ -46,6 +47,7 @@ interface ServerForm {
   description: string;
   metadataUrl: string;
   mods: ServerMod[];
+  managedConfigs: ServerManagedConfig[];
 }
 
 const emptyForm: ServerForm = {
@@ -59,6 +61,7 @@ const emptyForm: ServerForm = {
   description: '',
   metadataUrl: '',
   mods: [],
+  managedConfigs: [],
 };
 
 const inputClass = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/20 transition-colors placeholder:text-white/25';
@@ -152,6 +155,7 @@ export default function GameServersPage() {
       game: gameId,
       gameName: shouldUseDefaultName ? nextDefaultName : form.gameName,
       mods: gameId === form.game ? form.mods : [],
+      managedConfigs: gameId === form.game ? form.managedConfigs : [],
     });
   };
 
@@ -458,7 +462,9 @@ export default function GameServersPage() {
               <ServerModPicker
                 game={form.game}
                 mods={form.mods}
+                configs={form.managedConfigs}
                 onChange={(mods) => setForm((current) => ({ ...current, mods }))}
+                onConfigsChange={(managedConfigs) => setForm((current) => ({ ...current, managedConfigs }))}
               />
 
               {formError && <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">{formError}</div>}

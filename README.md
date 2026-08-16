@@ -20,6 +20,20 @@ To stop the local infrastructure:
 pnpm dev:services:down
 ```
 
+## Valheim managed mods
+
+Apply `packages/db/migrations/025_add_server_managed_configs.sql` and
+`packages/db/migrations/026_link_managed_configs_to_mods.sql` to an existing
+database before enabling managed mod configs. Migration 026 preserves older
+unassigned config rows; an admin must assign each one to a selected mod in the
+server editor before saving.
+
+Admins manage config files from each mod's **Configure** action. Import the
+`.cfg` produced after launching the mod once for a structured BepInEx editor, or
+use the raw editor for other supported text formats. The server/client target is
+deployment scope, not access control, so managed config files must never contain
+passwords, tokens, or other secrets.
+
 ## Server heartbeats
 
 `server-heartbeats` probes game servers outside the web request path. It replaces

@@ -38,7 +38,7 @@ export const POST = requireAdmin(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const input = parseGameServerInput(body);
-    const managedConfigs = parseServerManagedConfigs(body.managedConfigs, input.game);
+    const managedConfigs = parseServerManagedConfigs(body.managedConfigs, input.game, input.mods);
     const [order] = await db.select({
       value: sql<number>`COALESCE(MAX(${servers.sortOrder}), -1) + 1`,
     }).from(servers);

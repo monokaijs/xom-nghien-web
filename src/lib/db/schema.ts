@@ -1,4 +1,5 @@
-import { mysqlTable, int, varchar, float, tinyint, text, timestamp, index, unique, datetime, primaryKey, json } from 'drizzle-orm/mysql-core';
+import { mysqlTable, int, varchar, float, tinyint, text, mediumtext, timestamp, index, unique, datetime, primaryKey, json } from 'drizzle-orm/mysql-core';
+import type { ValheimManifestPackage } from '@/types/valheim';
 
 
 export const matchzyStatsMatches = mysqlTable('matchzy_stats_matches', {
@@ -102,6 +103,36 @@ export const servers = mysqlTable('servers', {
   uniqueAddress: unique('unique_address').on(table.address),
 }));
 
+export const valheimManifests = mysqlTable('valheim_manifests', {
+  server_id: int('server_id').primaryKey(),
+  manifest_id: varchar('manifest_id', { length: 64 }).notNull(),
+  access_token: varchar('access_token', { length: 64 }).notNull(),
+  packages: json('packages').$type<ValheimManifestPackage[]>().notNull(),
+  published_manifest: mediumtext('published_manifest'),
+  server_revision: varchar('server_revision', { length: 64 }),
+  client_revision: varchar('client_revision', { length: 64 }),
+  published_at: timestamp('published_at'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  uniqueManifestId: unique('unique_valheim_manifest_id').on(table.manifest_id),
+}));
+
+export const valheimModConfigs = mysqlTable('valheim_mod_configs', {
+  id: int('id').primaryKey().autoincrement(),
+  server_id: int('server_id').notNull(),
+  path: varchar('path', { length: 512 }).notNull(),
+  content: mediumtext('content').notNull(),
+  target: varchar('target', { length: 10 }).notNull().default('server'),
+  enabled: tinyint('enabled').notNull().default(1),
+  updated_by: varchar('updated_by', { length: 64 }),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  idxServer: index('idx_valheim_config_server').on(table.server_id),
+  uniqueServerPathTarget: unique('unique_valheim_config_target').on(table.server_id, table.path, table.target),
+}));
+
 export const tournaments = mysqlTable('cs2_tournaments', {
   id: int('id').primaryKey().autoincrement(),
   team1_name: varchar('team1_name', { length: 255 }).notNull(),
@@ -133,8 +164,9 @@ export type UserInfo = typeof userInfo.$inferSelect;
 export type NewUserInfo = typeof userInfo.$inferInsert;
 export type Server = typeof servers.$inferSelect;
 export type NewServer = typeof servers.$inferInsert;
+export type ValheimManifestRecord = typeof valheimManifests.$inferSelect;
+export type ValheimModConfig = typeof valheimModConfigs.$inferSelect;
 export type Tournament = typeof tournaments.$inferSelect;
 export type NewTournament = typeof tournaments.$inferInsert;
 export type TournamentPlayer = typeof tournamentPlayers.$inferSelect;
 export type NewTournamentPlayer = typeof tournamentPlayers.$inferInsert;
-

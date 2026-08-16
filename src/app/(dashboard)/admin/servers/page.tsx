@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { IconPlus, IconSearch, IconEdit, IconTrash, IconServer } from '@tabler/icons-react';
+import { IconPlus, IconSearch, IconEdit, IconTrash, IconServer, IconSettings } from '@tabler/icons-react';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import Select from '@/components/ui/Select';
 
 interface Server {
@@ -22,6 +23,7 @@ const GAME_OPTIONS = [
   { value: 'CSGO', label: 'CS:GO' },
   { value: 'Minecraft', label: 'Minecraft' },
   { value: 'Rust', label: 'Rust' },
+  { value: 'Valheim', label: 'Valheim' },
   { value: 'Other', label: 'Khác' },
 ];
 
@@ -231,6 +233,15 @@ export default function ServersManagementPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
+                        {server.game.toLowerCase() === 'valheim' && (
+                          <Link
+                            href={`/admin/servers/${server.id}/valheim`}
+                            className="p-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-lg transition-colors"
+                            title="Valheim mods and configs"
+                          >
+                            <IconSettings size={18} />
+                          </Link>
+                        )}
                         <button
                           onClick={() => openEditModal(server)}
                           disabled={actionLoading === server.id}
@@ -339,4 +350,3 @@ export default function ServersManagementPage() {
     </div>
   );
 }
-

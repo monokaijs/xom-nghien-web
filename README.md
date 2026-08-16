@@ -22,11 +22,12 @@ pnpm dev:services:down
 
 ## Valheim managed mods
 
-Apply `packages/db/migrations/025_add_server_managed_configs.sql` and
-`packages/db/migrations/026_link_managed_configs_to_mods.sql` to an existing
-database before enabling managed mod configs. Migration 026 preserves older
-unassigned config rows; an admin must assign each one to a selected mod in the
-server editor before saving.
+The production deployment automatically discovers and applies every numbered
+database migration from 017 onward before restarting the application. For a
+manual deployment, apply `packages/db/migrations/025_add_server_managed_configs.sql`
+and `packages/db/migrations/026_link_managed_configs_to_mods.sql` before enabling
+managed mod configs. Migration 026 preserves older unassigned config rows; an
+admin must assign each one to a selected mod in the server editor before saving.
 
 Admins manage config files from each mod's **Configure** action. Import the
 `.cfg` produced after launching the mod once for a structured BepInEx editor, or

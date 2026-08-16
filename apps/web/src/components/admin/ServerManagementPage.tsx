@@ -69,6 +69,16 @@ interface ConsoleEntry {
 
 const inputClass = 'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-colors placeholder:text-white/25 focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/20 disabled:cursor-not-allowed disabled:opacity-50';
 
+async function readApiResponse(response: Response): Promise<Record<string, any>> {
+  const body = await response.text();
+  if (!body) return {};
+  try {
+    return JSON.parse(body);
+  } catch {
+    return {};
+  }
+}
+
 function toForm(server: ManagedServer): ServerForm {
   return {
     game: server.game,
@@ -100,8 +110,8 @@ export default function ServerManagementPage({ serverId }: { serverId: string })
     setError(null);
     try {
       const response = await fetch(`/api/admin/servers/${serverId}`);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to load server');
+      const data = await readApiResponse(response);
+      if (!response.ok) throw new Error(data.error || `Failed to load server (HTTP ${response.status})`);
       setServer(data.server);
       setForm(toForm(data.server));
     } catch (loadError) {
@@ -127,8 +137,8 @@ export default function ServerManagementPage({ serverId }: { serverId: string })
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to save server');
+      const data = await readApiResponse(response);
+      if (!response.ok) throw new Error(data.error || `Failed to save server (HTTP ${response.status})`);
       setSaved(true);
       await loadServer();
       window.setTimeout(() => setSaved(false), 2500);
@@ -145,8 +155,8 @@ export default function ServerManagementPage({ serverId }: { serverId: string })
     setError(null);
     try {
       const response = await fetch(`/api/admin/servers/${serverId}`, { method: 'DELETE' });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to delete server');
+      const data = await readApiResponse(response);
+      if (!response.ok) throw new Error(data.error || `Failed to delete server (HTTP ${response.status})`);
       router.push('/admin/game-servers');
       router.refresh();
     } catch (deleteError) {
@@ -300,7 +310,7 @@ function RconPanel({ server, onServerChange }: { server: ManagedServer; onServer
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ host, port, password }),
       });
-      const data = await response.json();
+      const data = await readApiResponse(response);
       if (!response.ok) throw new Error(data.error || 'Failed to save RCON settings');
       setPassword('');
       setConfigOpen(false);
@@ -318,7 +328,7 @@ function RconPanel({ server, onServerChange }: { server: ManagedServer; onServer
     setConfigError(null);
     try {
       const response = await fetch(`/api/admin/servers/${server.id}/rcon`, { method: 'DELETE' });
-      const data = await response.json();
+      const data = await readApiResponse(response);
       if (!response.ok) throw new Error(data.error || 'Failed to remove RCON settings');
       onServerChange({ ...server, rconHost: null, rconPort: null, rconConfigured: false });
       setConfigOpen(true);
@@ -342,7 +352,7 @@ function RconPanel({ server, onServerChange }: { server: ManagedServer; onServer
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ command: nextCommand }),
       });
-      const data = await response.json();
+      const data = await readApiResponse(response);
       setEntries((current) => [...current, {
         id: Date.now(),
         command: nextCommand,

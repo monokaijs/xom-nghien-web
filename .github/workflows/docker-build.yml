@@ -141,26 +141,23 @@ jobs:
             "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/compose.demo-parser.yml"
           scp -i ~/.ssh/deploy_key .github/deploy/configure-matchzy-nginx.py \
             "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/configure-matchzy-nginx.py"
-          scp -i ~/.ssh/deploy_key packages/db/migrations/017_add_matchzy_demos.sql \
-            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/017_add_matchzy_demos.sql"
-          scp -i ~/.ssh/deploy_key packages/db/migrations/018_add_server_sort_order.sql \
-            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/018_add_server_sort_order.sql"
-          scp -i ~/.ssh/deploy_key packages/db/migrations/019_add_discord_activity.sql \
-            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/019_add_discord_activity.sql"
-          scp -i ~/.ssh/deploy_key packages/db/migrations/020_add_voice_rooms.sql \
-            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/020_add_voice_rooms.sql"
-          scp -i ~/.ssh/deploy_key packages/db/migrations/021_add_server_mods.sql \
-            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/021_add_server_mods.sql"
-          scp -i ~/.ssh/deploy_key packages/db/migrations/022_add_launcher_connections.sql \
-            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/022_add_launcher_connections.sql"
-          scp -i ~/.ssh/deploy_key packages/db/migrations/023_add_server_rcon_endpoint.sql \
-            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/023_add_server_rcon_endpoint.sql"
-          scp -i ~/.ssh/deploy_key packages/db/migrations/024_add_match_analysis_and_ratings.sql \
-            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/024_add_match_analysis_and_ratings.sql"
-          scp -i ~/.ssh/deploy_key packages/db/migrations/025_add_server_managed_configs.sql \
-            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/025_add_server_managed_configs.sql"
+          deploy_migrations=()
+          while IFS= read -r migration; do
+            filename="${migration##*/}"
+            version="${filename%%_*}"
+            if ((10#${version} >= 17)); then
+              deploy_migrations+=("${migration}")
+            fi
+          done < <(find packages/db/migrations -maxdepth 1 -type f -name '[0-9][0-9][0-9]_*.sql' | sort)
+          test "${#deploy_migrations[@]}" -gt 0
+          migration_manifest="$(mktemp)"
+          printf '%s\n' "${deploy_migrations[@]##*/}" > "${migration_manifest}"
+          scp -i ~/.ssh/deploy_key "${deploy_migrations[@]}" \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/"
+          scp -i ~/.ssh/deploy_key "${migration_manifest}" \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/mysql-migrations/deploy-list.txt"
           ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "cd '${DEPLOY_PATH}' && chmod 600 env/matchzy.env && python3 configure-matchzy-nginx.py && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml config >/dev/null && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml up -d mysql && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml exec -T mysql sh -lc 'for i in \$(seq 1 30); do mysqladmin ping -h 127.0.0.1 -u root -p\"\$MYSQL_ROOT_PASSWORD\" --silent && exit 0; sleep 2; done; exit 1' && for migration in 017_add_matchzy_demos.sql 018_add_server_sort_order.sql 019_add_discord_activity.sql 020_add_voice_rooms.sql 021_add_server_mods.sql 022_add_launcher_connections.sql 023_add_server_rcon_endpoint.sql 024_add_match_analysis_and_ratings.sql 025_add_server_managed_configs.sql; do docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml exec -T mysql sh -lc 'exec mysql -u\"\$MYSQL_USER\" -p\"\$MYSQL_PASSWORD\" \"\$MYSQL_DATABASE\"' < \"mysql-migrations/\$migration\"; done"
+            "cd '${DEPLOY_PATH}' && chmod 600 env/matchzy.env && python3 configure-matchzy-nginx.py && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml config >/dev/null && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml up -d mysql && docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml exec -T mysql sh -lc 'for i in \$(seq 1 30); do mysqladmin ping -h 127.0.0.1 -u root -p\"\$MYSQL_ROOT_PASSWORD\" --silent && exit 0; sleep 2; done; exit 1' && while IFS= read -r migration; do docker compose -f compose.yml -f compose.matchzy.yml -f compose.discord-bot.yml -f compose.server-heartbeats.yml -f compose.demo-parser.yml exec -T mysql sh -lc 'exec mysql -u\"\$MYSQL_USER\" -p\"\$MYSQL_PASSWORD\" \"\$MYSQL_DATABASE\"' < \"mysql-migrations/\$migration\"; done < mysql-migrations/deploy-list.txt"
 
       - name: Pull and restart
         run: |

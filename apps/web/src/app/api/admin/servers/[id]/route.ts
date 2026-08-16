@@ -13,31 +13,36 @@ async function findServer(id: number) {
 }
 
 export const GET = requireAdmin(async (_request: NextRequest, _user, context: RouteContext) => {
-  const { id } = await context.params;
-  const rows = await findServer(Number(id));
-  if (rows.length === 0) {
-    return NextResponse.json({ error: 'Server not found' }, { status: 404 });
-  }
+  try {
+    const { id } = await context.params;
+    const rows = await findServer(Number(id));
+    if (rows.length === 0) {
+      return NextResponse.json({ error: 'Server not found' }, { status: 404 });
+    }
 
-  const { address, rcon_password, connectionHost, connectionPort, joinPassword, ...server } = rows[0];
-  const [mods, managedConfigs] = await Promise.all([
-    getServerModsById([server.id]),
-    getServerManagedConfigsById([server.id]),
-  ]);
-  return NextResponse.json({
-    server: {
-      ...server,
-      gameName: server.name,
-      connectionLink: address,
-      connectionHost,
-      connectionPort,
-      joinPassword,
-      connectionGuide: server.connectionGuide || null,
-      rconConfigured: Boolean(server.rconHost && server.rconPort && rcon_password),
-      mods: mods.get(server.id) || [],
-      managedConfigs: managedConfigs.get(server.id) || [],
-    },
-  });
+    const { address, rcon_password, connectionHost, connectionPort, joinPassword, ...server } = rows[0];
+    const [mods, managedConfigs] = await Promise.all([
+      getServerModsById([server.id]),
+      getServerManagedConfigsById([server.id]),
+    ]);
+    return NextResponse.json({
+      server: {
+        ...server,
+        gameName: server.name,
+        connectionLink: address,
+        connectionHost,
+        connectionPort,
+        joinPassword,
+        connectionGuide: server.connectionGuide || null,
+        rconConfigured: Boolean(server.rconHost && server.rconPort && rcon_password),
+        mods: mods.get(server.id) || [],
+        managedConfigs: managedConfigs.get(server.id) || [],
+      },
+    });
+  } catch (error) {
+    console.error('Failed to load managed server', error);
+    return NextResponse.json({ error: 'Failed to load server' }, { status: 500 });
+  }
 });
 
 export const PUT = requireAdmin(async (request: NextRequest, _user, context: RouteContext) => {

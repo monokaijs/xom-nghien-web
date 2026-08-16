@@ -1,0 +1,39 @@
+diff --git a/app/api-strategy.server.ts b/app/api-strategy.server.ts
+index 433b5fb..e4afe17 100644
+--- a/app/api-strategy.server.ts
++++ b/app/api-strategy.server.ts
+@@ -14,7 +14,7 @@ import {
+   getAuthTokenDetails
+ } from "./models/api-auth-token.server";
+ import { steamApiKey } from "./models/rule.server";
+-import { upsertUser } from "./models/user.server";
++import { findUniqueUser, upsertUser } from "./models/user.server";
+ 
+ type ApiStrategyVerifyOptions = {
+   request: Request;
+@@ -26,10 +26,19 @@ export class ApiStrategy extends Strategy<string, ApiStrategyVerifyOptions> {
+   constructor() {
+     super(
+-      async ({ userId }) =>
+-        await upsertUser(
+-          (await new SteamAPI(await steamApiKey.get()).getUserSummary(
+-            userId
+-          )) as UserSummary
+-        )
++      async ({ userId }) => {
++        try {
++          return await upsertUser(
++            (await new SteamAPI(await steamApiKey.get()).getUserSummary(
++              userId
++            )) as UserSummary
++          );
++        } catch (error) {
++          const user = await findUniqueUser(userId).catch(() => undefined);
++          if (user !== undefined) {
++            return user.id;
++          }
++          throw error;
++        }
++      }
+     );
+   }

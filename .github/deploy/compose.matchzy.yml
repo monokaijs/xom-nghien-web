@@ -1,0 +1,9 @@
+services:
+  web:
+    env_file:
+      - ./env/matchzy.env
+    volumes:
+      - matchzy_demos:/app/storage/match-demos
+
+volumes:
+  matchzy_demos:

@@ -1,0 +1,46 @@
+ARG NODE_VERSION=22
+
+FROM node:${NODE_VERSION}-alpine AS development-dependencies-env
+WORKDIR /app
+COPY vendor/cs2-inventory-simulator/package.json vendor/cs2-inventory-simulator/package-lock.json ./
+RUN npm ci
+
+FROM node:${NODE_VERSION}-alpine AS production-dependencies-env
+WORKDIR /app
+COPY vendor/cs2-inventory-simulator/package.json vendor/cs2-inventory-simulator/package-lock.json ./
+COPY vendor/cs2-inventory-simulator/prisma ./prisma
+RUN npm ci --omit=dev
+
+FROM node:${NODE_VERSION}-alpine AS build-env
+ARG SOURCE_COMMIT
+ENV SOURCE_COMMIT=$SOURCE_COMMIT
+WORKDIR /app
+RUN apk add --no-cache patch
+COPY vendor/cs2-inventory-simulator/ ./
+COPY services/inventory-simulator/overlay/ ./
+COPY services/inventory-simulator/patches ./xn-patches
+RUN for patch_file in ./xn-patches/*.patch; do \
+      [ -e "$patch_file" ] || continue; \
+      patch --no-backup-if-mismatch -p1 < "$patch_file"; \
+    done
+COPY --from=development-dependencies-env /app/node_modules ./node_modules
+RUN npx prisma generate
+RUN npm run build
+
+FROM node:${NODE_VERSION}-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=production-dependencies-env /app/node_modules ./node_modules
+COPY --from=build-env /app/build ./build
+COPY --from=build-env /app/package.json ./package.json
+COPY --from=build-env /app/package-lock.json ./package-lock.json
+COPY --from=build-env /app/prisma ./prisma
+COPY --from=build-env /app/prisma.config.ts ./prisma.config.ts
+COPY --from=build-env /app/public ./public
+COPY services/inventory-simulator/seed-branding.mjs ./seed-branding.mjs
+COPY services/inventory-simulator/start-xn.sh ./start-xn.sh
+RUN chmod +x ./start-xn.sh
+
+EXPOSE 3000
+ENTRYPOINT ["./start-xn.sh"]

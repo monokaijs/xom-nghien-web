@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-dark: #2b161b;
+  --color-bg-panel: #422028;
+  --color-bg-sidebar: #1f1013;
+  --color-accent-primary: #ff4757;
+  --color-accent-gradient-start: #ff5f6d;
+  --color-accent-gradient-end: #ffc371;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a0a0a0;
+  --color-card-bg: #3b1e25;
+
+  --font-manrope: 'Manrope', sans-serif;
+}
+
+:root {
+  --background: #1a0f12;
+  --foreground: #ffffff;
+}
+
+/* Route-scoped Valheim palette. */
+.theme-valheim {
+  --color-bg-dark: #061b20;
+  --color-bg-panel: #245653;
+  --color-bg-sidebar: #031318;
+  --color-accent-primary: #f06a2c;
+  --color-accent-gradient-start: #ff873d;
+  --color-accent-gradient-end: #66b7ae;
+  --color-text-secondary: #9cb8b4;
+  --color-card-bg: #10343a;
+}
+
+.theme-valheim main {
+  background-image:
+    radial-gradient(circle at 88% 8%, rgb(54 132 124 / 22%), transparent 34%),
+    linear-gradient(145deg, rgb(4 24 29 / 20%), transparent 55%);
+}
+
+body:has(.theme-valheim) {
+  background-color: #061619;
+}
+
+/* Route-scoped Palworld palette. */
+.theme-palworld {
+  --color-bg-dark: #0a2233;
+  --color-bg-panel: #285a72;
+  --color-bg-sidebar: #061724;
+  --color-accent-primary: #1684aa;
+  --color-accent-gradient-start: #56c8e5;
+  --color-accent-gradient-end: #f1c84a;
+  --color-text-secondary: #a4c1cd;
+  --color-card-bg: #15384b;
+}
+
+.theme-palworld main {
+  background-image:
+    radial-gradient(circle at 88% 8%, rgb(73 190 220 / 22%), transparent 34%),
+    radial-gradient(circle at 12% 92%, rgb(241 200 74 / 9%), transparent 28%);
+}
+
+body:has(.theme-palworld) {
+  background-color: #04131f;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-manrope);
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+a, button {
+  cursor: pointer;
+}
+
+.legal-copy h2 {
+  margin-bottom: 0.75rem;
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+}
+
+.legal-copy p + p {
+  margin-top: 0.75rem;
+}
+
+.legal-copy a {
+  color: white;
+  text-decoration: underline;
+  text-decoration-color: rgb(255 255 255 / 35%);
+  text-underline-offset: 3px;
+}
+
+.legal-copy code {
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 0.35rem;
+  background: rgb(255 255 255 / 6%);
+  padding: 0.1rem 0.35rem;
+  color: white;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-bg-panel);
+  border-radius: 4px;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari and Opera */
+}

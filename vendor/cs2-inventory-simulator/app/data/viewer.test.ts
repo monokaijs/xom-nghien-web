@@ -1,0 +1,199 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Ian Lucas. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+import { CS2Economy, CS2ItemType, CS2RarityColor } from "@ianlucas/cs2-lib";
+import { describe, expect, it } from "vitest";
+import {
+  buildViewerSrc,
+  DEFAULT_VIEWER_EMBED_URL,
+  isViewerIdSupported,
+  isViewerItemSupported,
+  toViewerItem,
+  getViewerItemIds
+} from "./viewer";
+
+const catalog = {
+  maxId: 100,
+  holes: [
+    [10, 12],
+    [20, 20]
+  ] as [number, number][]
+};
+
+CS2Economy.load({
+  items: [
+    { id: 5, type: CS2ItemType.Weapon, rarityColor: CS2RarityColor.Common },
+    { id: 11, type: CS2ItemType.Weapon, rarityColor: CS2RarityColor.Common },
+    { id: 50, type: CS2ItemType.Sticker, rarityColor: CS2RarityColor.Common },
+    { id: 60, type: CS2ItemType.MusicKit, rarityColor: CS2RarityColor.Common },
+    {
+      id: 61,
+      type: CS2ItemType.Collectible,
+      rarityColor: CS2RarityColor.Common
+    },
+    { id: 62, type: CS2ItemType.Gloves, rarityColor: CS2RarityColor.Common },
+    { id: 63, type: CS2ItemType.Melee, rarityColor: CS2RarityColor.Common },
+    { id: 64, type: CS2ItemType.Sticker, rarityColor: CS2RarityColor.Common },
+    { id: 200, type: CS2ItemType.Sticker, rarityColor: CS2RarityColor.Common }
+  ]
+});
+
+describe("isViewerIdSupported", () => {
+  it("fails closed when the manifest is absent", () => {
+    expect(isViewerIdSupported(undefined, 5)).toBe(false);
+  });
+
+  it("supports ids in [0, maxId] that aren't in a hole", () => {
+    expect(isViewerIdSupported(catalog, 0)).toBe(true);
+    expect(isViewerIdSupported(catalog, 13)).toBe(true);
+    expect(isViewerIdSupported(catalog, 100)).toBe(true);
+  });
+
+  it("rejects ids above maxId (host on a newer cs2-lib)", () => {
+    expect(isViewerIdSupported(catalog, 101)).toBe(false);
+  });
+
+  it("rejects ids inside a hole, inclusive of both ends", () => {
+    expect(isViewerIdSupported(catalog, 10)).toBe(false);
+    expect(isViewerIdSupported(catalog, 11)).toBe(false);
+    expect(isViewerIdSupported(catalog, 12)).toBe(false);
+    expect(isViewerIdSupported(catalog, 20)).toBe(false);
+    expect(isViewerIdSupported(catalog, 9)).toBe(true);
+    expect(isViewerIdSupported(catalog, 21)).toBe(true);
+  });
+});
+
+describe("getViewerItemIds", () => {
+  it("returns the weapon id plus every applied sticker id", () => {
+    expect(
+      getViewerItemIds({
+        id: 7,
+        stickers: { "0": { id: 30 }, "2": { id: 40 } }
+      })
+    ).toEqual([7, 30, 40]);
+  });
+
+  it("returns just the weapon id when there are no stickers", () => {
+    expect(getViewerItemIds({ id: 7 })).toEqual([7]);
+  });
+});
+
+describe("toViewerItem", () => {
+  it("passes statTrak and nameTag through to the viewer payload", () => {
+    expect(toViewerItem({ id: 7, statTrak: 42, nameTag: "My Gun" })).toEqual({
+      id: 7,
+      statTrak: 42,
+      nameTag: "My Gun"
+    });
+  });
+
+  it("keeps statTrak: 0 (StatTrak enabled, zero kills)", () => {
+    expect(toViewerItem({ id: 7, statTrak: 0 })).toEqual({
+      id: 7,
+      statTrak: 0
+    });
+  });
+
+  it("drops statTrak and nameTag when undefined so the viewer keeps its defaults", () => {
+    const viewerItem = toViewerItem({ id: 7 });
+    expect(viewerItem).toEqual({ id: 7 });
+    expect("statTrak" in viewerItem).toBe(false);
+    expect("nameTag" in viewerItem).toBe(false);
+  });
+});
+
+describe("isViewerItemSupported", () => {
+  it("requires the weapon AND all its stickers to be renderable", () => {
+    expect(
+      isViewerItemSupported(catalog, { id: 5, stickers: { "0": { id: 50 } } })
+    ).toBe(true);
+    expect(
+      isViewerItemSupported(catalog, { id: 5, stickers: { "0": { id: 200 } } })
+    ).toBe(false);
+    expect(isViewerItemSupported(catalog, { id: 11 })).toBe(false);
+  });
+
+  it("fails closed without a manifest", () => {
+    expect(isViewerItemSupported(undefined, { id: 5 })).toBe(false);
+  });
+
+  it("only offers kinds the viewer renders (weapon/melee/sticker)", () => {
+    expect(isViewerItemSupported(catalog, { id: 63 })).toBe(true);
+    expect(isViewerItemSupported(catalog, { id: 64 })).toBe(true);
+    expect(isViewerItemSupported(catalog, { id: 60 })).toBe(false);
+    expect(isViewerItemSupported(catalog, { id: 61 })).toBe(false);
+    expect(isViewerItemSupported(catalog, { id: 62 })).toBe(false);
+  });
+
+  it("classifies CS2EconomyItem instances without an economy lookup", () => {
+    expect(isViewerItemSupported(catalog, CS2Economy.getById(5))).toBe(true);
+    expect(isViewerItemSupported(catalog, CS2Economy.getById(60))).toBe(false);
+  });
+
+  it("fails closed for an id the economy doesn't know", () => {
+    expect(isViewerItemSupported(catalog, { id: 70 })).toBe(false);
+  });
+});
+
+describe("buildViewerSrc", () => {
+  it("uses the default viewer base URL and encodes the item", () => {
+    const url = new URL(buildViewerSrc({ id: 7 }));
+    expect(url.origin + url.pathname).toBe(DEFAULT_VIEWER_EMBED_URL);
+    expect(url.searchParams.get("item")).toBe(JSON.stringify({ id: 7 }));
+    expect(url.searchParams.has("cdn")).toBe(false);
+    expect(url.searchParams.has("key")).toBe(false);
+  });
+
+  it("overrides the embed URL when given one (the embed API origin follows it)", () => {
+    const url = new URL(
+      buildViewerSrc({ id: 7 }, { embedUrl: "https://viewer.example/view" })
+    );
+    expect(url.origin).toBe("https://viewer.example");
+    expect(url.pathname).toBe("/view");
+  });
+
+  it("sets ?cdn= only when a cdn base is provided", () => {
+    expect(
+      new URL(
+        buildViewerSrc({ id: 7 }, { cdn: "https://mirror.example/cs2" })
+      ).searchParams.get("cdn")
+    ).toBe("https://mirror.example/cs2");
+    expect(new URL(buildViewerSrc({ id: 7 })).searchParams.has("cdn")).toBe(
+      false
+    );
+  });
+
+  it("sets ?key= when a partner key is provided", () => {
+    expect(
+      new URL(
+        buildViewerSrc({ id: 7 }, { key: "partner-key" })
+      ).searchParams.get("key")
+    ).toBe("partner-key");
+  });
+
+  it("omits the item param when no item is given", () => {
+    expect(new URL(buildViewerSrc()).searchParams.has("item")).toBe(false);
+  });
+
+  it("sets ?icon= only when icon mode is requested", () => {
+    expect(
+      new URL(buildViewerSrc({ id: 7 }, { icon: true })).searchParams.has(
+        "icon"
+      )
+    ).toBe(true);
+    expect(new URL(buildViewerSrc({ id: 7 })).searchParams.has("icon")).toBe(
+      false
+    );
+  });
+
+  it("always opts in to half-degree rotation", () => {
+    expect(new URL(buildViewerSrc()).searchParams.get("halfRotation")).toBe(
+      "1"
+    );
+    expect(
+      new URL(buildViewerSrc({ id: 7 })).searchParams.get("halfRotation")
+    ).toBe("1");
+  });
+});

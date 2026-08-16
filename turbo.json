@@ -1,0 +1,63 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "NEXTAUTH_URL",
+        "NEXTAUTH_SECRET",
+        "SESSION_SECRET",
+        "STEAM_API_KEY",
+        "STEAM_WEB_API_KEY",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "DISCORD_CLIENT_ID",
+        "DISCORD_CLIENT_SECRET",
+        "GITHUB_CLIENT_ID",
+        "GITHUB_CLIENT_SECRET",
+        "DB_HOST",
+        "DB_PORT",
+        "DB_USER",
+        "DB_PASSWORD",
+        "DB_NAME",
+        "SERVER_HEARTBEATS_URL",
+        "SERVER_HEARTBEATS_PORT",
+        "SERVER_HEARTBEATS_INTERVAL_MS",
+        "MATCH_DEMO_STORAGE_DIR",
+        "DEMO_PARSER_PORT",
+        "DEMO_PARSER_POLL_INTERVAL_MS",
+        "DEMO_PARSER_MAX_ATTEMPTS",
+        "XN_RATED_SERVER_ADDRESSES",
+        "INVENTORY_PUBLIC_URL",
+        "INVENTORY_INTERNAL_URL",
+        "INVENTORY_SERVICE_URL",
+        "XN_INV_API_AUTH_KEY",
+        "VOICE_ENABLED",
+        "VOICE_GUEST_COOKIE_SECRET",
+        "VOICE_ROOM_CODE_SECRET",
+        "STUN_URLS",
+        "TURN_URLS",
+        "TURN_SHARED_SECRET"
+      ]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "lint": {
+      "outputs": []
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}

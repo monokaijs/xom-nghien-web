@@ -1,0 +1,41 @@
+diff --git a/app/logo.server.ts b/app/logo.server.ts
+index 5d9813f..f72f3cc 100644
+--- a/app/logo.server.ts
++++ b/app/logo.server.ts
+@@ -3,6 +3,9 @@
+  * Licensed under the MIT License. See License.txt in the project root for license information.
+  *--------------------------------------------------------------------------------------------*/
+ 
++import { readFile } from "node:fs/promises";
++import { extname, join, normalize } from "node:path";
++
+ import { serverGlobals } from "./globals";
+ import { appLogoUrl } from "./models/rule.server";
+ 
+@@ -11,6 +14,26 @@ export async function setupLogo() {
+     const url = await appLogoUrl.get();
+     if (url === "") {
+       return;
++    }
++    if (url.startsWith("/")) {
++      const publicDir = normalize(join(process.cwd(), "public"));
++      const filePath = normalize(join(publicDir, url));
++      if (!filePath.startsWith(publicDir)) {
++        return;
++      }
++      const string = Buffer.from(await readFile(filePath)).toString("base64");
++      const mimeType =
++        {
++          ".gif": "image/gif",
++          ".jpg": "image/jpeg",
++          ".jpeg": "image/jpeg",
++          ".png": "image/png",
++          ".svg": "image/svg+xml",
++          ".webp": "image/webp"
++        }[extname(filePath).toLowerCase()] || "application/octet-stream";
++      const base64Url = `data:${mimeType};base64,${string}`;
++      serverGlobals.appLogoBase64Url = base64Url;
++      return;
+     }
+     const response = await fetch(url);
+     const string = Buffer.from(await response.arrayBuffer()).toString("base64");

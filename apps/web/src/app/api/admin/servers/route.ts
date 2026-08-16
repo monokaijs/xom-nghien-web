@@ -1,0 +1,117 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { asc, db, desc, eq, serverManagedConfigs, serverMods, servers, sql } from '@xom/db';
+import { requireAdmin } from '@/lib/auth';
+import { parseGameServerInput } from '@/lib/game-servers';
+import { parseServerManagedConfigs } from '@/lib/server-managed-configs';
+import { getServerModsById } from '@/lib/utils/server-mods';
+import type { ServerMod } from '@/types/server';
+
+function toResponse(server: typeof servers.$inferSelect, mods: ServerMod[]) {
+  const { address, rcon_password, connectionHost, connectionPort, joinPassword, ...rest } = server;
+  return {
+    ...rest,
+    gameName: server.name,
+    connectionLink: address,
+    connectionHost,
+    connectionPort,
+    joinPassword,
+    connectionGuide: server.connectionGuide || null,
+    rconConfigured: Boolean(server.rconHost && server.rconPort && rcon_password),
+    mods,
+  };
+}
+
+function isDuplicateConnection(error: any) {
+  return error?.cause?.code === 'ER_DUP_ENTRY';
+}
+
+export const GET = requireAdmin(async () => {
+  const rows = await db.select().from(servers).orderBy(asc(servers.sortOrder), desc(servers.created_at));
+  const serverIds = rows.map((server) => server.id);
+  const mods = await getServerModsById(serverIds);
+  return NextResponse.json({
+    servers: rows.map((server) => toResponse(server, mods.get(server.id) || [])),
+  });
+});
+
+export const POST = requireAdmin(async (request: NextRequest) => {
+  try {
+    const body = await request.json();
+    const input = parseGameServerInput(body);
+    const managedConfigs = parseServerManagedConfigs(body.managedConfigs, input.game);
+    const [order] = await db.select({
+      value: sql<number>`COALESCE(MAX(${servers.sortOrder}), -1) + 1`,
+    }).from(servers);
+    let serverId = 0;
+    await db.transaction(async (transaction) => {
+      const result = await transaction.insert(servers).values({
+        name: input.name,
+        game: input.game,
+        address: input.connectionLink,
+        connectionHost: input.connectionHost,
+        connectionPort: input.connectionPort,
+        joinPassword: input.joinPassword,
+        connectionGuide: input.connectionGuide,
+        description: input.description,
+        metadataUrl: input.metadataUrl,
+        sortOrder: Number(order?.value ?? 0),
+        rcon_password: null,
+      });
+      serverId = result[0].insertId;
+      if (input.mods.length > 0) {
+        await transaction.insert(serverMods).values(input.mods.map((mod, sortOrder) => ({
+          serverId,
+          ...mod,
+          sortOrder,
+        })));
+      }
+      if (managedConfigs.length > 0) {
+        await transaction.insert(serverManagedConfigs).values(managedConfigs.map((config, sortOrder) => ({
+          serverId,
+          ...config,
+          sortOrder,
+        })));
+      }
+    });
+
+    return NextResponse.json({ success: true, serverId }, { status: 201 });
+  } catch (error: any) {
+    if (isDuplicateConnection(error)) {
+      return NextResponse.json({ error: 'This connection link is already in use' }, { status: 409 });
+    }
+    return NextResponse.json({ error: error.message || 'Failed to create server' }, { status: 400 });
+  }
+});
+
+export const PATCH = requireAdmin(async (request: NextRequest) => {
+  try {
+    const body = await request.json();
+    const serverIds = Array.isArray(body.serverIds)
+      ? body.serverIds.map(Number)
+      : [];
+
+    if (
+      serverIds.length === 0
+      || serverIds.some((id: number) => !Number.isSafeInteger(id) || id < 1)
+      || new Set(serverIds).size !== serverIds.length
+    ) {
+      return NextResponse.json({ error: 'Invalid server order' }, { status: 400 });
+    }
+
+    const existing = await db.select({ id: servers.id }).from(servers);
+    const existingIds = new Set(existing.map((server) => server.id));
+    if (existingIds.size !== serverIds.length || serverIds.some((id: number) => !existingIds.has(id))) {
+      return NextResponse.json({ error: 'Server list changed; reload and try again' }, { status: 409 });
+    }
+
+    await db.transaction(async (transaction) => {
+      for (const [sortOrder, id] of serverIds.entries()) {
+        await transaction.update(servers).set({ sortOrder }).where(eq(servers.id, id));
+      }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Failed to reorder servers' }, { status: 400 });
+  }
+});

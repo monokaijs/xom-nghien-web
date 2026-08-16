@@ -1,9 +1,14 @@
 Dockerfile
+Dockerfile.*
 .dockerignore
 node_modules
+**/node_modules
 npm-debug.log
 README.md
 .next
+**/.next
+dist
+**/dist
 .git
 .gitignore
 .env*.local
@@ -11,4 +16,3 @@ README.md
 .idea
 *.md
 .DS_Store
-

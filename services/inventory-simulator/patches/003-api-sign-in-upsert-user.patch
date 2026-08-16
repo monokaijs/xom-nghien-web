@@ -1,0 +1,44 @@
+diff --git a/app/routes/api.sign-in._index.tsx b/app/routes/api.sign-in._index.tsx
+index c559825..f2f2e5c 100644
+--- a/app/routes/api.sign-in._index.tsx
++++ b/app/routes/api.sign-in._index.tsx
+@@ -8,8 +8,11 @@ import { api } from "~/api.server";
+ import { middleware } from "~/middleware.server";
+ import { generateAuthToken } from "~/models/api-auth-token.server";
+ import { API_AUTH_SCOPE, isApiKeyValid } from "~/models/api-credential.server";
+-import { existsUser } from "~/models/user.server";
+-import { badRequest, methodNotAllowed, unauthorized } from "~/responses.server";
++import { upsertUser } from "~/models/user.server";
++import { methodNotAllowed, unauthorized } from "~/responses.server";
+ import type { Route } from "./+types/api.sign-in._index";
+ 
++const fallbackAvatar =
++  "https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg";
++
+ export const action = api(async ({ request }: Route.ActionArgs) => {
+@@ -20,17 +23,21 @@ export const action = api(async ({ request }: Route.ActionArgs) => {
+-  const { apiKey, userId } = z
++  const { apiKey, avatar, name, userId } = z
+     .object({
+       apiKey: z.string(),
++      avatar: z.string().optional(),
++      name: z.string().optional(),
+       userId: z.string()
+     })
+     .parse(await request.json());
+ 
+   if (!(await isApiKeyValid(apiKey, [API_AUTH_SCOPE]))) {
+     throw unauthorized;
+   }
+ 
+-  if (!(await existsUser(userId))) {
+-    throw badRequest;
+-  }
++  await upsertUser({
++    avatar: { medium: avatar || fallbackAvatar },
++    nickname: name || userId,
++    steamID: userId
++  });
+ 
+   return Response.json({
+     token: await generateAuthToken({ apiKey, userId })

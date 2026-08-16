@@ -1,0 +1,26 @@
+ARG NODE_VERSION=22.13.1
+FROM node:${NODE_VERSION}-slim AS base
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+WORKDIR /app
+RUN npm install -g pnpm@11.0.9
+
+FROM base AS build
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.json ./
+COPY apps/discord-bot/package.json ./apps/discord-bot/package.json
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/tsconfig/package.json ./packages/tsconfig/package.json
+RUN pnpm install --frozen-lockfile --filter @xom/discord-bot...
+COPY apps/discord-bot ./apps/discord-bot
+COPY packages/db ./packages/db
+COPY packages/tsconfig ./packages/tsconfig
+RUN pnpm --filter @xom/discord-bot build && pnpm --filter @xom/discord-bot deploy --legacy --prod /prod/discord-bot
+
+FROM node:${NODE_VERSION}-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /prod/discord-bot ./
+USER node
+EXPOSE 3100
+CMD ["node", "dist/index.js"]

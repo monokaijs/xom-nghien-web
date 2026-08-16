@@ -1,0 +1,75 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Ian Lucas. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+import { faBan } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  CS2BaseInventoryItem,
+  CS2Economy,
+  CS2EconomyItem,
+  CS2_MAX_STICKERS
+} from "@ianlucas/cs2-lib";
+import { ReactNode } from "react";
+import { range } from "~/utils/number";
+import { useRules, useTranslate } from "./app-context";
+import { ItemImage } from "./item-image";
+
+export function StickerSlotGrid({
+  disabled,
+  onSlotClick,
+  renderSlotOverlay,
+  value
+}: {
+  disabled?: boolean;
+  onSlotClick: (index: number) => void;
+  renderSlotOverlay?: (index: number, item: CS2EconomyItem) => ReactNode;
+  value: NonNullable<CS2BaseInventoryItem["stickers"]>;
+}) {
+  const translate = useTranslate();
+  const { inventoryItemMaxStickers } = useRules();
+  const isCapped = Object.keys(value).length >= inventoryItemMaxStickers;
+  return (
+    <div
+      className="grid gap-1"
+      style={{
+        gridTemplateColumns: `repeat(${CS2_MAX_STICKERS}, minmax(0, 1fr))`
+      }}
+    >
+      {range(CS2_MAX_STICKERS).map((index) => {
+        const sticker = value[index];
+        const item =
+          sticker !== undefined ? CS2Economy.getById(sticker.id) : undefined;
+        const isSlotDisabled = disabled || (item === undefined && isCapped);
+        return (
+          <div className="relative aspect-256/192" key={index}>
+            <button
+              disabled={isSlotDisabled}
+              className="absolute size-full cursor-default overflow-hidden bg-neutral-950/40"
+              onClick={() => onSlotClick(index)}
+            >
+              {item !== undefined ? (
+                <ItemImage item={item} />
+              ) : (
+                <div className="flex items-center justify-center text-neutral-700">
+                  {isSlotDisabled && isCapped ? (
+                    <FontAwesomeIcon icon={faBan} className="h-3" />
+                  ) : (
+                    translate("StickerPickerNA")
+                  )}
+                </div>
+              )}
+              {!isSlotDisabled && (
+                <div className="absolute top-0 left-0 size-full border-2 border-transparent hover:border-blue-500/50" />
+              )}
+            </button>
+            {item !== undefined &&
+              !disabled &&
+              renderSlotOverlay?.(index, item)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}

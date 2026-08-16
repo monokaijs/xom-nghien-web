@@ -1,0 +1,211 @@
+name: Inventory Sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 21 * * *"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: inventory
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d inventory"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Read latest upstream release
+        id: upstream
+        run: |
+          set -euo pipefail
+          release_json="$(curl -fsSL https://api.github.com/repos/ianlucas/cs2-inventory-simulator/releases/latest)"
+          tag="$(printf '%s' "$release_json" | jq -r '.tag_name')"
+          published_at="$(printf '%s' "$release_json" | jq -r '.published_at')"
+          commit="$(git ls-remote https://github.com/ianlucas/cs2-inventory-simulator.git "refs/tags/${tag}" | awk '{print $1}')"
+          current_tag="$(jq -r '.release // empty' services/inventory-simulator/upstream.json 2>/dev/null || true)"
+
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "commit=${commit}" >> "$GITHUB_OUTPUT"
+          echo "published_at=${published_at}" >> "$GITHUB_OUTPUT"
+          if [ "$tag" = "$current_tag" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sync vendor source
+        if: steps.upstream.outputs.changed == 'true'
+        env:
+          UPSTREAM_COMMIT: ${{ steps.upstream.outputs.commit }}
+          UPSTREAM_PUBLISHED_AT: ${{ steps.upstream.outputs.published_at }}
+          UPSTREAM_TAG: ${{ steps.upstream.outputs.tag }}
+        run: |
+          set -euo pipefail
+          rm -rf vendor/cs2-inventory-simulator
+          mkdir -p vendor/cs2-inventory-simulator
+          tmpdir="$(mktemp -d)"
+          curl -fsSL "https://api.github.com/repos/ianlucas/cs2-inventory-simulator/tarball/${UPSTREAM_TAG}" -o "${tmpdir}/upstream.tgz"
+          mkdir -p "${tmpdir}/extract"
+          tar -xzf "${tmpdir}/upstream.tgz" -C "${tmpdir}/extract" --strip-components=1
+          rsync -a --delete "${tmpdir}/extract/" vendor/cs2-inventory-simulator/
+          rm -rf "${tmpdir}"
+
+          node <<'NODE'
+          const fs = require("node:fs");
+
+          const data = {
+            owner: "ianlucas",
+            repo: "cs2-inventory-simulator",
+            release: process.env.UPSTREAM_TAG,
+            commit: process.env.UPSTREAM_COMMIT,
+            publishedAt: process.env.UPSTREAM_PUBLISHED_AT,
+            source: "https://github.com/ianlucas/cs2-inventory-simulator"
+          };
+
+          fs.writeFileSync(
+            "services/inventory-simulator/upstream.json",
+            `${JSON.stringify(data, null, 2)}\n`
+          );
+          NODE
+
+      - name: Build customized image
+        if: steps.upstream.outputs.changed == 'true'
+        run: |
+          docker build \
+            -f Dockerfile.inventory-simulator \
+            --build-arg SOURCE_COMMIT="${{ steps.upstream.outputs.commit }}" \
+            -t xn-inventory-simulator:smoke \
+            .
+
+      - name: Smoke test customized image
+        if: steps.upstream.outputs.changed == 'true'
+        env:
+          POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          docker rm -f xn-inventory-smoke >/dev/null 2>&1 || true
+          docker run -d \
+            --name xn-inventory-smoke \
+            --network host \
+            -e DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/inventory?schema=public" \
+            -e SESSION_SECRET="smoke-session-secret" \
+            -e STEAM_API_KEY="smoke-steam-api-key" \
+            -e STEAM_CALLBACK_URL="http://127.0.0.1:3010/sign-in/steam/callback" \
+            -e XN_INV_API_AUTH_KEY="smoke-inventory-api-key" \
+            -e XN_INV_PUBLIC_URL="http://127.0.0.1:3010" \
+            -e PORT=3010 \
+            xn-inventory-simulator:smoke
+
+          for attempt in $(seq 1 90); do
+            if curl -fsS "http://127.0.0.1:3010/" >/tmp/inventory-home.html; then
+              break
+            fi
+            sleep 2
+          done
+
+          curl -fsS "http://127.0.0.1:3010/" >/tmp/inventory-home.html
+          grep -qF '/xn/custom.css' /tmp/inventory-home.html
+          curl -fsS "http://127.0.0.1:3010/xn/custom.css" | grep -qF '#splash'
+          curl -fsS "http://127.0.0.1:3010/xn/logo.svg" | grep -qF '<svg'
+          curl -fsS "http://127.0.0.1:3010/app.webmanifest" | grep -qF 'Xóm Nghiện Inventory'
+
+          docker exec "${POSTGRES_CONTAINER_ID}" \
+            psql -U postgres -d inventory -tAc \
+            "SELECT value FROM \"Rule\" WHERE name = 'appName';" | grep -qF 'Xóm Nghiện Inventory'
+
+          docker exec "${POSTGRES_CONTAINER_ID}" \
+            psql -U postgres -d inventory -tAc \
+            "SELECT scope FROM \"ApiCredential\" WHERE \"apiKey\" = 'smoke-inventory-api-key';" | grep -qF 'api_auth'
+
+          invalid_status="$(
+            curl -sS -o /tmp/invalid-api-sign-in-body -w '%{http_code}' \
+              -X POST \
+              -H 'Content-Type: application/json' \
+              -d '{"apiKey":"invalid","userId":"76561198000000000"}' \
+              "http://127.0.0.1:3010/api/sign-in"
+          )"
+          test "$invalid_status" = "401"
+
+          valid_token="$(
+            curl -fsS \
+              -X POST \
+              -H 'Content-Type: application/json' \
+              -d '{"apiKey":"smoke-inventory-api-key","userId":"76561198000000000","name":"Smoke User","avatar":"https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg"}' \
+              "http://127.0.0.1:3010/api/sign-in" | jq -r '.token'
+          )"
+          test -n "$valid_token"
+          test "$valid_token" != "null"
+          valid_status="$(
+            curl -sS -D /tmp/valid-token-headers -o /tmp/valid-token-body -w '%{http_code}' \
+              "http://127.0.0.1:3010/api/sign-in/callback?token=${valid_token}"
+          )"
+          test "$valid_status" = "302"
+          grep -qF '_session=' /tmp/valid-token-headers
+
+      - name: Configure Git
+        if: steps.upstream.outputs.changed == 'true'
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+      - name: Commit upstream sync
+        if: steps.upstream.outputs.changed == 'true'
+        id: commit
+        run: |
+          set -euo pipefail
+          git add vendor/cs2-inventory-simulator services/inventory-simulator/upstream.json
+          git commit -m "Sync CS2 inventory simulator ${{ steps.upstream.outputs.tag }}"
+          short_sha="$(git rev-parse --short HEAD)"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${short_sha}" >> "$GITHUB_OUTPUT"
+          git push origin HEAD:main
+
+      - name: Log in to GitHub Container Registry
+        if: steps.upstream.outputs.changed == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push synced inventory simulator image
+        if: steps.upstream.outputs.changed == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.inventory-simulator
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}-inventory-simulator:latest
+            ghcr.io/${{ github.repository }}-inventory-simulator:upstream-${{ steps.upstream.outputs.tag }}
+            ghcr.io/${{ github.repository }}-inventory-simulator:main-${{ steps.commit.outputs.short_sha }}
+          cache-from: type=gha,scope=inventory-simulator
+          cache-to: type=gha,mode=max,scope=inventory-simulator
+          build-args: |
+            SOURCE_COMMIT=${{ steps.commit.outputs.sha }}
+
+      - name: Cleanup smoke container
+        if: always()
+        run: docker rm -f xn-inventory-smoke >/dev/null 2>&1 || true

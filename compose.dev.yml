@@ -1,0 +1,114 @@
+services:
+  mysql:
+    image: mysql:8.0-debian
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - xom_mysql_data:/var/lib/mysql
+      - ./packages/db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  discord-bot:
+    profiles: ["discord"]
+    build:
+      context: .
+      dockerfile: Dockerfile.discord-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+    ports:
+      - "${DISCORD_BOT_HEALTH_PORT:-3100}:3100"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3100/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  server-heartbeats:
+    build:
+      context: .
+      dockerfile: Dockerfile.server-heartbeats
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      SERVER_HEARTBEATS_PORT: 3200
+      SERVER_HEARTBEATS_INTERVAL_MS: 15000
+    ports:
+      - "${SERVER_HEARTBEATS_PORT:-3200}:3200"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3200/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  demo-parser:
+    profiles: ["parser"]
+    build:
+      context: .
+      dockerfile: Dockerfile.demo-parser
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DEMO_PARSER_PORT: 3300
+      MATCH_DEMO_STORAGE_DIR: /app/storage/match-demos
+    volumes:
+      - ./storage/match-demos:/app/storage/match-demos
+    ports:
+      - "${DEMO_PARSER_PORT:-3300}:3300"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3300/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  coturn:
+    profiles: ["voice"]
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    command:
+      - --no-cli
+      - --log-file=stdout
+      - --fingerprint
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SHARED_SECRET:-local-dev-turn-secret-change-before-production}
+      - --realm=${TURN_REALM:-localhost}
+      - --external-ip=${TURN_EXTERNAL_IP:-127.0.0.1}
+      - --min-port=${TURN_MIN_PORT:-49160}
+      - --max-port=${TURN_MAX_PORT:-49200}
+      - --user-quota=12
+      - --total-quota=1200
+    ports:
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+      - "${TURN_MIN_PORT:-49160}-${TURN_MAX_PORT:-49200}:${TURN_MIN_PORT:-49160}-${TURN_MAX_PORT:-49200}/udp"
+
+volumes:
+  xom_mysql_data:

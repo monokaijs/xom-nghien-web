@@ -1,0 +1,29 @@
+{
+  "name": "@xom/server-heartbeats",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc --noEmit -p tsconfig.json && esbuild src/index.ts --bundle --platform=node --format=esm --external:gamedig --external:drizzle-orm --external:mysql2 --outfile=dist/index.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "clean": "rm -rf dist coverage"
+  },
+  "dependencies": {
+    "@xom/db": "workspace:*",
+    "drizzle-orm": "^0.44.7",
+    "gamedig": "^5.3.3",
+    "mysql2": "^3.15.3"
+  },
+  "devDependencies": {
+    "@types/gamedig": "^5.0.3",
+    "@types/node": "^22.18.0",
+    "@xom/tsconfig": "workspace:*",
+    "esbuild": "^0.25.12",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

@@ -1,0 +1,214 @@
+name: Launcher Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version component to increment
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+  push:
+    tags: ["launcher-v*"]
+
+concurrency:
+  group: launcher-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.2
+      - name: Select or create release version
+        id: release
+        env:
+          BUMP: ${{ inputs.bump }}
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${EVENT_NAME}" == "push" ]]; then
+            tag="${GITHUB_REF_NAME}"
+            if [[ ! "${tag}" =~ ^launcher-v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+              echo "Invalid launcher release tag: ${tag}" >&2
+              exit 1
+            fi
+            version="${tag#launcher-v}"
+            configured_version="$(node -p "require('./apps/launcher/package.json').version")"
+            if [[ "${configured_version}" != "${version}" ]]; then
+              echo "Tag ${tag} does not match launcher version ${configured_version}" >&2
+              exit 1
+            fi
+          else
+            release_commit="$(git log --all --format=%H --grep="Release-Run: ${RELEASE_RUN_ID}" -1)"
+            if [[ -n "${release_commit}" ]]; then
+              version="$(git show "${release_commit}:apps/launcher/package.json" | node -e "process.stdout.write(JSON.parse(require('node:fs').readFileSync(0, 'utf8')).version)")"
+              tag="launcher-v${version}"
+              tag_commit="$(git rev-list -n 1 "${tag}")"
+              if [[ "${tag_commit}" != "${release_commit}" ]]; then
+                echo "Existing ${tag} does not point to this release run's commit" >&2
+                exit 1
+              fi
+            else
+              version="$(node <<'NODE'
+          const fs = require('node:fs');
+
+          const bump = process.env.BUMP;
+          if (!['patch', 'minor', 'major'].includes(bump)) {
+            throw new Error(`Unsupported version bump: ${bump}`);
+          }
+
+          const packagePath = 'apps/launcher/package.json';
+          const tauriPath = 'apps/launcher/src-tauri/tauri.conf.json';
+          const cargoPath = 'apps/launcher/src-tauri/Cargo.toml';
+          const lockPath = 'apps/launcher/src-tauri/Cargo.lock';
+          const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+          const current = packageJson.version.match(/^(\d+)\.(\d+)\.(\d+)$/);
+          if (!current) throw new Error(`Invalid current launcher version: ${packageJson.version}`);
+          let [major, minor, patch] = current.slice(1).map(Number);
+          if (bump === 'major') [major, minor, patch] = [major + 1, 0, 0];
+          if (bump === 'minor') [minor, patch] = [minor + 1, 0];
+          if (bump === 'patch') patch += 1;
+          const next = `${major}.${minor}.${patch}`;
+
+          packageJson.version = next;
+          fs.writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
+
+          const tauri = JSON.parse(fs.readFileSync(tauriPath, 'utf8'));
+          tauri.version = next;
+          fs.writeFileSync(tauriPath, `${JSON.stringify(tauri, null, 2)}\n`);
+
+          const cargo = fs.readFileSync(cargoPath, 'utf8');
+          const updatedCargo = cargo.replace(
+            /^version = "\d+\.\d+\.\d+"$/m,
+            `version = "${next}"`,
+          );
+          if (updatedCargo === cargo) throw new Error('Could not update Cargo.toml version');
+          fs.writeFileSync(cargoPath, updatedCargo);
+
+          const lock = fs.readFileSync(lockPath, 'utf8');
+          const packagePattern = /(\[\[package\]\]\r?\nname = "xom-nghien-launcher"\r?\nversion = ")\d+\.\d+\.\d+("\r?\n)/;
+          const updatedLock = lock.replace(
+            packagePattern,
+            `$1${next}$2`,
+          );
+          if (updatedLock === lock) throw new Error('Could not update Cargo.lock version');
+          fs.writeFileSync(lockPath, updatedLock);
+
+          process.stdout.write(next);
+          NODE
+              )"
+              tag="launcher-v${version}"
+              if git rev-parse --verify "refs/tags/${tag}" >/dev/null 2>&1; then
+                echo "Release tag already exists: ${tag}" >&2
+                exit 1
+              fi
+
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add \
+                apps/launcher/package.json \
+                apps/launcher/src-tauri/Cargo.toml \
+                apps/launcher/src-tauri/Cargo.lock \
+                apps/launcher/src-tauri/tauri.conf.json
+              git commit -m "Release launcher v${version}" -m "Release-Run: ${RELEASE_RUN_ID}"
+              git tag -a "${tag}" -m "Xom Nghien Launcher v${version}"
+              git push --atomic origin HEAD:main "refs/tags/${tag}"
+            fi
+          fi
+
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "Preparing ${tag}"
+
+  release:
+    needs: prepare
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            args: "--bundles nsis"
+          - os: macos-14
+            args: "--target universal-apple-darwin --bundles dmg"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.2
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Add macOS universal targets
+        if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - run: pnpm install --frozen-lockfile
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/launcher
+          tagName: ${{ needs.prepare.outputs.tag }}
+          releaseName: "Xom Nghien Launcher ${{ needs.prepare.outputs.tag }}"
+          releaseBody: "Unsigned Valheim launcher beta. Windows SmartScreen and macOS Gatekeeper may display a warning. See apps/launcher/README.md for installation notes."
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: false
+          args: ${{ matrix.args }}
+      - name: Package portable Windows launcher
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: apps/launcher/scripts/package-standalone.ps1 -SkipBuild
+      - name: Upload portable Windows launcher
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          $files = Get-ChildItem apps/launcher/artifacts -File | Where-Object { $_.Name -match 'portable\.zip(\.sha256)?$' }
+          if ($files.Count -ne 2) { throw "Expected portable ZIP and checksum, found $($files.Count) files." }
+          foreach ($file in $files) {
+            gh release upload $env:RELEASE_TAG $file.FullName --repo $env:GITHUB_REPOSITORY --clobber
+          }
+
+  checksums:
+    needs: [prepare, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+    steps:
+      - name: Publish SHA-256 checksums
+        run: |
+          set -euo pipefail
+          mkdir artifacts
+          gh release download "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --dir artifacts
+          (cd artifacts && find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt)
+          gh release upload "${RELEASE_TAG}" artifacts/SHA256SUMS.txt --repo "${GITHUB_REPOSITORY}" --clobber

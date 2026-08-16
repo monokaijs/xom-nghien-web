@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+**/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -12,13 +13,24 @@
 
 # testing
 /coverage
+**/coverage
 
 # next.js
 /.next/
+**/.next/
 /out/
 
 # production
 /build
+dist
+**/dist
+**/target/
+**/bin/
+**/obj/
+.turbo
+**/.turbo
+/deploy
+/storage/
 
 # misc
 .DS_Store
@@ -32,6 +44,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!/.env.example
 
 # vercel
 .vercel
@@ -42,3 +55,13 @@ next-env.d.ts
 
 .idea
 .opennext
+
+# desktop launcher generated files
+apps/launcher/src-tauri/gen/
+apps/launcher/src-tauri/icons/android/
+apps/launcher/src-tauri/icons/ios/
+apps/launcher/src-tauri/icons/Square*.png
+apps/launcher/src-tauri/icons/StoreLogo.png
+apps/launcher/artifacts/
+
+.dev-logs

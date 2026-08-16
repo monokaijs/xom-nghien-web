@@ -21,13 +21,15 @@ export async function buildBootstrapManifest(
   serverId: string,
   mods: ServerMod[],
   configs: ServerManagedConfig[],
-  options: { generatedAt?: Date } = {},
+  options: { generatedAt?: Date; includeOptional?: boolean } = {},
 ): Promise<BootstrapManifestPayload> {
-  const required = mods.filter((mod) => mod.requirement === 'required');
-  const communities = new Set(required.map((mod) => mod.community));
+  const selectedMods = options.includeOptional
+    ? mods
+    : mods.filter((mod) => mod.requirement === 'required');
+  const communities = new Set(selectedMods.map((mod) => mod.community));
   if (communities.size > 1) throw new Error('Bootstrap packages must belong to one Thunderstore community');
   const community = [...communities][0] || 'valheim';
-  const coordinates = required.map((mod) => `${mod.namespace}-${mod.packageName}-${mod.versionNumber}`);
+  const coordinates = selectedMods.map((mod) => `${mod.namespace}-${mod.packageName}-${mod.versionNumber}`);
   const packages = await resolveThunderstorePackages(community, coordinates);
   const normalizedConfigs = configs
     .map((config) => ({

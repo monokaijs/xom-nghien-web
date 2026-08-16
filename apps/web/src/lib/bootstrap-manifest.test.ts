@@ -30,6 +30,41 @@ describe('buildBootstrapManifest', () => {
     expect(manifest.configs[0].target).toBe('server');
     expect(manifest.revision).not.toBe(manifest.clientRevision);
   });
+
+  it('includes optional packages in the dedicated-server manifest', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([
+      packageEntry('Author', 'OptionalMod', '1.0.0', []),
+    ]))));
+    const optionalMod: ServerMod = {
+      provider: 'thunderstore', community: 'bootstrap-optional-test', namespace: 'Author', packageName: 'OptionalMod',
+      displayName: 'Optional Mod', versionNumber: '1.0.0', description: null, iconUrl: null,
+      packageUrl: 'https://thunderstore.io/c/bootstrap-optional-test/p/Author/OptionalMod/', requirement: 'optional',
+    };
+
+    const manifest = await buildBootstrapManifest('42', [optionalMod], [], {
+      generatedAt: new Date('2026-08-16T00:00:00Z'),
+      includeOptional: true,
+    });
+
+    expect(manifest.packages.map((item: { coordinate: string }) => item.coordinate)).toEqual([
+      'Author-OptionalMod-1.0.0',
+    ]);
+  });
+
+  it('excludes optional packages unless a server explicitly enables them', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('[]'));
+    vi.stubGlobal('fetch', fetchMock);
+    const optionalMod: ServerMod = {
+      provider: 'thunderstore', community: 'bootstrap-default-test', namespace: 'Author', packageName: 'OptionalMod',
+      displayName: 'Optional Mod', versionNumber: '1.0.0', description: null, iconUrl: null,
+      packageUrl: 'https://thunderstore.io/c/bootstrap-default-test/p/Author/OptionalMod/', requirement: 'optional',
+    };
+
+    const manifest = await buildBootstrapManifest('10', [optionalMod], []);
+
+    expect(manifest.packages).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
 });
 
 function packageEntry(owner: string, name: string, version: string, dependencies: string[]) {

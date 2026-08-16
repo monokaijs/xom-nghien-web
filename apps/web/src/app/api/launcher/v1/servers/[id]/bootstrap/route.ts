@@ -32,6 +32,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       String(serverId),
       mods.get(serverId) || [],
       configs.get(serverId) || [],
+      { includeOptional: serverId === 11 },
     );
     const etag = `"${manifest.revision}"`;
     if (request.headers.get('if-none-match') === etag) {

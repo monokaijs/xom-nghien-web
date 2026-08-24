@@ -6,7 +6,12 @@
 import { FloatingFocusManager } from "@floating-ui/react";
 import { faCheck, faShare } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { CS2Economy, CS2InventoryItem, CS2_MIN_SEED } from "@ianlucas/cs2-lib";
+import {
+  CS2Economy,
+  CS2EconomyItem,
+  CS2InventoryItem,
+  CS2_MIN_SEED
+} from "@ianlucas/cs2-lib";
 import { useCopyToClipboard } from "@uidotdev/usehooks";
 import clsx from "clsx";
 import { ReactNode, useEffect } from "react";
@@ -19,6 +24,7 @@ import { clientGlobals } from "~/globals";
 import { wearToString } from "~/utils/economy";
 import { getInventoryItemShareUrl } from "~/utils/inventory";
 import { usePreferences, useTranslate, useUser } from "./app-context";
+import { useKeyRelease } from "./hooks/use-key-release";
 import { useTimedState } from "./hooks/use-timed-state";
 import { useViewer } from "./hooks/use-viewer";
 import { useViewerAvailability } from "./hooks/use-viewer-availability";
@@ -45,7 +51,7 @@ export function InspectItemHeader({
   title
 }: {
   icon?: ReactNode;
-  item: CS2InventoryItem;
+  item: CS2EconomyItem | CS2InventoryItem;
   subtitle?: ReactNode;
   title?: ReactNode;
 }) {
@@ -176,7 +182,7 @@ function InspectItemDescription({ item }: { item: CS2InventoryItem }) {
     return null;
   }
   return (
-    <div className="m-auto max-w-5xl px-24 pb-4 lg:w-5xl">
+    <div className="scrollbar-transparent m-auto max-h-48 max-w-5xl overflow-y-auto px-24 pb-4 lg:w-5xl">
       {isSealedGraffiti ? (
         <p className="mt-4 whitespace-pre-wrap text-neutral-300">
           {translate("ItemSealedGraffitiDesc")}
@@ -279,7 +285,7 @@ function InspectItem2d({ onClose, onUnsealGraffiti, uid }: InspectItemProps) {
           <InGameOverlay header={<InspectItemHeader item={item} />}>
             <div className="flex size-full items-center justify-center">
               <div className="relative inline-block">
-                <ItemImage className="max-w-lg" item={item} />
+                <ItemImage className="w-lg" item={item} />
                 {item.stickers !== undefined && (
                   <div className="absolute bottom-0 left-0 flex items-center justify-center">
                     {item.someStickers().map(([index, { id, wear }]) => (
@@ -351,6 +357,8 @@ export function InspectItem({
 }: InspectItemProps) {
   const item = useInventoryItem(uid);
   const { canUse3d } = useViewerAvailability(item);
+
+  useKeyRelease("Escape", onClose);
 
   useEffect(() => {
     clientGlobals.inspectedItem = item;

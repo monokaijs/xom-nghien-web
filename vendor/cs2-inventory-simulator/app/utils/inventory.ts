@@ -31,6 +31,7 @@ export const EDITABLE_ITEM_TYPE: CS2ItemType[] = [
 ];
 
 export const INSPECTABLE_ITEM_TYPE: CS2ItemType[] = [
+  CS2ItemType.Agent,
   CS2ItemType.Collectible,
   CS2ItemType.Gloves,
   CS2ItemType.Graffiti,
@@ -129,8 +130,14 @@ export function getFreeItemsToDisplay(hideFreeItems = false) {
 
 export const CHARM_DETACHMENTS_DISPLAY_UID = -9999;
 
-export function getCharmDetachmentsToDisplay(inventory: CS2Inventory) {
-  if (inventory.getAll().some((item) => item.isCharmDetachment())) {
+export function getCharmDetachmentsToDisplay(
+  inventory: CS2Inventory,
+  hideFreeItems = false
+) {
+  if (
+    hideFreeItems ||
+    inventory.getAll().some((item) => item.isCharmDetachment())
+  ) {
     return [];
   }
   return [

@@ -58,17 +58,15 @@ export interface ViewerState {
 export type RateLimitScope = "ip" | "origin" | "partner";
 
 /**
- * Why the viewer can't render the requested item, which the host maps to a
- * cooldown LENGTH (see markViewerUnsupported).
+ * Why the viewer can't render the requested item (see
+ * ViewerClientAvailability.reportUnsupported for how the host reacts).
  *
  * `webgl` means the device can't do 3D at all (WebGL or hardware acceleration
- * unavailable, or a context that keeps dying); being device-level, it suppresses
- * 3D for a good while. `network` means an asset or API load failed AFTER the
- * viewer's own retries (e.g. a Great-Firewall-throttled CDN edge); being
- * transient, it gets a short cooldown that backs off if it keeps failing.
- * `weapon`, `sticker`, `keychain` and `patch` are cs2-lib catalog mismatches,
- * handled by the per-item viewerCatalog gate; `keychain` also covers a charmed
- * weapon whose physics engine failed to load.
+ * unavailable, or a context that keeps dying). `network` means an asset or API
+ * load failed AFTER the viewer's own retries (e.g. a Great-Firewall-throttled
+ * CDN edge). `weapon`, `sticker`, `keychain` and `patch` are cs2-lib catalog
+ * mismatches for the requested item; `keychain` also covers a charmed weapon
+ * whose physics engine failed to load.
  *
  * Any of them flips the host back to its 2D editor. `asset` is the
  * pre-reason-split name, still accepted (and treated as network) from a stale or
@@ -81,13 +79,14 @@ export type ViewerUnsupportedReason =
  * Why a capture produced no frame.
  *
  * Most arrive from the viewer: the `ViewerUnsupportedReason` set, plus
- * `untrusted` (the public tier declining to hand back a watermarked frame) and
- * `disabled` (a viewer built without capture support). `timeout` is synthesised
- * by the host when its own capture deadline expires, so a capture that never
- * answered can be recorded like any other refusal.
+ * `untrusted` (the server reporting the partner key untrusted, as the public
+ * tier declines to hand back a watermarked frame), `disabled` (a viewer loaded
+ * without capture support) and `encode` (the frame failed to encode). `timeout`
+ * comes from the viewer when the render never settled, or is synthesised by the
+ * host when its own capture deadline expires.
  */
 export type ViewerCaptureError =
-  ViewerUnsupportedReason | "untrusted" | "disabled" | "timeout";
+  ViewerUnsupportedReason | "untrusted" | "disabled" | "timeout" | "encode";
 
 /**
  * How long to wait for one capture. Generous because the viewer must compile
@@ -160,6 +159,18 @@ interface PendingReplyOf<K extends keyof ReplyMap> {
 
 type PendingReply = PendingReplyOf<"state"> | PendingReplyOf<"captured">;
 
+function parseViewerItem(value: string | null): ViewerItem | undefined {
+  if (value === null) {
+    return undefined;
+  }
+  try {
+    const item = JSON.parse(value) as ViewerItem | null;
+    return typeof item?.id === "number" ? item : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Typed wrapper over the CS2 3D viewer's postMessage embed API. Construct it with
  * the viewer iframe; it owns the readiness handshake, buffers commands issued
@@ -170,11 +181,19 @@ export class ViewerApi extends EventTarget {
   readonly origin: string;
   isReady = false;
   lastState: ViewerState | undefined;
+  /**
+   * The item the viewer was last asked to show: seeded from the iframe's
+   * `?item=`, then tracked through setItem and state reports.
+   */
+  item: ViewerItem | undefined;
 
   private readonly iframe: HTMLIFrameElement;
   private destroyed = false;
   private queue: (() => void)[] = [];
-  private readyWaiters: (() => void)[] = [];
+  private readyWaiters: {
+    resolve: () => void;
+    reject: (error: Error) => void;
+  }[] = [];
   private readonly pending = new Map<string, PendingReply>();
 
   /**
@@ -185,8 +204,9 @@ export class ViewerApi extends EventTarget {
   constructor(iframe: HTMLIFrameElement, options?: ViewerApiOptions) {
     super();
     this.iframe = iframe;
-    this.origin =
-      options?.origin ?? new URL(iframe.src, window.location.href).origin;
+    const src = new URL(iframe.src, window.location.href);
+    this.origin = options?.origin ?? src.origin;
+    this.item = parseViewerItem(src.searchParams.get("item"));
     window.addEventListener("message", this.onMessage);
     iframe.addEventListener("load", this.onLoad);
     this.solicitReady();
@@ -221,17 +241,24 @@ export class ViewerApi extends EventTarget {
   }
 
   /**
-   * Resolves once the viewer is ready, immediately if it already is.
+   * Resolves once the viewer is ready, immediately if it already is. Rejects if
+   * the viewer is destroyed first.
    */
   whenReady(): Promise<void> {
     if (this.isReady) {
       return Promise.resolve();
     }
-    return new Promise((resolve) => this.readyWaiters.push(resolve));
+    if (this.destroyed) {
+      return Promise.reject(new Error("ViewerApi: destroyed."));
+    }
+    return new Promise((resolve, reject) =>
+      this.readyWaiters.push({ resolve, reject })
+    );
   }
 
   setItem(item: ViewerItemInput): void {
-    this.send("setItem", { item: toViewerItem(item) });
+    this.item = toViewerItem(item);
+    this.send("setItem", { item: this.item });
   }
 
   setStickerWear(data: { index: number; wear: number }): void {
@@ -382,7 +409,7 @@ export class ViewerApi extends EventTarget {
 
   /**
    * Detaches listeners, drops the command queue, and fails any in-flight
-   * getState. Subsequent calls are no-ops.
+   * getState, capture or whenReady. Subsequent calls are no-ops.
    */
   destroy(): void {
     if (this.destroyed) {
@@ -392,7 +419,11 @@ export class ViewerApi extends EventTarget {
     window.removeEventListener("message", this.onMessage);
     this.iframe.removeEventListener("load", this.onLoad);
     this.queue = [];
+    const waiters = this.readyWaiters;
     this.readyWaiters = [];
+    for (const { reject } of waiters) {
+      reject(new Error("ViewerApi: destroyed."));
+    }
     for (const { reject, timer } of this.pending.values()) {
       if (timer !== undefined) {
         clearTimeout(timer);
@@ -463,7 +494,7 @@ export class ViewerApi extends EventTarget {
     }
     const waiters = this.readyWaiters;
     this.readyWaiters = [];
-    for (const resolve of waiters) {
+    for (const { resolve } of waiters) {
       resolve();
     }
   }
@@ -513,6 +544,7 @@ export class ViewerApi extends EventTarget {
         if (pending.kind === "state") {
           const state = data as ViewerState;
           this.lastState = state;
+          this.item = state.item;
           pending.resolve(state);
         } else {
           pending.resolve(data as ViewerCaptured);
@@ -528,6 +560,7 @@ export class ViewerApi extends EventTarget {
       case "change": {
         const state = data as ViewerState;
         this.lastState = state;
+        this.item = state.item;
         this.dispatch("change", state);
         break;
       }

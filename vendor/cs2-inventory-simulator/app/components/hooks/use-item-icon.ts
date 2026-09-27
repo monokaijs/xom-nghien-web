@@ -12,10 +12,14 @@ import {
   useSyncExternalStore
 } from "react";
 import { usePreferences, useRules } from "~/components/app-context";
-import { ViewerItemInput } from "~/data/viewer";
-import { getItemIconKey, isIconRenderable } from "~/utils/item-icon";
+import { getViewerCatalog, ViewerItemInput } from "~/data/viewer";
+import {
+  getItemIconKey,
+  isIconRedundant,
+  isIconRenderable
+} from "~/utils/item-icon";
 import { pauseIconGeneration } from "~/utils/item-icon-generator-role";
-import { forgetIcon, requestIcon } from "~/utils/item-icon-queue";
+import { discardIcon, forgetIcon, requestIcon } from "~/utils/item-icon-queue";
 import {
   getIconUrl,
   getIconUrlServer,
@@ -36,16 +40,10 @@ function getItemEditedAt(item: ViewerItemInput): number | undefined {
 }
 
 export function useItemIconEnabled(): boolean {
-  const {
-    viewerAttachmentsOnly,
-    viewerEnabled,
-    viewerKey,
-    viewerOriginAllowed
-  } = useRules();
+  const { viewer, viewerAttachmentsOnly, viewerKey } = useRules();
   const { prefer2dStickerEditor } = usePreferences();
   return (
-    viewerEnabled === true &&
-    viewerOriginAllowed === true &&
+    viewer.available &&
     viewerAttachmentsOnly !== true &&
     !prefer2dStickerEditor &&
     (viewerKey.trim() !== "" || isOurHostname())
@@ -57,14 +55,28 @@ export function useIconGenerationPausedWhile(active: boolean): void {
 }
 
 export function useItemIcon(item: ViewerItemInput, wanted: boolean) {
-  const { viewerCatalog } = useRules();
+  const { viewer } = useRules();
   const enabled = useItemIconEnabled();
-  const renderable = wanted && enabled && isIconRenderable(viewerCatalog, item);
   const editedAt = getItemEditedAt(item);
+  const redundantKey = useMemo(
+    () => (isIconRedundant(item) ? getItemIconKey(item) : undefined),
+    [item, editedAt]
+  );
+  const renderable =
+    wanted &&
+    enabled &&
+    redundantKey === undefined &&
+    isIconRenderable(getViewerCatalog(viewer), item);
   const key = useMemo(
     () => (renderable ? getItemIconKey(item) : undefined),
     [renderable, item, editedAt]
   );
+
+  useEffect(() => {
+    if (redundantKey !== undefined) {
+      void discardIcon(redundantKey);
+    }
+  }, [redundantKey]);
 
   const subscribe = useCallback(
     (listener: () => void) =>

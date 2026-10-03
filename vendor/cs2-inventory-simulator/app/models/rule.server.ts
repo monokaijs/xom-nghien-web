@@ -12,8 +12,8 @@ import {
 import { z } from "zod";
 import { prisma } from "~/db.server";
 import { STEAM_API_KEY, STEAM_CALLBACK_URL, VIEWER_KEY } from "~/env.server";
-import { resolveMaxAttachments } from "~/utils/attachments";
-import { noop } from "~/utils/misc";
+import { noop } from "~/shared/misc";
+import { resolveLimit } from "~/shared/number";
 
 class RuleFor<RuleValue> {
   constructor(private value: Promise<RuleValue>) {}
@@ -385,14 +385,14 @@ export const inventoryItemMaxPatches = new Rule({
   name: "inventoryItemMaxPatches",
   type: "number",
   defaultValue: -1,
-  transform: (value) => resolveMaxAttachments(value, CS2_MAX_PATCHES)
+  transform: (value) => resolveLimit(value, CS2_MAX_PATCHES)
 });
 
 export const inventoryItemMaxStickers = new Rule({
   name: "inventoryItemMaxStickers",
   type: "number",
   defaultValue: -1,
-  transform: (value) => resolveMaxAttachments(value, CS2_MAX_STICKERS)
+  transform: (value) => resolveLimit(value, CS2_MAX_STICKERS)
 });
 
 export const inventoryItemAllowShare = new Rule({
@@ -433,6 +433,18 @@ export const craftAllowNametag = new Rule({
 
 export const craftAllowSeed = new Rule({
   name: "craftAllowSeed",
+  type: "boolean",
+  defaultValue: true
+});
+
+export const craftAllowStyle = new Rule({
+  name: "craftAllowStyle",
+  type: "boolean",
+  defaultValue: true
+});
+
+export const craftAllowUpgradeLevel = new Rule({
+  name: "craftAllowUpgradeLevel",
   type: "boolean",
   defaultValue: true
 });
@@ -535,6 +547,18 @@ export const editAllowNametag = new Rule({
 
 export const editAllowSeed = new Rule({
   name: "editAllowSeed",
+  type: "boolean",
+  defaultValue: true
+});
+
+export const editAllowStyle = new Rule({
+  name: "editAllowStyle",
+  type: "boolean",
+  defaultValue: true
+});
+
+export const editAllowUpgradeLevel = new Rule({
+  name: "editAllowUpgradeLevel",
   type: "boolean",
   defaultValue: true
 });

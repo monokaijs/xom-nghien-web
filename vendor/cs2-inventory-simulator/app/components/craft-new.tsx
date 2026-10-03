@@ -5,7 +5,7 @@
 
 import { CS2EconomyItem, CS2ItemType } from "@ianlucas/cs2-lib";
 import { useState } from "react";
-import { toArrayIf } from "~/utils/misc";
+import { toArrayIf } from "~/shared/misc";
 import { useInventory, useRules, useTranslate } from "./app-context";
 import { useCraftItemFilter } from "./hooks/use-item-hide-filters";
 import { ItemEditor, ItemEditorAttributes } from "./item-editor";
@@ -37,6 +37,8 @@ export function CraftNew({
     craftAllowStickerWear,
     craftAllowStickerX,
     craftAllowStickerY,
+    craftAllowStyle,
+    craftAllowUpgradeLevel,
     craftAllowWear,
     craftHideType,
     craftMaxQuantity,
@@ -47,7 +49,8 @@ export function CraftNew({
 
   const [inventory] = useInventory();
   const [attributes, setAttributes] = useState<ItemEditorAttributes>();
-  const filterStickerOrPatch = useCraftItemFilter();
+  const filterStickerOrPatch = useCraftItemFilter({ attachment: true });
+  const isItemCraftable = useCraftItemFilter();
 
   const inventoryMaxQuantity = inventoryMaxItems - inventory.size();
   const maxQuantity = Math.min(
@@ -59,6 +62,8 @@ export function CraftNew({
   const isHideSeed = !craftAllowSeed;
   const isHideStatTrak = !craftAllowStatTrak;
   const isHideWear = !craftAllowWear;
+  const isHideStyle = !craftAllowStyle;
+  const isHideUpgradeLevel = !craftAllowUpgradeLevel;
   const isHideStickerRotation = !craftAllowStickerRotation;
   const isHideStickerSchema = !craftAllowStickerSchema;
   const isHideStickerWear = !craftAllowStickerWear;
@@ -107,6 +112,8 @@ export function CraftNew({
         isHideStickerWear={isHideStickerWear}
         isHideStickerX={isHideStickerX}
         isHideStickerY={isHideStickerY}
+        isHideStyle={isHideStyle}
+        isHideUpgradeLevel={isHideUpgradeLevel}
         isHideWear={isHideWear}
         item={item}
         keychainFilter={filterStickerOrPatch}
@@ -123,6 +130,7 @@ export function CraftNew({
         />
         <ModalButton
           children={translate("EditorCraft")}
+          disabled={!isItemCraftable(item)}
           onClick={handleSubmit}
           variant="primary"
         />

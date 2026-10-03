@@ -15,14 +15,14 @@ import clsx from "clsx";
 import { useInventoryItemFloating } from "~/components/hooks/use-inventory-item-floating";
 import { useEditItemFilter } from "~/components/hooks/use-item-hide-filters";
 import { useViewerAvailability } from "~/components/hooks/use-viewer-availability";
+import { getInventoryItemShareUrl } from "~/inventory.client";
 import {
   EDITABLE_ITEM_TYPE,
-  getInventoryItemShareUrl,
   INSPECTABLE_ITEM_TYPE,
   UNLOCKABLE_ITEM_TYPE
-} from "~/utils/inventory";
-import { TransformedInventoryItem } from "~/utils/inventory-transform";
-import { format } from "~/utils/number";
+} from "~/shared/inventory";
+import { TransformedInventoryItem } from "~/shared/inventory-transform";
+import { format } from "~/shared/number";
 import { useInventory, useRules, useTranslate, useUser } from "./app-context";
 import { InventoryItemContextMenu } from "./inventory-item-context-menu";
 import { InventoryItemTile } from "./inventory-item-tile";
@@ -49,6 +49,7 @@ export function InventoryItem({
   onRemove,
   onRemovePatch,
   onRename,
+  onRenamePet,
   onRenameStorageUnit,
   onRetrieveFromStorageUnit,
   onScrapeSticker,
@@ -80,6 +81,7 @@ export function InventoryItem({
   onRemove?: (uid: number) => void;
   onRemovePatch?: (uid: number) => void;
   onRename?: (uid: number) => void;
+  onRenamePet?: (uid: number) => void;
   onRenameStorageUnit?: (uid: number) => void;
   onRetrieveFromStorageUnit?: (uid: number) => void;
   onScrapeSticker?: (uid: number) => void;
@@ -189,8 +191,12 @@ export function InventoryItem({
     UNLOCKABLE_ITEM_TYPE.includes(item.type);
   const hasNametag = item.nameTag !== undefined;
   const isStorageUnit = item.isStorageUnit();
+  const isNameablePet = item.isNameablePet();
   const isEditable = EDITABLE_ITEM_TYPE.includes(item.type);
-  const canInspect = INSPECTABLE_ITEM_TYPE.includes(item.type);
+  const canInspect =
+    INSPECTABLE_ITEM_TYPE.includes(item.type) ||
+    item.isChickenEgg() ||
+    item.isChickenFeed();
   const canInspectInGame =
     inventoryItemAllowInspectInGame &&
     (CS2_PREVIEW_INSPECTABLE_ITEMS.includes(item.type) || item.isNameTag());
@@ -509,6 +515,13 @@ export function InventoryItem({
                                   ? translate("InventoryItemRenameStorageUnit")
                                   : translate("InventoryItemUseStorageUnit"),
                                 onClick: close(() => onRenameStorageUnit?.(uid))
+                              },
+                              {
+                                condition: isNameablePet,
+                                label: hasNametag
+                                  ? translate("InventoryItemRenamePet")
+                                  : translate("InventoryItemNamePet"),
+                                onClick: close(() => onRenamePet?.(uid))
                               }
                             ],
                             [

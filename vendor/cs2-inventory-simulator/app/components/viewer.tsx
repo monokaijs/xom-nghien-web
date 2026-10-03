@@ -4,9 +4,9 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { ComponentPropsWithoutRef, useEffect, useRef, useState } from "react";
-import { useIconGenerationPausedWhile } from "~/components/hooks/use-item-icon";
-import { buildViewerSrc, ViewerItemInput } from "~/data/viewer";
-import { ViewerApi } from "~/utils/viewer-api";
+import { useViewerIconPausedWhile } from "~/components/hooks/use-viewer-icon";
+import { buildViewerSrc, ViewerItemInput } from "~/viewer";
+import { ViewerApi } from "~/viewer-api.client";
 
 export function Viewer({
   apiKey,
@@ -43,7 +43,7 @@ export function Viewer({
     onApiRef.current = onApi;
   }, [onApi]);
 
-  useIconGenerationPausedWhile(capture !== true);
+  useViewerIconPausedWhile(capture !== true);
 
   useEffect(() => {
     const iframe = iframeRef.current;

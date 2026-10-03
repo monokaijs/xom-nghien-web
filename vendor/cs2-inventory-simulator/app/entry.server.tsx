@@ -5,20 +5,22 @@
 
 import { PassThrough } from "node:stream";
 
-import { CS2Economy, CS2_ITEMS } from "@ianlucas/cs2-lib";
-import { english } from "@ianlucas/cs2-lib/translations";
+import { CS2_ITEMS, CS2Economy } from "@ianlucas/cs2-lib";
+import { english } from "@ianlucas/cs2-lib/translations/english";
 import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
-import type { EntryContext } from "react-router";
-import { ServerRouter } from "react-router";
-import { viewerServerAvailability } from "./data/viewer.server";
+import type { EntryContext, HandleErrorFunction } from "react-router";
+import { isRouteErrorResponse, ServerRouter } from "react-router";
+import { viewerServerAvailability } from "./viewer-server-availability.server";
 import { setupLogo } from "./logo.server";
 import { setupRules } from "./models/rule";
-import { scheduleInactivityReset } from "./routines/reset-inactive-inventory";
-import { scheduleEconomyPrices } from "./routines/economy-price";
-import { scheduleInventoryProjection } from "./routines/inventory-projection";
+import { economyPriceLoader } from "./routines/economy-price-loader";
+import { economyProjector } from "./routines/economy-projector";
+import { inactiveInventoryReset } from "./routines/inactive-inventory-reset";
 import { setupPurge } from "./routines/setup-purge";
+import { userInventoryProjector } from "./routines/user-inventory-projector";
+import { logError } from "./shared/monitoring";
 import { setupTranslation } from "./translation.server";
 
 const ABORT_DELAY = 5_000;
@@ -26,13 +28,21 @@ const ABORT_DELAY = 5_000;
 CS2Economy.load({ items: CS2_ITEMS, language: english });
 setupTranslation();
 void setupPurge();
-scheduleInactivityReset();
-scheduleEconomyPrices();
-scheduleInventoryProjection();
+inactiveInventoryReset.start();
+economyProjector.start();
+economyPriceLoader.start();
+userInventoryProjector.start();
 void setupRules().then(() => {
   void setupLogo();
   viewerServerAvailability.start();
 });
+
+export const handleError: HandleErrorFunction = (error, { request }) => {
+  if (request.signal.aborted || isRouteErrorResponse(error)) {
+    return;
+  }
+  logError("Request failed.", { error });
+};
 
 export default function handleRequest(
   request: Request,
@@ -91,7 +101,7 @@ function handleBotRequest(
           // errors encountered during initial shell rendering since they'll
           // reject and get logged in handleDocumentRequest.
           if (shellRendered) {
-            console.error(error);
+            logError("Streaming render failed.", { error });
           }
         }
       }
@@ -137,7 +147,7 @@ function handleBrowserRequest(
           // errors encountered during initial shell rendering since they'll
           // reject and get logged in handleDocumentRequest.
           if (shellRendered) {
-            console.error(error);
+            logError("Streaming render failed.", { error });
           }
         }
       }

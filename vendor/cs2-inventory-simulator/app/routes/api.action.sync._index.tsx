@@ -6,8 +6,6 @@
 import {
   assert,
   CS2BaseInventoryItem,
-  CS2Economy,
-  CS2EconomyItem,
   CS2InventoryItem,
   CS2ItemType,
   RecordValue
@@ -18,6 +16,12 @@ import { requireUser } from "~/auth.server";
 import { ItemEditorAttributes } from "~/components/item-editor";
 import { SyncAction } from "~/data/sync";
 import { middleware } from "~/middleware.server";
+import {
+  craftHideRules,
+  editHideRules,
+  enforceCraftItemHideRules,
+  enforceItemHideRules
+} from "~/models/item-hide-rules.server";
 import {
   craftAllowKeychains,
   craftAllowKeychainSeed,
@@ -33,10 +37,9 @@ import {
   craftAllowStickerWear,
   craftAllowStickerX,
   craftAllowStickerY,
+  craftAllowStyle,
+  craftAllowUpgradeLevel,
   craftAllowWear,
-  craftHideCategory,
-  craftHideId,
-  craftHideModel,
   craftHideType,
   editAllowKeychains,
   editAllowKeychainSeed,
@@ -52,10 +55,9 @@ import {
   editAllowStickerWear,
   editAllowStickerX,
   editAllowStickerY,
+  editAllowStyle,
+  editAllowUpgradeLevel,
   editAllowWear,
-  editHideCategory,
-  editHideId,
-  editHideModel,
   editHideType,
   inventoryItemAllowApplyPatch,
   inventoryItemAllowApplySticker,
@@ -68,15 +70,17 @@ import {
 } from "~/models/rule.server";
 import { manipulateUserInventory } from "~/models/user.server";
 import { methodNotAllowed } from "~/responses.server";
-import { isAttachmentCountAllowed } from "~/utils/attachments";
-import { editInventoryItem } from "~/utils/inventory";
-import { hasKeys } from "~/utils/misc";
-import { nonNegativeInt, optionalNumber, teamShape } from "~/utils/shapes";
+import { editInventoryItem } from "~/shared/inventory";
+import { hasKeys } from "~/shared/misc";
+import { isCountAllowed } from "~/shared/number";
 import {
   clientInventoryItemShape,
   itemEditorAttributesShape,
-  syncInventoryShape
-} from "~/utils/shapes.server";
+  nonNegativeInt,
+  optionalNumber,
+  syncInventoryShape,
+  teamShape
+} from "~/shared/shapes";
 import type { Route } from "./+types/api.action.sync._index";
 
 const keychainPlacementShape = {
@@ -183,6 +187,11 @@ const actionShape = z.discriminatedUnion("type", [
     nameTag: z.string()
   }),
   z.object({
+    type: z.literal(SyncAction.RenamePet),
+    uid: nonNegativeInt,
+    nameTag: z.string()
+  }),
+  z.object({
     depositUids: z.array(nonNegativeInt).max(1),
     type: z.literal(SyncAction.DepositToStorageUnit),
     uid: nonNegativeInt
@@ -242,57 +251,19 @@ async function enforceMaxAttachments(
   target?: CS2InventoryItem
 ) {
   assert(
-    isAttachmentCountAllowed({
+    isCountAllowed({
       current: target?.getPatchesCount() ?? 0,
       max: await inventoryItemMaxPatches.for(userId).get(),
       next: patches !== undefined ? Object.keys(patches).length : 0
     })
   );
   assert(
-    isAttachmentCountAllowed({
+    isCountAllowed({
       current: target?.getStickersCount() ?? 0,
       max: await inventoryItemMaxStickers.for(userId).get(),
       next: stickers !== undefined ? Object.keys(stickers).length : 0
     })
   );
-}
-
-const craftHideRules = {
-  hideId: craftHideId,
-  hideCategory: craftHideCategory,
-  hideType: craftHideType,
-  hideModel: craftHideModel
-};
-
-const editHideRules = {
-  hideId: editHideId,
-  hideCategory: editHideCategory,
-  hideType: editHideType,
-  hideModel: editHideModel
-};
-
-async function enforceItemHideRules(
-  idOrItem: number | CS2EconomyItem,
-  userId: string,
-  {
-    hideId,
-    hideCategory,
-    hideType,
-    hideModel
-  }: typeof craftHideRules | typeof editHideRules
-) {
-  const item = CS2Economy.get(idOrItem);
-  const { type, modelKey, id, loadoutCategory } = item;
-  await hideId.for(userId).notContains(id);
-  if (loadoutCategory !== undefined) {
-    await hideCategory.for(userId).notContains(loadoutCategory);
-  }
-  if (type !== undefined) {
-    await hideType.for(userId).notContains(type);
-  }
-  if (modelKey !== undefined) {
-    await hideModel.for(userId).notContains(modelKey);
-  }
 }
 
 async function enforceCraftRulesForStickerAttributes(
@@ -349,7 +320,16 @@ async function enforceCraftRulesForInventoryItem(
   item: Partial<CS2BaseInventoryItem>,
   userId: string
 ) {
-  const { keychains, stickers, statTrak, wear, seed, nameTag } = item;
+  const {
+    keychains,
+    stickers,
+    statTrak,
+    wear,
+    seed,
+    style,
+    upgradeLevel,
+    nameTag
+  } = item;
   await enforceMaxAttachments(item, userId);
   if (keychains !== undefined && hasKeys(keychains)) {
     await craftAllowKeychains.for(userId).truthy();
@@ -375,6 +355,12 @@ async function enforceCraftRulesForInventoryItem(
   }
   if (seed !== undefined) {
     await craftAllowSeed.for(userId).truthy();
+  }
+  if (style !== undefined) {
+    await craftAllowStyle.for(userId).truthy();
+  }
+  if (upgradeLevel !== undefined) {
+    await craftAllowUpgradeLevel.for(userId).truthy();
   }
   if (nameTag !== undefined) {
     await craftAllowNametag.for(userId).truthy();
@@ -409,7 +395,16 @@ async function enforceEditRulesForInventoryItem(
   userId: string,
   target: CS2InventoryItem
 ) {
-  const { keychains, stickers, statTrak, wear, seed, nameTag } = attributes;
+  const {
+    keychains,
+    stickers,
+    statTrak,
+    wear,
+    seed,
+    style,
+    upgradeLevel,
+    nameTag
+  } = attributes;
   await enforceMaxAttachments(attributes, userId, target);
   if (keychains !== undefined && hasKeys(keychains)) {
     await editAllowKeychains.for(userId).truthy();
@@ -435,6 +430,12 @@ async function enforceEditRulesForInventoryItem(
   }
   if (seed !== undefined) {
     await editAllowSeed.for(userId).truthy();
+  }
+  if (style !== undefined) {
+    await editAllowStyle.for(userId).truthy();
+  }
+  if (upgradeLevel !== undefined) {
+    await editAllowUpgradeLevel.for(userId).truthy();
   }
   if (nameTag !== undefined) {
     await editAllowNametag.for(userId).truthy();
@@ -488,7 +489,7 @@ export const action = api(async ({ request }: Route.ActionArgs) => {
       for (const action of actions) {
         switch (action.type) {
           case SyncAction.Add:
-            await enforceItemHideRules(action.item.id, userId, craftHideRules);
+            await enforceCraftItemHideRules(action.item.id, userId);
             await enforceCraftRulesForInventoryItem(action.item, userId);
             inventory.add(action.item);
             break;
@@ -496,7 +497,7 @@ export const action = api(async ({ request }: Route.ActionArgs) => {
             if (rawInventory === null && !addedFromCache) {
               for (const item of Object.values(action.data.items)) {
                 try {
-                  await enforceItemHideRules(item.id, userId, craftHideRules);
+                  await enforceCraftItemHideRules(item.id, userId);
                   await enforceCraftRulesForInventoryItem(item, userId);
                   inventory.add(item);
                 } catch {}
@@ -505,7 +506,7 @@ export const action = api(async ({ request }: Route.ActionArgs) => {
             }
             break;
           case SyncAction.AddWithNametag:
-            await enforceItemHideRules(action.itemId, userId, craftHideRules);
+            await enforceCraftItemHideRules(action.itemId, userId);
             inventory.addWithNameTag(
               action.toolUid,
               action.itemId,
@@ -516,7 +517,7 @@ export const action = api(async ({ request }: Route.ActionArgs) => {
             await inventoryItemAllowApplyPatch.for(userId).truthy();
             const count = inventory.get(action.targetUid).getPatchesCount();
             assert(
-              isAttachmentCountAllowed({
+              isCountAllowed({
                 current: count,
                 max: await inventoryItemMaxPatches.for(userId).get(),
                 next: count + 1
@@ -540,7 +541,7 @@ export const action = api(async ({ request }: Route.ActionArgs) => {
             await inventoryItemAllowApplySticker.for(userId).truthy();
             const count = inventory.get(action.targetUid).getStickersCount();
             assert(
-              isAttachmentCountAllowed({
+              isCountAllowed({
                 current: count,
                 max: await inventoryItemMaxStickers.for(userId).get(),
                 next: count + 1
@@ -603,6 +604,9 @@ export const action = api(async ({ request }: Route.ActionArgs) => {
           case SyncAction.RenameStorageUnit:
             inventory.renameStorageUnit(action.uid, action.nameTag);
             break;
+          case SyncAction.RenamePet:
+            inventory.renamePet(action.uid, action.nameTag);
+            break;
           case SyncAction.DepositToStorageUnit:
             inventory.depositToStorageUnit(action.uid, action.depositUids);
             break;
@@ -619,7 +623,7 @@ export const action = api(async ({ request }: Route.ActionArgs) => {
             editInventoryItem(inventory, action.uid, action.attributes);
             break;
           case SyncAction.AddWithKeychain:
-            await enforceItemHideRules(action.itemId, userId, craftHideRules);
+            await enforceCraftItemHideRules(action.itemId, userId);
             inventory.addWithKeychain(action.keychainUid, action.itemId, {
               x: action.x,
               y: action.y,
@@ -627,9 +631,9 @@ export const action = api(async ({ request }: Route.ActionArgs) => {
             });
             break;
           case SyncAction.AddWithSticker:
-            await enforceItemHideRules(action.itemId, userId, craftHideRules);
+            await enforceCraftItemHideRules(action.itemId, userId);
             assert(
-              isAttachmentCountAllowed({
+              isCountAllowed({
                 current: 0,
                 max: await inventoryItemMaxStickers.for(userId).get(),
                 next: 1

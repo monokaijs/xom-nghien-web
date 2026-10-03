@@ -5,16 +5,30 @@
 
 import { reactRouter } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
-import { createHash } from "crypto";
-import { readdirSync, readFileSync } from "fs";
-import { resolve } from "path";
+import { readFileSync } from "fs";
+import { dirname, relative, resolve } from "path";
+import { reactRouterHonoServer } from "react-router-hono-server/dev";
 import { minify_sync } from "terser";
 import ts from "typescript";
 import { defineConfig } from "vite";
+import { translationFiles } from "./vite-translation-files.ts";
 
 export default defineConfig({
   server: {
     port: 3000
+  },
+  environments: {
+    client: {
+      build: {
+        sourcemap: process.env.BUILD_SOURCE_MAPS === "true" ? "hidden" : false,
+        rolldownOptions: {
+          output: {
+            sourcemapPathTransform: (source, sourcemapPath) =>
+              relative(process.cwd(), resolve(dirname(sourcemapPath), source))
+          }
+        }
+      }
+    }
   },
   build: {
     rolldownOptions: {
@@ -33,12 +47,17 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true
   },
-  plugins: [tailwindcss(), !process.env.VITEST && reactRouter()],
+  plugins: [
+    tailwindcss(),
+    translationFiles(),
+    !process.env.VITEST && reactRouterHonoServer(),
+    !process.env.VITEST && reactRouter()
+  ],
   define: {
     __SPLASH_SCRIPT__: JSON.stringify(
       minify_sync(
         ts.transpileModule(
-          readFileSync(resolve(process.cwd(), "app/utils/splash.ts"), {
+          readFileSync(resolve(process.cwd(), "app/splash.client.ts"), {
             encoding: "utf-8"
           }),
           {
@@ -50,29 +69,6 @@ export default defineConfig({
           }
         ).outputText
       ).code
-    ),
-    __TRANSLATION_CHECKSUM__: JSON.stringify(
-      (() => {
-        const translationsDir = resolve(process.cwd(), "app/translations");
-        const translationContents = readdirSync(translationsDir)
-          .filter((f) => f.endsWith(".ts") && f !== "index.ts")
-          .sort()
-          .map((f) => readFileSync(resolve(translationsDir, f), "utf-8"))
-          .join("");
-        const cs2LibVersion = JSON.parse(
-          readFileSync(
-            resolve(
-              process.cwd(),
-              "node_modules/@ianlucas/cs2-lib/package.json"
-            ),
-            "utf-8"
-          )
-        ).version;
-        return createHash("sha256")
-          .update(cs2LibVersion + translationContents)
-          .digest("hex")
-          .substring(0, 7);
-      })()
     ),
     __SOURCE_COMMIT__: JSON.stringify(process.env.SOURCE_COMMIT)
   }

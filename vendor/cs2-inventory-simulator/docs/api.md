@@ -46,7 +46,9 @@ type InventoryItem = {
     }
   >;
   storage?: Record<number, InventoryItem>;
+  style?: number;
   updatedAt?: number;
+  upgradeLevel?: number;
   wear?: number;
 };
 type GetUserInventoryResponse = {
@@ -134,6 +136,17 @@ interface GraffitiEconItem {
   tint: number;
   uid: number;
 }
+interface PetEconItem {
+  def: number;
+  hash: string;
+  model: string;
+  nametag: string;
+  petId: number;
+  seed: number;
+  style?: number;
+  uid: number;
+  upgradeLevel: number;
+}
 type GetUserEquippedItemsResponse = {
   agents?: Record<number, AgentEconItem>;
   collectible?: CollectibleEconItem;
@@ -142,6 +155,7 @@ type GetUserEquippedItemsResponse = {
   graffiti?: GraffitiEconItem;
   knives?: Record<number, MeleeEconItem>;
   musicKit?: MusicKitEconItem;
+  pet?: PetEconItem;
   tWeapons?: Record<number, WeaponEconItem>;
 };
 ```
@@ -246,6 +260,8 @@ type PostAddItemRequest = {
           }
         >
       | undefined;
+    style?: number | undefined;
+    upgradeLevel?: number | undefined;
     wear?: number | undefined;
   };
 };
@@ -280,6 +296,8 @@ type PostAddContainerRequest = {
   weapon?: boolean | undefined;
 };
 ```
+
+`language` is a CS2 language name (e.g. `brazilian`) for the container's name and descriptions in the response. English is used when it's omitted or unsupported.
 
 ### Response
 
@@ -348,6 +366,40 @@ type PostAddContainerResponse = {
   wearMax?: number | undefined;
   wearMin?: number | undefined;
 };
+```
+
+## Get user
+
+```http
+GET https://inventory.cstrike.app/api/user/{steamID64}
+```
+
+### Request
+
+> [!IMPORTANT]  
+> API key must have `api` scope and is sent in the `Authorization: Bearer {apiKey}` header.
+
+### Response
+
+- Returns `400` when the `Authorization` header is missing.
+- Returns `401` when using an invalid API key.
+- Returns `200` (`application/json`) with `null` when the user does not exist.
+- Returns `200` (`application/json`) with the user otherwise.
+
+```typescript
+type GetUserResponse = {
+  avatar: string;
+  createdAt: string;
+  groups: {
+    groupId: string;
+    userId: string;
+  }[];
+  id: string;
+  name: string;
+  rawInventory: string | null;
+  syncedAt: string;
+  updatedAt: string;
+} | null;
 ```
 
 ## Sign-in user

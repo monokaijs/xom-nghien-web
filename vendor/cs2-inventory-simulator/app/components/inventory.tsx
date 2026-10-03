@@ -8,6 +8,7 @@ import { useNavigate } from "react-router";
 import { useApplyItemSticker } from "~/components/hooks/use-apply-item-sticker";
 import { useInspectItem } from "~/components/hooks/use-inspect-item";
 import { useRenameItem } from "~/components/hooks/use-rename-item";
+import { useRenamePet } from "~/components/hooks/use-rename-pet";
 import { useScrapeItemSticker } from "~/components/hooks/use-scrape-item-sticker";
 import { useStorageUnit } from "~/components/hooks/use-storage-unit";
 import { useSwapItemsStatTrak } from "~/components/hooks/use-swap-items-stattrak";
@@ -16,7 +17,7 @@ import { useUnlockCase } from "~/components/hooks/use-unlock-case";
 import { useUnpackItem } from "~/components/hooks/use-unpack-item";
 import { InventoryItem } from "~/components/inventory-item";
 import { SyncAction } from "~/data/sync";
-import { playSound } from "~/utils/sound";
+import { playSound } from "~/sound.client";
 import {
   useInventory,
   useInventoryFilter,
@@ -41,11 +42,12 @@ import { InfoIcon } from "./info-icon";
 import { InspectItem } from "./inspect-item";
 import { InventoryGridPlaceholder } from "./inventory-grid-placeholder";
 import { InventorySelectedItem } from "./inventory-selected-item";
-import { ItemIconGenerator } from "./item-icon-generator";
+import { ViewerIconHost } from "./viewer-icon-host";
 import { useItemSelector } from "./item-selector-context";
 import { Presence } from "./presence";
 import { RemoveItemPatch } from "./remove-item-patch";
 import { RenameItem } from "./rename-item";
+import { RenamePet } from "./rename-pet";
 import { RenameStorageUnit } from "./rename-storage-unit";
 import { ScrapeItemSticker } from "./scrape-item-sticker";
 import { SealItemSticker } from "./seal-item-sticker";
@@ -93,6 +95,9 @@ export function Inventory() {
     isRenamingItem,
     renameItem
   } = useRenameItem();
+
+  const { closeRenamePet, handleRenamePet, isRenamingPet, renamePet } =
+    useRenamePet();
 
   const {
     closeRenameStorageUnit,
@@ -246,6 +251,7 @@ export function Inventory() {
     closeInspectItem();
     closeRemoveItemPatch();
     closeRenameItem();
+    closeRenamePet();
     closeRenameStorageUnit();
     closeScrapeItemSticker();
     closeSealItemSticker();
@@ -303,7 +309,7 @@ export function Inventory() {
 
   return (
     <>
-      <ItemIconGenerator />
+      <ViewerIconHost />
       {isSelectingAnItem && (
         <InventorySelectedItem
           {...itemSelector}
@@ -337,6 +343,7 @@ export function Inventory() {
                     onRemove: handleRemove,
                     onRemovePatch: handleRemoveItemPatch,
                     onRename: handleRenameItem,
+                    onRenamePet: handleRenamePet,
                     onRenameStorageUnit: handleRenameStorageUnit,
                     onRetrieveFromStorageUnit: handleRetrieveFromStorageUnit,
                     onScrapeSticker: handleScrapeItemSticker,
@@ -461,6 +468,11 @@ export function Inventory() {
             onClose={closeUnpackItem}
             onUnpacked={handleInspectItem}
           />
+        ) : null}
+      </Presence>
+      <Presence present={isRenamingPet(renamePet)}>
+        {isRenamingPet(renamePet) ? (
+          <RenamePet {...renamePet} onClose={closeRenamePet} />
         ) : null}
       </Presence>
       <Presence present={isUnsealingGraffiti(unsealGraffiti)}>

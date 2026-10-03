@@ -249,7 +249,7 @@ Hides a type from crafting. Example: `agent;case`.
 - **Type:** `string-array`
 - **Default:** _empty_
 
-Hides type from crafting prompt. Example: `sticker`.
+Hides a type from crafting, but still allows it as an attachment. Example: `sticker`.
 
 ### `craftHideModel`
 
@@ -285,6 +285,20 @@ Can the user define Name tag when crafting?
 - **Default:** `true`
 
 Can the user define Seed when crafting?
+
+### `craftAllowStyle`
+
+- **Type:** `boolean`
+- **Default:** `true`
+
+Can the user define a pet's Style when crafting?
+
+### `craftAllowUpgradeLevel`
+
+- **Type:** `boolean`
+- **Default:** `true`
+
+Can the user define a pet's Stage (upgrade level) when crafting?
 
 ### `craftAllowStatTrak`
 
@@ -434,6 +448,20 @@ Can the user define Name tag when editing?
 - **Default:** `true`
 
 Can the user define Seed when editing?
+
+### `editAllowStyle`
+
+- **Type:** `boolean`
+- **Default:** `true`
+
+Can the user define a pet's Style when editing?
+
+### `editAllowUpgradeLevel`
+
+- **Type:** `boolean`
+- **Default:** `true`
+
+Can the user define a pet's Stage (upgrade level) when editing?
 
 ### `editAllowStatTrak`
 

@@ -1,0 +1,66 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Ian Lucas. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+import { CS2Inventory } from "@ianlucas/cs2-lib";
+import { prisma } from "~/db.server";
+import { inventoryInactivityResetDays } from "~/models/rule.server";
+import { getUserInventory, updateUserInventory } from "~/models/user.server";
+import { DAY_IN_MS, isInactive } from "~/shared/inactivity";
+import { safeLoadInventory } from "~/shared/inventory";
+import { logError } from "~/shared/monitoring";
+import { Job } from "~/shared/scheduling";
+import { singleton } from "~/singleton.server";
+
+function isInventoryEmpty(rawInventory: string | null) {
+  if (rawInventory === null) {
+    return true;
+  }
+  const inventory = safeLoadInventory(rawInventory);
+  return inventory === undefined || inventory.size() === 0;
+}
+
+async function resetInactiveInventories() {
+  const days = await inventoryInactivityResetDays.get();
+  if (days <= 0) {
+    return;
+  }
+  const now = Date.now();
+  const users = await prisma.user.findMany({
+    select: { id: true, lastSeenAt: true },
+    where: {
+      rawInventory: { not: null },
+      lastSeenAt: { lt: new Date(now - days * DAY_IN_MS) }
+    }
+  });
+  for (const { id, lastSeenAt } of users) {
+    try {
+      // Re-evaluate per user to honor user/group overrides: 0 = immune, a
+      // larger value = a longer grace period that may not have elapsed yet.
+      const userDays = await inventoryInactivityResetDays.for(id).get();
+      if (!isInactive(lastSeenAt, userDays, now)) {
+        continue;
+      }
+      // Skip already-empty inventories so a permanently-inactive user isn't
+      // reset (and cache-invalidated) on every sweep.
+      if (isInventoryEmpty(await getUserInventory(id))) {
+        continue;
+      }
+      await updateUserInventory(id, new CS2Inventory().stringify());
+    } catch (error) {
+      logError(
+        "Inactive inventory reset: failed to reset a user's inventory.",
+        {
+          error,
+          extra: { userId: id }
+        }
+      );
+    }
+  }
+}
+
+export const inactiveInventoryReset = singleton(
+  "inactiveInventoryReset",
+  () => new Job("Inactive inventory reset", DAY_IN_MS, resetInactiveInventories)
+);

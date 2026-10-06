@@ -91,6 +91,13 @@ Hide the logo in the app.
 
 Hide authentication controls in the app.
 
+### `appShowUnlockFeed`
+
+- **Type:** `boolean`
+- **Default:** `true`
+
+Show signed-in users a chat over their inventory announcing Ancient and Immortal items unlocked from containers. Users with `inventoryAllowProfile` off are never announced.
+
 ## Steam
 
 > [!CAUTION]  
@@ -132,6 +139,13 @@ Max items a storage unit can store.
 - **Default:** `0`
 
 Resets (deletes) a user's inventory after this many days without logging into the website or being fetched by the game server. `0` disables the rule. Set a per-user or per-group override to `0` to make them immune.
+
+### `inventoryAllowProfile`
+
+- **Type:** `boolean`
+- **Default:** `true`
+
+Can the user share their inventory and have it viewed at `/profiles/<steamid>`?
 
 ## Inventory items
 

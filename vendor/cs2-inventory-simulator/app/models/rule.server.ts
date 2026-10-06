@@ -225,6 +225,12 @@ export const inventoryInactivityResetDays = new Rule({
   defaultValue: 0
 });
 
+export const inventoryAllowProfile = new Rule({
+  name: "inventoryAllowProfile",
+  type: "boolean",
+  defaultValue: true
+});
+
 export const appLogoUrl = new Rule({
   name: "appLogoUrl",
   type: "string",
@@ -663,6 +669,12 @@ export const appHideAuth = new Rule({
   name: "appHideAuth",
   type: "boolean",
   defaultValue: false
+});
+
+export const appShowUnlockFeed = new Rule({
+  name: "appShowUnlockFeed",
+  type: "boolean",
+  defaultValue: true
 });
 
 export const viewerEnabled = new Rule({

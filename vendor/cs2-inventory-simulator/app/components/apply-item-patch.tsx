@@ -128,15 +128,13 @@ function ApplyItemPatch3d({
           <ItemImage className="h-25" item={patchItem} />
           <div className="flex items-center gap-2">
             <ModalButton
-              uppercaseless
               children={translate("ApplyStickerConfirmPosition")}
               disabled={confirmed}
               onClick={() => setConfirmed(true)}
-              variant="primary"
+              variant="apply"
             />
             {confirmed ? (
               <ModalButton
-                uppercaseless
                 className="gap-2"
                 onClick={() => setConfirmed(false)}
                 variant="tertiary"
@@ -155,7 +153,6 @@ function ApplyItemPatch3d({
                   className="gap-2"
                   onClick={handleNextPreset}
                   variant="tertiary"
-                  uppercaseless
                 >
                   {translate("ApplyStickerNextPreset")}
                   <img
@@ -176,6 +173,7 @@ function ApplyItemPatch3d({
               <ModalButton
                 children={translate("ApplyPatchUse")}
                 disabled={!confirmed}
+                pulseOnToggle
                 onClick={() => applyPatch(slot)}
                 variant="primary"
               />
@@ -239,10 +237,7 @@ function ApplyItemPatch2d({
                   <button
                     key={xslot}
                     className="group flex h-31.5 w-42 items-center justify-center"
-                    onClick={() => {
-                      setSlot(xslot);
-                      playSound("buttonclick");
-                    }}
+                    onClick={() => setSlot(xslot)}
                   >
                     <div className="rounded-md border-2 border-white/20 p-4 px-6 transition group-hover:border-white/80">
                       <FontAwesomeIcon className="h-4" icon={faPlus} />
@@ -257,6 +252,7 @@ function ApplyItemPatch2d({
                   <ModalButton
                     children={translate("ApplyPatchUse")}
                     disabled={slot === undefined}
+                    pulseOnToggle
                     onClick={handleApplyPatch}
                     variant="primary"
                   />

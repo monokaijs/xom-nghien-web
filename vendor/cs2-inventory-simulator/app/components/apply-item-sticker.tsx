@@ -19,6 +19,7 @@ import { useInventoryItem } from "~/components/hooks/use-inventory-item";
 import { useNameItemString } from "~/components/hooks/use-name-item";
 import { useSync } from "~/components/hooks/use-sync";
 import { SyncAction } from "~/data/sync";
+import { getSoundProps } from "~/interface-sounds";
 import { range } from "~/shared/number";
 import { playSound } from "~/sound.client";
 import { useInventory, useTranslate } from "./app-context";
@@ -277,15 +278,13 @@ function ApplyItemSticker3d({
           </div>
           <div className="flex items-center gap-2">
             <ModalButton
-              uppercaseless
               children={translate("ApplyStickerConfirmPosition")}
               disabled={!confirmEnabled || confirmed}
               onClick={handleConfirm}
-              variant="primary"
+              variant="apply"
             />
             {confirmed ? (
               <ModalButton
-                uppercaseless
                 className="gap-2"
                 onClick={handleCancelConfirm}
                 variant="tertiary"
@@ -304,7 +303,6 @@ function ApplyItemSticker3d({
                   className="gap-2"
                   onClick={handleNextPreset}
                   variant="tertiary"
-                  uppercaseless
                 >
                   {translate("ApplyStickerNextPreset")}
                   <img
@@ -325,6 +323,7 @@ function ApplyItemSticker3d({
               <ModalButton
                 children={translate("ApplyStickerUse")}
                 disabled={!confirmed}
+                pulseOnToggle
                 onClick={() =>
                   applySticker({
                     schema,
@@ -402,6 +401,7 @@ function ApplyItemSticker2d({
                       setSchema(position);
                       playSound("sticker_apply");
                     }}
+                    {...getSoundProps({ press: "none" })}
                   >
                     <div className="rounded-md border-2 border-white/20 p-4 px-6 transition group-hover:border-white/80">
                       <FontAwesomeIcon className="h-4" icon={faPlus} />
@@ -416,6 +416,7 @@ function ApplyItemSticker2d({
                   <ModalButton
                     children={translate("ApplyStickerUse")}
                     disabled={schema === undefined}
+                    pulseOnToggle
                     onClick={() =>
                       schema !== undefined && applySticker({ schema })
                     }

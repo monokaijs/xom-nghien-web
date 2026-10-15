@@ -5,7 +5,8 @@
 
 import clsx from "clsx";
 import { ComponentProps, PointerEvent, useRef, useState } from "react";
-import { getAppVolume } from "~/user-storage";
+import { getSoundProps } from "~/interface-sounds";
+import { playSound, SoundHandle } from "~/sound.client";
 import { ModalButton } from "./modal-button";
 import { TooltipBubble, useTooltip } from "./tooltip";
 
@@ -27,7 +28,7 @@ export function HoldButton({
 }) {
   const [holding, setHolding] = useState(false);
   const fireRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const loopRef = useRef<HTMLAudioElement | undefined>(undefined);
+  const loopRef = useRef<SoundHandle | undefined>(undefined);
 
   const {
     getReferenceProps,
@@ -40,24 +41,13 @@ export function HoldButton({
   });
 
   function startLoop() {
-    if (typeof Audio === "undefined") {
-      return;
-    }
-    const loop = (loopRef.current ??= new Audio(
-      "/sounds/laptop_button_fill_loop_01.wav"
-    ));
-    loop.loop = true;
-    loop.volume = getAppVolume();
-    loop.currentTime = 0;
-    void loop.play().catch(() => {});
+    loopRef.current?.stop();
+    loopRef.current = playSound("laptop_button_fill_loop", { loop: true });
   }
 
   function stopLoop() {
-    const loop = loopRef.current;
-    if (loop !== undefined) {
-      loop.pause();
-      loop.currentTime = 0;
-    }
+    loopRef.current?.stop();
+    loopRef.current = undefined;
   }
 
   function cancel() {
@@ -90,21 +80,28 @@ export function HoldButton({
     <>
       <ModalButton
         {...props}
+        {...getSoundProps({ press: "none" })}
         {...getReferenceProps({
           onPointerCancel: cancel,
           onPointerDown: start,
           onPointerLeave: cancel,
           onPointerUp: cancel
         })}
-        className={clsx("overflow-hidden", props.className)}
+        className={clsx(
+          // `.PopupButtonTimer.Negative` and `.Positive`
+          "overflow-hidden border font-medium uppercase transition-[background-color,filter] duration-250 ease-in-out enabled:hover:brightness-160 disabled:border-transparent",
+          variant === "danger"
+            ? "border-[#DB4437] bg-[rgb(92,27,27)]"
+            : "border-[#0F9D58] bg-[#074E2CB9]",
+          props.className
+        )}
         forwardRef={setReference}
-        variant={variant}
       >
         <span
           aria-hidden
           className={clsx(
             "absolute inset-y-0 left-0",
-            variant === "danger" ? "bg-red-400" : "bg-green-400"
+            variant === "danger" ? "bg-[rgb(136,41,41)]" : "bg-[#0F854CB9]"
           )}
           style={{
             transitionDuration: `${holding ? durationMs : REWIND_MS}ms`,
@@ -113,7 +110,14 @@ export function HoldButton({
             width: holding ? "100%" : "0%"
           }}
         />
-        <span className="relative">{children}</span>
+        <span
+          className={clsx(
+            "relative mix-blend-plus-lighter",
+            variant === "danger" ? "text-[#DB4437]" : "text-[#0F9D58]"
+          )}
+        >
+          {children}
+        </span>
       </ModalButton>
       <TooltipBubble {...bubble} multiline>
         {tooltip}

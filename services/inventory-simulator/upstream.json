@@ -1,8 +1,8 @@
 {
   "owner": "ianlucas",
   "repo": "cs2-inventory-simulator",
-  "release": "v2.43.0",
-  "commit": "7d804cb20d09390b9629411a67d63828897e8bcb",
-  "publishedAt": "2026-10-16T03:38:34Z",
+  "release": "v2.44.0",
+  "commit": "1dd59446b423a163e94469e019e8311ab7f8da5f",
+  "publishedAt": "2026-10-17T12:04:15Z",
   "source": "https://github.com/ianlucas/cs2-inventory-simulator"
 }

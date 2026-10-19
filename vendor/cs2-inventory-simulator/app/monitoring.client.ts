@@ -7,10 +7,19 @@ import * as Sentry from "@sentry/browser";
 import { isbot } from "isbot";
 import { isNetworkError } from "./shared/fetch";
 
+function isSupportedBrowser() {
+  return CSS.supports("color", "color-mix(in srgb, red, red)");
+}
+
 export function initClientMonitoring() {
   const { sentryDsn: dsn, sentryEnvironment: environment } =
     document.documentElement.dataset;
-  if (import.meta.env.DEV || dsn === undefined || isbot(navigator.userAgent)) {
+  if (
+    import.meta.env.DEV ||
+    dsn === undefined ||
+    isbot(navigator.userAgent) ||
+    !isSupportedBrowser()
+  ) {
     return;
   }
   Sentry.init({
@@ -21,7 +30,8 @@ export function initClientMonitoring() {
     allowUrls: [window.location.origin],
     ignoreErrors: [
       /ResizeObserver loop/,
-      "Non-Error promise rejection captured"
+      "Non-Error promise rejection captured",
+      /^TimeoutError: /
     ],
     beforeSend: (event, hint) =>
       isNetworkError(hint.originalException) ? null : event,

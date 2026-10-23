@@ -17,10 +17,13 @@ import { getItemIconKey, getViewerIconSlot } from "./viewer-icon";
 import {
   VIEWER_ICON_API_CALLS_PER_MINUTE,
   VIEWER_ICON_API_CALL_BURST,
+  VIEWER_ICON_CAPTURE_TIMEOUT_MS,
   VIEWER_ICON_IDLE_TEARDOWN_MS,
   VIEWER_ICON_NETWORK_BACKOFF_BASE_MS,
   VIEWER_ICON_NETWORK_BACKOFF_CAP_MS,
+  VIEWER_ICON_PROBE_TIMEOUT_MS,
   VIEWER_ICON_STARTUP_TIMEOUT_MS,
+  VIEWER_ICON_VISIBLE_DWELL_MS,
   VIEWER_ICON_WEBGL_DISABLE_MS,
   ViewerIconBudget,
   ViewerIconEntry,
@@ -36,42 +39,68 @@ interface FakeApi {
   destroy: () => void;
   emit: (type: string, data: unknown) => void;
   reply: (result: Partial<ViewerCaptured>) => void;
+  timeOut: () => void;
 }
 
-function fakeApi({ ready = true }: { ready?: boolean } = {}): FakeApi {
+function fakeApi({
+  answers = true,
+  ready = true
+}: { answers?: boolean; ready?: boolean } = {}): FakeApi {
   const captured: number[] = [];
   const handlers = new Map<string, (data: unknown) => void>();
+  const traffic: string[] = [];
   let pending: ((result: ViewerCaptured) => void) | undefined;
   let fail: ((error: Error) => void) | undefined;
   const api = {
     capture(item: { id: number }) {
       captured.push(item.id);
+      traffic.push(`capture ${item.id}`);
       return new Promise<ViewerCaptured>((resolve, reject) => {
         pending = resolve;
         fail = reject;
       });
     },
+    describeSince: (mark: number) => traffic.slice(mark).join(", "),
+    getState(timeoutMs: number) {
+      traffic.push("getState");
+      if (answers) {
+        traffic.push("state");
+        return Promise.resolve({});
+      }
+      return new Promise((_, reject) =>
+        setTimeout(() => {
+          traffic.push("no state");
+          reject(new Error("ViewerApi: getState timed out."));
+        }, timeoutMs)
+      );
+    },
+    markLog: () => traffic.length,
     on: (type: string, listener: (data: unknown) => void) => {
       handlers.set(type, listener);
       return () => handlers.delete(type);
     },
     whenReady: () => (ready ? Promise.resolve() : new Promise<void>(() => {}))
   } as unknown as ViewerApi;
+  const end = (error: string) => {
+    const reject = fail;
+    fail = undefined;
+    pending = undefined;
+    reject?.(new Error(`ViewerApi: ${error}.`));
+  };
   return {
     api,
     captured,
-    destroy: () => {
-      const reject = fail;
-      fail = undefined;
-      pending = undefined;
-      reject?.(new Error("ViewerApi: destroyed."));
-    },
+    destroy: () => end("destroyed"),
     emit: (type, data) => handlers.get(type)?.(data),
     reply: (result) => {
       const resolve = pending;
       pending = undefined;
       fail = undefined;
       resolve?.({ apiCalls: 1, item: { id: 0 }, ...result });
+    },
+    timeOut: () => {
+      traffic.push("timed out");
+      end("capture timed out");
     }
   };
 }
@@ -137,18 +166,36 @@ function fakeLock({ elsewhere = false }: { elsewhere?: boolean } = {}) {
 }
 
 function setup({
+  dwellMs = 0,
   host = true,
   lock = fakeLock().lock,
   next = () => fakeApi(),
+  onScreen = true,
   strict = false
 }: {
+  dwellMs?: number;
   host?: boolean;
   lock?: ViewerIconLock;
   next?: () => FakeApi | undefined;
+  onScreen?: boolean;
   strict?: boolean;
 } = {}) {
+  stubIntersectionObserver();
   const memory = memoryStore();
-  const icons = new ViewerIcons({ store: memory.store, lock });
+  const icons = new ViewerIcons({ dwellMs, lock, store: memory.store });
+  if (onScreen) {
+    const request = icons.request.bind(icons);
+    const shown = new Set<string>();
+    icons.request = (item, slot = getViewerIconSlot(item)) => {
+      if (!shown.has(slot)) {
+        shown.add(slot);
+        const tile = document.createElement("div");
+        icons.observe(slot, tile);
+        intersect(tile);
+      }
+      request(item, slot);
+    };
+  }
   const mounts: FakeApi[] = [];
   const seeds: (ViewerItemInput | undefined)[] = [];
   let mounted: { generation: number; viewer?: FakeApi } | undefined;
@@ -218,23 +265,39 @@ function stubFocus(initial: boolean) {
   };
 }
 
+type IntersectionCallback = (
+  entries: { isIntersecting: boolean; target: Element }[]
+) => void;
+
+const observedTiles = new Map<Element, IntersectionCallback>();
+
 function stubIntersectionObserver() {
-  let notify: (
-    entries: { isIntersecting: boolean; target: Element }[]
-  ) => void = () => {};
   vi.stubGlobal(
     "IntersectionObserver",
     class {
-      constructor(callback: typeof notify) {
-        notify = callback;
+      private readonly callback: IntersectionCallback;
+      constructor(callback: IntersectionCallback) {
+        this.callback = callback;
       }
-      observe() {}
-      unobserve() {}
+      observe(tile: Element) {
+        observedTiles.set(tile, this.callback);
+      }
+      unobserve(tile: Element) {
+        observedTiles.delete(tile);
+      }
       disconnect() {}
     }
   );
-  return (element: Element) =>
-    notify([{ isIntersecting: true, target: element }]);
+}
+
+function intersect(tile: Element, isIntersecting = true) {
+  observedTiles.get(tile)?.([{ isIntersecting, target: tile }]);
+}
+
+function watch(icons: ViewerIcons, item: ViewerItemInput) {
+  const tile = document.createElement("div");
+  icons.observe(getViewerIconSlot(item), tile);
+  return tile;
 }
 
 async function flush(): Promise<void> {
@@ -264,6 +327,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  observedTiles.clear();
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -271,8 +335,10 @@ afterEach(() => {
 });
 
 describe("ViewerIcons", () => {
-  it("serves a cached icon without asking the viewer to render it", async () => {
-    const { entries, icons, isMounted, mounts, urlOf } = setup();
+  it("serves a cached icon without asking the viewer to render it, on screen or not", async () => {
+    const { entries, icons, isMounted, mounts, urlOf } = setup({
+      onScreen: false
+    });
     entries.set(getItemIconKey(A), { image: new Blob(["x"]) });
 
     icons.request(A);
@@ -350,37 +416,156 @@ describe("ViewerIcons", () => {
   });
 
   it("renders what is on screen before what the user scrolled past", async () => {
-    const intersect = stubIntersectionObserver();
     const viewer = fakeApi();
-    const { attachHost, icons } = setup({ host: false, next: () => viewer });
+    const { attachHost, icons } = setup({
+      dwellMs: VIEWER_ICON_VISIBLE_DWELL_MS,
+      host: false,
+      next: () => viewer,
+      onScreen: false
+    });
 
+    const passed = watch(icons, A);
+    const shown = watch(icons, B);
     icons.request(A);
     icons.request(B);
+    intersect(passed);
+    intersect(passed, false);
+    intersect(shown);
+    await vi.advanceTimersByTimeAsync(VIEWER_ICON_VISIBLE_DWELL_MS);
+    attachHost();
     await flush();
-    const element = document.createElement("div");
-    icons.observe(getViewerIconSlot(B), element);
-    intersect(element);
+    expect(viewer.captured).toEqual([5]);
+
+    viewer.reply({ image: new Blob(["x"]) });
+    await flush();
+    expect(viewer.captured).toEqual([5]);
+  });
+
+  it("still prefers a tile seen on screen before the queue knew of its item", async () => {
+    const viewer = fakeApi();
+    const { attachHost, icons } = setup({
+      dwellMs: VIEWER_ICON_VISIBLE_DWELL_MS,
+      host: false,
+      next: () => viewer,
+      onScreen: false
+    });
+
+    intersect(watch(icons, B));
+    icons.request(A);
+    icons.request(B);
+    await vi.advanceTimersByTimeAsync(VIEWER_ICON_VISIBLE_DWELL_MS);
     attachHost();
     await flush();
 
     expect(viewer.captured).toEqual([5]);
   });
 
-  it("still prefers a tile seen on screen before the queue knew of its item", async () => {
-    const intersect = stubIntersectionObserver();
+  it("draws an item once its tile has stayed on screen for a moment", async () => {
     const viewer = fakeApi();
-    const { attachHost, icons } = setup({ host: false, next: () => viewer });
+    const { icons } = setup({
+      dwellMs: VIEWER_ICON_VISIBLE_DWELL_MS,
+      next: () => viewer,
+      onScreen: false
+    });
 
-    const element = document.createElement("div");
-    icons.observe(getViewerIconSlot(B), element);
-    intersect(element);
+    const tile = watch(icons, A);
     icons.request(A);
-    icons.request(B);
+    intersect(tile);
+    await vi.advanceTimersByTimeAsync(VIEWER_ICON_VISIBLE_DWELL_MS - 1);
+    expect(viewer.captured).toEqual([]);
+
+    await vi.advanceTimersByTimeAsync(1);
     await flush();
-    attachHost();
+    expect(viewer.captured).toEqual([4]);
+  });
+
+  it("does not draw the items the user scrolls straight past", async () => {
+    const viewer = fakeApi();
+    const { icons, isMounted } = setup({
+      dwellMs: VIEWER_ICON_VISIBLE_DWELL_MS,
+      next: () => viewer,
+      onScreen: false
+    });
+
+    for (const item of [A, B, C]) {
+      const tile = watch(icons, item);
+      icons.request(item);
+      intersect(tile);
+      await vi.advanceTimersByTimeAsync(VIEWER_ICON_VISIBLE_DWELL_MS / 3);
+      intersect(tile, false);
+    }
+    await vi.advanceTimersByTimeAsync(VIEWER_ICON_VISIBLE_DWELL_MS * 10);
     await flush();
 
-    expect(viewer.captured).toEqual([5]);
+    expect(viewer.captured).toEqual([]);
+    expect(isMounted()).toBe(false);
+    expect(icons.getStatus().queue.map(({ lane }) => lane)).toEqual([
+      "queued",
+      "queued",
+      "queued"
+    ]);
+  });
+
+  it("never draws an item whose tile was never on screen", async () => {
+    const viewer = fakeApi();
+    const { icons, isMounted } = setup({
+      dwellMs: VIEWER_ICON_VISIBLE_DWELL_MS,
+      next: () => viewer,
+      onScreen: false
+    });
+
+    icons.request(A);
+    await vi.advanceTimersByTimeAsync(VIEWER_ICON_VISIBLE_DWELL_MS * 10);
+    await flush();
+
+    expect(viewer.captured).toEqual([]);
+    expect(isMounted()).toBe(false);
+  });
+
+  it("draws an item whose tile was unmounted once a new tile shows it", async () => {
+    const viewer = fakeApi();
+    const { icons } = setup({
+      dwellMs: VIEWER_ICON_VISIBLE_DWELL_MS,
+      next: () => viewer,
+      onScreen: false
+    });
+
+    const tile = document.createElement("div");
+    const unwatch = icons.observe(getViewerIconSlot(A), tile);
+    icons.request(A);
+    intersect(tile);
+    await flush();
+    unwatch();
+    await vi.advanceTimersByTimeAsync(VIEWER_ICON_VISIBLE_DWELL_MS * 10);
+    expect(viewer.captured).toEqual([]);
+
+    intersect(watch(icons, A));
+    icons.request(A);
+    await vi.advanceTimersByTimeAsync(VIEWER_ICON_VISIBLE_DWELL_MS);
+    await flush();
+    expect(viewer.captured).toEqual([4]);
+  });
+
+  it("finishes drawing an item whose tile scrolls away mid-capture", async () => {
+    const viewer = fakeApi();
+    const { icons, urlOf } = setup({
+      dwellMs: VIEWER_ICON_VISIBLE_DWELL_MS,
+      next: () => viewer,
+      onScreen: false
+    });
+
+    const tile = watch(icons, A);
+    icons.request(A);
+    intersect(tile);
+    await vi.advanceTimersByTimeAsync(VIEWER_ICON_VISIBLE_DWELL_MS);
+    await flush();
+    intersect(tile, false);
+    await flush();
+    viewer.reply({ image: new Blob(["x"]) });
+    await flush();
+
+    expect(viewer.captured).toEqual([4]);
+    expect(urlOf(A)).toBe("blob:1");
   });
 
   it("does not generate while no host is mounted", async () => {
@@ -553,12 +738,128 @@ describe("ViewerIcons", () => {
     expect(urlOf(A)).toBeUndefined();
     expect(consoleError).toHaveBeenCalledWith(
       "[InventorySimulator] The 3D viewer gave up on an item's icon (crashed).",
-      { key: getItemIconKey(A) }
+      expect.objectContaining({ key: getItemIconKey(A) })
     );
 
     icons.request(B);
     await flush();
     expect(viewer.captured.at(-1)).toBe(5);
+  });
+
+  it("reports what passed between the page and each viewer since each capture when it gives up on an item", async () => {
+    let mounted = 0;
+    const { icons, mounts } = setup({
+      next: () => fakeApi({ answers: mounted++ === 0 })
+    });
+
+    icons.request(B);
+    await flush();
+    mounts[0].reply({ image: new Blob(["x"]) });
+    await flush();
+    icons.request(A);
+    await flush();
+    await vi.advanceTimersByTimeAsync(VIEWER_ICON_CAPTURE_TIMEOUT_MS);
+    mounts[0].timeOut();
+    await flush();
+    await vi.advanceTimersByTimeAsync(VIEWER_ICON_CAPTURE_TIMEOUT_MS);
+    mounts[1].timeOut();
+    await flush();
+    await vi.advanceTimersByTimeAsync(VIEWER_ICON_PROBE_TIMEOUT_MS);
+    await flush();
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "[InventorySimulator] The 3D viewer gave up on an item's icon (crashed).",
+      {
+        attempts: [
+          "iframe #1 capture 4, timed out, getState, state",
+          "iframe #2 capture 4, timed out, getState, no state"
+        ],
+        device: { cores: 8, gpu: null, memory: null },
+        key: getItemIconKey(A),
+        recent: [
+          "-95s ok 5",
+          "-50s crashed 4 (this item)",
+          "-0s crashed 4 (this item)"
+        ]
+      }
+    );
+  });
+
+  it("gives a viewer that let a capture time out a few seconds to answer before moving on", async () => {
+    const { icons, mounts } = setup({
+      next: () => fakeApi({ answers: false })
+    });
+
+    icons.request(A);
+    await flush();
+    mounts[0].timeOut();
+    await flush();
+    await vi.advanceTimersByTimeAsync(VIEWER_ICON_PROBE_TIMEOUT_MS - 1);
+    expect(mounts).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await flush();
+    expect(mounts).toHaveLength(2);
+    expect(mounts[1].captured).toEqual([4]);
+  });
+
+  it("counts a capture the viewer let time out, whatever the viewer says while it waits for an answer", async () => {
+    const { icons, mounts } = setup({
+      next: () => fakeApi({ answers: false })
+    });
+
+    icons.request(A);
+    await flush();
+    mounts[0].timeOut();
+    await flush();
+    mounts[0].emit("unsupported", { reason: "network" });
+    await flush();
+
+    const { budget, queue, recent } = icons.getStatus();
+    expect(recent.at(-1)?.outcome).toBe("crashed");
+    expect(queue[0].attempts).toBe(1);
+    expect(budget.cooldownReason).toBeUndefined();
+  });
+
+  it("names the GPU in its report as the viewer does, letting go of the context it asked", async () => {
+    const loseContext = vi.fn();
+    const UNMASKED_VENDOR_WEBGL = 0x9245;
+    const UNMASKED_RENDERER_WEBGL = 0x9246;
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      getExtension: (name: string) =>
+        name === "WEBGL_debug_renderer_info"
+          ? { UNMASKED_RENDERER_WEBGL, UNMASKED_VENDOR_WEBGL }
+          : name === "WEBGL_lose_context"
+            ? { loseContext }
+            : null,
+      getParameter: (parameter: number) =>
+        parameter === UNMASKED_RENDERER_WEBGL
+          ? "ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11 vs_5_0 ps_5_0, D3D11)"
+          : "Google Inc. (Intel)"
+    } as unknown as WebGLRenderingContext);
+    const viewer = fakeApi();
+    const { icons } = setup({ next: () => viewer });
+
+    icons.request(A);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await flush();
+      viewer.reply({ error: "encode" });
+      await flush();
+    }
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "[InventorySimulator] The 3D viewer gave up on an item's icon (encode).",
+      expect.objectContaining({
+        device: expect.objectContaining({
+          gpu: {
+            renderer:
+              "ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11 vs_5_0 ps_5_0, D3D11)",
+            vendor: "Google Inc. (Intel)"
+          }
+        })
+      })
+    );
+    expect(loseContext).toHaveBeenCalledOnce();
   });
 
   it("retries a render that failed to encode, on a fresh viewer", async () => {
@@ -603,7 +904,7 @@ describe("ViewerIcons", () => {
     expect(urlOf(A)).toBeUndefined();
     expect(consoleError).toHaveBeenCalledWith(
       "[InventorySimulator] The 3D viewer gave up on an item's icon (encode).",
-      { key: getItemIconKey(A) }
+      expect.objectContaining({ key: getItemIconKey(A) })
     );
   });
 
@@ -1229,14 +1530,14 @@ describe("ViewerIcons", () => {
       capturing: getItemIconKey(A)
     });
     expect(status.queue.map(({ key, lane }) => ({ key, lane }))).toEqual([
-      { key: getItemIconKey(A), lane: "queued" },
-      { key: getItemIconKey(B), lane: "queued" }
+      { key: getItemIconKey(A), lane: "visible" },
+      { key: getItemIconKey(B), lane: "visible" }
     ]);
 
     viewer.reply({ image: new Blob(["x"]) });
     await flush();
     expect(icons.getStatus().recent).toEqual([
-      { at: Date.now(), key: getItemIconKey(A), outcome: "ok" }
+      { at: Date.now(), id: 4, key: getItemIconKey(A), outcome: "ok" }
     ]);
     expect(icons.getStatus().published).toBe(1);
   });
@@ -1281,6 +1582,21 @@ describe("ViewerIcons", () => {
         getItemIconKey(B),
         getItemIconKey(item)
       ]);
+    });
+
+    it("renders an edited item straight away, even while its tile is off screen", async () => {
+      const viewer = fakeApi();
+      const { icons } = setup({ next: () => viewer, onScreen: false });
+      const item = add(1);
+
+      watch(icons, item);
+      icons.request(item);
+      await flush();
+      expect(viewer.captured).toEqual([]);
+
+      icons.request(edit(item, 0.2));
+      await flush();
+      expect(viewer.captured).toEqual([244]);
     });
 
     it("renders the most recent edit first when several are waiting", async () => {

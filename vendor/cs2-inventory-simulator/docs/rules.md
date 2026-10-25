@@ -98,6 +98,13 @@ Hide authentication controls in the app.
 
 Show signed-in users a chat over their inventory announcing Ancient and Immortal items unlocked from containers. Users with `inventoryAllowProfile` off are never announced.
 
+### `appShowCommunity`
+
+- **Type:** `boolean`
+- **Default:** `false`
+
+Turn the Unboxing League on: the Community page, its header link, the Stats settings and the payout on unlocked items for stats for nerds. Unlocks by users it's off for aren't logged, so they don't play. While it's off for everyone, rankings aren't generated.
+
 ## Steam
 
 > [!CAUTION]  
@@ -582,6 +589,26 @@ Can the user define Charm Y offset when editing?
 
 Can the user define Charm Z offset when editing?
 
+## Community
+
+The Community page ranks signed-in users in the Unboxing League, a weekly minigame played in Simulator Dollars (S$). Every container a signed-in user unlocks is a bet: it costs the container's average payout, and the drop pays how many unlocks of that container it takes, on average, to get something at least as good. Rarer drops pay more, then StatTrak, then lower floats, with any float in the best 1% of the item's range paying the most. Every container is a fair bet, so no container is better to play than another. Payouts and prices come from the odds the container is unlocked with, never from market prices.
+
+Weeks start on Monday at 00:00 UTC. Once a user can't afford a container, their unlocks keep working but stop counting until the next week. Users are ranked by the week's profit, and ties go to whoever got there first. Users with `inventoryAllowProfile` off still play, but aren't ranked. Unlocks by signed-out users are rolled in the browser, so they never count.
+
+### `communityRankingIntervalHours`
+
+- **Type:** `number`
+- **Default:** `1`
+
+How many hours the week's ranking is kept before it's generated again. Rankings are checked every 5 minutes, so `0` generates it on every check. Last week's ranking is generated once more a minute after the week ends. User and group overrides are ignored.
+
+### `communityWeeklyBudget`
+
+- **Type:** `number`
+- **Default:** `1000`
+
+How many Simulator Dollars every user starts each week with. User and group overrides are ignored, so everyone plays with the same budget. Changing it applies to the current week right away.
+
 ## CSFloat
 
 ### `csFloatUrl`
@@ -642,7 +669,8 @@ Can anyone consume a charge of the user's equipped graffiti using `POST /api/con
 There are two ways to override rules: by adding records to `GroupRule` and `UserRule` tables. Users can be grouped by creating a record on `Group` table, and then associating each user to a group on `UserGroup`.
 
 1. If the system finds a rule for a user in `UserRule`, that rule will be enforced.
-2. If the system finds a rule for a group the user is in, on `GroupRule` table, that rule will enforced. If the user is associated to multiple groups, the rule for the group with the higher `priority` will be enforced.
+2. Otherwise, if any group the user is in has the rule in `GroupRule`, the rule from the group with the highest `priority` among them will be enforced. If several of those groups share the highest `priority`, the one whose `id` sorts first is used.
+3. Otherwise, the rule's value in `Rule` will be enforced.
 
 > [!TIP]  
-> For example, consider `admin` and `vip` groups - if a user is associated to both, you'd make sure `admin`'s `priority` is higher than `vip`'s.
+> Groups can build on each other. For example, consider `admin` and `vip` groups - if a user is associated to both, you'd make sure `admin`'s `priority` is higher than `vip`'s. `admin` only needs the rules that differ from `vip`: any rule `admin` doesn't override still comes from `vip`.
